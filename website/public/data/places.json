@@ -1,0 +1,114 @@
+[
+ {
+  "id": "brazil",
+  "label": "Brazil",
+  "bbox": [
+   -74,
+   -34,
+   -34.5,
+   5.5
+  ],
+  "base": "./data/brazil",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 78311
+  }
+ },
+ {
+  "id": "argentina",
+  "label": "Argentina",
+  "bbox": [
+   -73.6,
+   -55.1,
+   -53.6,
+   -21.7
+  ],
+  "base": "./data/argentina",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 12652
+  }
+ },
+ {
+  "id": "bolivia",
+  "label": "Bolivia",
+  "bbox": [
+   -69.7,
+   -23,
+   -57.4,
+   -9.6
+  ],
+  "base": "./data/bolivia",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 13355
+  }
+ },
+ {
+  "id": "paraguay",
+  "label": "Paraguay",
+  "bbox": [
+   -62.7,
+   -27.7,
+   -54.2,
+   -19.2
+  ],
+  "base": "./data/paraguay",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 5617
+  }
+ }
+]
