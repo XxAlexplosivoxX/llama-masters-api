@@ -30,6 +30,18 @@ you change behaviour.
 - Never commit secrets. `FIRMS_MAP_KEY` lives only in `website/.env.local` (git-ignored).
 - Commit in small phases with clear messages; the team pushes to `main`.
 
+### Sibling app: `../website-graphs/` (owned by a teammate)
+
+A standalone analytics module (Vite + React, port 5174) that will later sit next to the map. It
+**imports `website/src/lib/{series,data,geo,types}.ts` directly** (see
+`website-graphs/src/lib/shared.ts`) and serves `website/public` as its public dir, so its numbers
+match the website exactly. Consequences:
+
+- Treat the exports of `series.ts`, `data.ts`, `geo.ts`, `types.ts` and the files in
+  `public/data/` as a shared contract. Renaming or changing a signature or file format breaks
+  `website-graphs`. After such a change, run `npm ci && npx tsc --noEmit` in `../website-graphs`.
+- Do not edit `website-graphs/` unless asked; coordinate with its owner.
+
 ## 2. Run, build, verify
 
 Windows + PowerShell or Git Bash, Node 24, npm (no pnpm, no Python).
