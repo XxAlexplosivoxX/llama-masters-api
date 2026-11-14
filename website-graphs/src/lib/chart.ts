@@ -1,10 +1,10 @@
 import { MUTED, TEXT } from "./color";
 
 // Shared SVG text tokens: fixed px sizes so type never scales with the card.
-export const TICK = { size: 11, fill: MUTED, weight: 400 } as const;
+export const TICK = { size: 12, fill: MUTED, weight: 400 } as const;
 export const AXIS = { size: 12, fill: MUTED, weight: 400 } as const;
 export const VALUE = { size: 12, fill: TEXT, weight: 600 } as const;
-export const NOTE = { size: 11, fill: MUTED, weight: 400 } as const;
+export const NOTE = { size: 12, fill: MUTED, weight: 400 } as const;
 
 /** Compact tick labels: 1.2k, 12k, 1.3M. */
 export function fmtTick(value: number): string {
