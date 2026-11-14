@@ -14,7 +14,7 @@ With mise, from the repository root: `mise run web:dev`, `mise run web:build`.
 
 ## Data
 
-Each country lives in `public/data/<country>/` (committed) and is listed in `public/data/places.json`. Built: Brazil (the MVP), Bolivia, Paraguay, Argentina, Colombia.
+Each country lives in `public/data/<country>/` (committed) and is listed in `public/data/places.json`. Built: Brazil (the MVP, opens first), the other 12 South American countries, and **South America** as a whole (`south-america`, the sum of the country grids with its own harmonization fit).
 
 | File | Content |
 | --- | --- |
@@ -32,13 +32,14 @@ FIRMS_MAP_KEY=...   # https://firms.modaps.eosdis.nasa.gov/api/map_key/ ; never 
 npm run data:brazil                                  # Brazil
 npm run data:country -- --country bolivia            # any country in COUNTRIES (scripts/build-country.mjs)
 npm run data:country -- --country brazil --no-api    # archives only, no key needed
+npm run data:country -- --region south-america        # after the countries: sums them, refits
 ```
 
 Downloads are aggregated per sensor and year into `.cache/` (git-ignored), so a rerun only fetches the current year and the last 7 days. A first Brazil build streams about 2.5 GB. The API allows 5,000 transactions per 10 minutes; the script waits when it hits the limit.
 
 ### MODIS and VIIRS harmonization
 
-Raw VIIRS reports about 3.7× more detections than MODIS over Brazil because its pixels are smaller, so raw counts are never compared directly. The **Harmonized** series estimates what MODIS would have reported from VIIRS, per 0.5° cell and calendar month:
+Raw VIIRS reports about 3.7× more detections than MODIS over Brazil because its pixels are smaller, so raw counts are never compared directly. The calendar and map show one **harmonized record** by default: MODIS alone before 2012, then the mean of MODIS and VIIRS converted to the MODIS scale. The conversion estimates what MODIS would have reported from VIIRS, per 0.5° cell and calendar month:
 
 MODIS ≈ k_m · ((1 + VIIRS)^β_m − 1)
 
