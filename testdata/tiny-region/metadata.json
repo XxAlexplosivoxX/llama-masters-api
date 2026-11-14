@@ -1,0 +1,14 @@
+{
+  "name": "tiny-region",
+  "note": "Synthetic test fixture for llama-masters-api tests; not real observations.",
+  "generated_at_utc": "2026-11-14T12:00:00+00:00",
+  "extract": {
+    "generated_at_utc": "2026-11-14T11:00:00+00:00",
+    "request": {"countries": [], "bbox": [-90, 13, -88, 15], "start": "2026-10-26", "end": "2026-11-14", "sensors": ["viirs-snpp", "viirs-noaa20"]},
+    "source_coverage": {
+      "viirs-snpp": [{"start": "2026-10-26", "end": "2026-11-02", "kind": "api", "source": "VIIRS_SNPP_NRT"}, {"start": "2026-11-03", "end": "2026-11-14", "kind": "missing", "reason": "outside FIRMS API availability"}],
+      "viirs-noaa20": [{"start": "2026-10-26", "end": "2026-11-14", "kind": "api", "source": "VIIRS_NOAA20_NRT"}]
+    }
+  },
+  "hotspots": {"first_day": "2026-11-10", "last_day": "2026-11-14", "features": 6}
+}

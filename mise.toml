@@ -1,0 +1,27 @@
+[tools]
+go = "1.27.4"
+
+[env]
+# Local settings such as API_TOKEN; .env is git-ignored, see .env.example.
+_.file = { path = ".env", redact = true }
+
+[tasks.dev]
+description = "Run the API with settings from .env"
+run = "go run ./cmd/llama-api serve"
+
+[tasks.test]
+description = "Run all tests"
+run = "go test ./..."
+
+[tasks.vet]
+description = "Static checks"
+run = "go vet ./..."
+
+[tasks.build]
+description = "Build a static binary into bin/llama-api"
+env = { CGO_ENABLED = "0" }
+run = "go build -trimpath -ldflags='-s -w' -o bin/llama-api ./cmd/llama-api"
+
+[tasks.push]
+description = "Upload a prepared region: mise run push -- --dir PATH [--url URL] [--name NAME]"
+run = "go run ./cmd/llama-api push"
