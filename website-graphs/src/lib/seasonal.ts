@@ -12,7 +12,7 @@ export interface BandPoint {
   n: number;
 }
 
-function percentile(sorted: number[], p: number): number {
+export function percentile(sorted: number[], p: number): number {
   const i = (sorted.length - 1) * p;
   const lo = Math.floor(i);
   return sorted[lo] + (sorted[lo + 1] !== undefined ? (i - lo) * (sorted[lo + 1] - sorted[lo]) : 0);
@@ -40,4 +40,41 @@ export function seasonalBand(series: MonthlySeries, stats: Stats, focusYear: num
       n,
     };
   });
+}
+
+/** Median of the baseline years' annual totals (the "typical year"); null without enough years. */
+export function medianYear(stats: Stats): number | null {
+  if (stats.baselineYears.length < MIN_BASELINE_YEARS) return null;
+  return percentile(stats.baselineYears.map((y) => stats.yearTotals.get(y)!).sort((a, b) => a - b), 0.5);
+}
+
+export type Position = "below p10" | "p10 to median" | "median to p90" | "above p90";
+
+export interface CurrentMonth {
+  index: number;
+  value: number;
+  partial: boolean;
+  provisional: boolean;
+  p10: number | null;
+  p50: number | null;
+  p90: number | null;
+  n: number;
+  position: Position | null;
+  /** value / median − 1, only for complete, non-provisional months. */
+  anomaly: number | null;
+}
+
+/** Most recent month with data against the same calendar month in the other baseline years. */
+export function currentMonth(series: MonthlySeries, stats: Stats): CurrentMonth | null {
+  let index = series.values.length - 1;
+  while (index >= 0 && series.values[index] === null) index--;
+  if (index < 0) return null;
+  const year = series.startYear + Math.floor(index / 12);
+  const point = seasonalBand(series, stats, year)[index % 12];
+  const value = point.value!;
+  const { p10, p50, p90, partial, provisional, n } = point;
+  const position: Position | null = p10 === null ? null
+    : value < p10 ? "below p10" : value > p90! ? "above p90" : value < p50! ? "p10 to median" : "median to p90";
+  const anomaly = !partial && !provisional && p50 ? value / p50 - 1 : null;
+  return { index, value, partial, provisional, p10, p50, p90, n, position, anomaly };
 }

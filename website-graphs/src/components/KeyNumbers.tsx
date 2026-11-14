@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import { anomalyScale } from "../lib/color";
 import { fmt, fmtCompact, fmtPercent, ordinal } from "../lib/format";
 import { labelOf, MIN_BASELINE_YEARS, MONTHS, rankOf, SERIES_LABEL, type Range, type Stats } from "../lib/shared";
+import { medianYear } from "../lib/seasonal";
 import type { MonthlySeries } from "../types";
 
 interface Props {
@@ -26,7 +27,8 @@ function Figure({ label, children, caption }: { label: string; children: React.R
 export function KeyNumbers({ series, stats, range, focusYear }: Props) {
   const kind = series.kind ?? "HARMONIZED";
   const total = focusYear !== null ? stats.yearTotals.get(focusYear) ?? null : null;
-  const rel = total !== null && stats.meanYear ? total / stats.meanYear - 1 : null;
+  const median = medianYear(stats);
+  const rel = total !== null && median ? total / median - 1 : null;
   const rank = total !== null && stats.baselineYears.includes(focusYear!) ? rankOf(stats, focusYear!) : null;
   const partials = Array.from({ length: range.to - range.from + 1 }, (_, i) => range.from + i)
     .filter((m) => series.partial[m]).length;
@@ -50,7 +52,7 @@ export function KeyNumbers({ series, stats, range, focusYear }: Props) {
         {stats.peak ? `${MONTHS[stats.peak.from]}–${MONTHS[stats.peak.to]}` : "—"}
       </Figure>
       <Figure
-        label={focusYear !== null ? `${focusYear} vs average` : "Year vs average"}
+        label={focusYear !== null ? `${focusYear} vs median year` : "Year vs median year"}
         caption={rank !== null
           ? rank === 1 ? `Most active of ${stats.baselineYears.length} years` : `${ordinal(rank)} most active of ${stats.baselineYears.length}`
           : total === null && focusYear !== null ? `${focusYear} is incomplete`

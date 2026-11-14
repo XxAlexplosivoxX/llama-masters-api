@@ -7,6 +7,7 @@ import { usingApi } from "./lib/shared";
 import { AreaRanking } from "./components/AreaRanking";
 import { Calendar } from "./components/Calendar";
 import { Card } from "./components/Card";
+import { CurrentMonth } from "./components/CurrentMonth";
 import { FocusMonth } from "./components/FocusMonth";
 import { Harmonization } from "./components/Harmonization";
 import { KeyNumbers } from "./components/KeyNumbers";
@@ -108,6 +109,11 @@ function Module({ data }: { data: PlaceData }) {
           <div className="bento-kpi">
             <KeyNumbers series={series} stats={stats} range={range} focusYear={focus} />
           </div>
+
+          <Card className="bento-now" title="Current month vs history"
+            subtitle="Latest month against the same month in the baseline years">
+            <CurrentMonth series={series} stats={stats} />
+          </Card>
 
           <Card className="bento-curve" title={`Seasonal curve · ${SERIES_LABEL[kind]}`}
             subtitle="Focus year vs the baseline p10–p90 band">
