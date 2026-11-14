@@ -64,7 +64,8 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
 
   return (
     <div className="rounded-2xl border border-grid bg-card p-4">
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="flex flex-1 flex-wrap items-end gap-x-4 gap-y-3">
         <div>
           <Label>Place</Label>
           <PlaceSwitcher
@@ -112,8 +113,10 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
           </div>
         )}
 
+        </div>
+
         {series && bounds && active && (
-          <div className="min-w-72">
+          <div className="w-full sm:w-[34rem] sm:max-w-[42%] xl:ml-auto">
             <DateRange
               startYear={startYear} bounds={bounds} range={active}
               baselineFrom={series.baselineFrom} focusYear={data.focus}
