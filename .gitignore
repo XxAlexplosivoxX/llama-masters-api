@@ -1,6 +1,8 @@
 .env
 bin/
 data/
+# Built country data for the website ships with the static site (website/.gitignore still skips regions/).
+!website/public/data/
 *.db
 *.db-shm
 *.db-wal

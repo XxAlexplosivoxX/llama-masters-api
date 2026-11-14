@@ -14,22 +14,37 @@ With mise, from the repository root: `mise run web:dev`, `mise run web:build`.
 
 ## Data
 
-Everything the app needs for Brazil is committed in `public/data/brazil/`:
+Each country lives in `public/data/<country>/` (committed) and is listed in `public/data/places.json`. Built: Brazil (the MVP), Bolivia, Paraguay, Argentina, Colombia.
 
 | File | Content |
 | --- | --- |
-| `monthly_grid.json` | MODIS Terra + Aqua (Collection 6.1 standard), counts per 0.5° cell and month, Nov 2000 to Dec 2025. Kept: confidence ≥ 30 and `type = 0` (vegetation fire). |
-| `recent_hotspots.json` | Last 7 days of near-real-time MODIS and VIIRS (NOAA-20, NOAA-21) points inside Brazil. |
-| `meta.json` | Build date and source URLs. |
+| `monthly_grid.json` | Detections per 0.5° cell and month for **MODIS** (Terra + Aqua, C6.1, from Nov 2000) and **VIIRS S-NPP** (C2, 375 m, from Jan 2012), to the latest available day, plus the fitted MODIS-equivalent adjustment and its test scores. Kept: MODIS confidence ≥ 30, VIIRS not `low`, `type = 0` where reported. |
+| `recent_hotspots.json` | Last 7 days of near-real-time MODIS and VIIRS (S-NPP, NOAA-20, NOAA-21) points inside the country. |
+| `meta.json` | Build date, coverage per sensor, test score. |
 
-Rebuild them from FIRMS (no API key; about one minute):
+Past years come from NASA's yearly country archives (no key). The current year comes from the FIRMS area API, standard processing where released and near-real-time after it (flagged provisional), which needs a free key in `website/.env.local`:
 
 ```sh
-npm run data:brazil                     # history + last 7 days
-npm run data:brazil -- --skip-history   # only refresh the last 7 days
+FIRMS_MAP_KEY=...   # https://firms.modaps.eosdis.nasa.gov/api/map_key/ ; never prefix with VITE_
 ```
 
-Averages and rankings use 2003 onward, when both MODIS satellites flew. Earlier years are shown but faded.
+```sh
+npm run data:brazil                                  # Brazil
+npm run data:country -- --country bolivia            # any country in COUNTRIES (scripts/build-country.mjs)
+npm run data:country -- --country brazil --no-api    # archives only, no key needed
+```
+
+Downloads are aggregated per sensor and year into `.cache/` (git-ignored), so a rerun only fetches the current year and the last 7 days. A first Brazil build streams about 2.5 GB. The API allows 5,000 transactions per 10 minutes; the script waits when it hits the limit.
+
+### MODIS and VIIRS harmonization
+
+Raw VIIRS reports about 3.7× more detections than MODIS over Brazil because its pixels are smaller, so raw counts are never compared directly. The **Harmonized** series estimates what MODIS would have reported from VIIRS, per 0.5° cell and calendar month:
+
+MODIS ≈ k_m · ((1 + VIIRS)^β_m − 1)
+
+β_m is the log-log slope over cell-months where VIIRS saw fire (β < 1: one large fire fills many 375 m pixels but fewer 1 km ones), and k_m makes the training totals match. It is fitted on 2012–2019 and tested on 2020–2025 against real MODIS. For Brazil, the monthly error (WAPE) is 10.0 % with −3 % bias, against 10.6 % for a single fixed ratio and 270 % for raw VIIRS. The panel shows the same check for any selected area, and the monthly CSV keeps raw MODIS, raw VIIRS and the harmonized column side by side.
+
+Averages and rankings use 2003 onward for MODIS (both satellites flying) and 2012 onward for VIIRS.
 
 ### Other regions
 

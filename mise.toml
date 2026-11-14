@@ -34,7 +34,7 @@ dir = "website"
 run = "npm install && npm run build"
 
 [tasks."web:data"]
-description = "Rebuild the Brazil history and recent points from NASA FIRMS (no key needed)"
+description = "Rebuild Brazil (MODIS + VIIRS history, current year, last 7 days) from NASA FIRMS; current year needs FIRMS_MAP_KEY"
 dir = "website"
 run = "npm run data:brazil"
 

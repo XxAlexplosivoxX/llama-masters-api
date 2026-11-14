@@ -7,8 +7,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "data:brazil": "node scripts/build-brazil.mjs",
-    "data:sync": "node scripts/sync-data.mjs"
+    "data:brazil": "node scripts/build-country.mjs --country brazil",
+    "data:sync": "node scripts/sync-data.mjs",
+    "data:country": "node scripts/build-country.mjs"
   },
   "dependencies": {
     "@fontsource-variable/public-sans": "^5.3.0",
