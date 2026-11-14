@@ -6,6 +6,7 @@ import { fullRange, labelOf } from "../lib/shared";
 import type { SeriesKind } from "../types";
 import { AreaFilter } from "./AreaFilter";
 import { DateRange } from "./DateRange";
+import { ExportMenu } from "./ExportMenu";
 import { PlaceSwitcher } from "./PlaceSwitcher";
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -79,6 +80,11 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
             onSelect={set.setPlace}
             onUpload={() => fileRef.current?.click()}
           />
+        </div>
+
+        <div>
+          <Label>Export</Label>
+          <ExportMenu data={data} />
         </div>
 
         {isGrid && (

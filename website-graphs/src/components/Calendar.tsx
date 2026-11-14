@@ -4,6 +4,7 @@ import { ALERT, fireflyScale, GRID, MUTED, TEXT } from "../lib/color";
 import { fmt } from "../lib/format";
 import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/shared";
 import { useWidth } from "../hooks/useWidth";
+import { CALENDAR_EXPORT } from "./ExportMenu";
 import type { MonthlySeries } from "../types";
 
 interface Props {
@@ -39,7 +40,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   return (
     <div ref={ref}>
       {width > 0 && (
-        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block" role="grid"
+        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block" role="grid" {...{ [CALENDAR_EXPORT]: "" }}
           aria-label="Hotspots by year and month">
           <defs>
             <pattern id="partial" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
