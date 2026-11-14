@@ -1,9 +1,13 @@
-import { Check, ChevronDown, Crosshair, Hexagon, Square } from "lucide-react";
+import { Check, ChevronDown, Crosshair, Hexagon, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useDismiss } from "../hooks/useDismiss";
 import type { DrawMode, MapLayer } from "../map/engine";
-import type { Place } from "../lib/types";
-import { squareAround } from "../lib/geo";
+import type { BBox, Place } from "../lib/types";
+import { COMING_SOON } from "../lib/data";
+import { areaKm2, bboxOf, bboxPolygon, squareAround } from "../lib/geo";
+import { fmt, fmtKm2 } from "../lib/format";
+import { describeBBox, fmtPoint, overlaps, parseDegrees, parseNumber, type Parsed } from "../lib/validate";
 
 const pop = {
   initial: { opacity: 0, y: -6, scale: 0.98 },
@@ -11,19 +15,6 @@ const pop = {
   exit: { opacity: 0, y: -6, scale: 0.98 },
   transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const },
 };
-
-function useDismiss(open: boolean, close: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) close(); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("pointerdown", onDown); document.removeEventListener("keydown", onKey); };
-  }, [open]);
-  return ref;
-}
 
 export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; current: Place | null; onSelect: (id: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -57,7 +48,16 @@ export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; 
                 </button>
               </li>
             ))}
-            <li className="px-3 py-2 text-xs text-muted">More countries are added as the data team prepares them.</li>
+            <li className="mt-1 border-t border-border px-3 pb-1 pt-2.5 text-2xs font-semibold uppercase tracking-wider text-muted">Coming soon</li>
+            {COMING_SOON.map((c) => (
+              <li key={c.label} aria-disabled className="flex items-start gap-3 px-3 py-1.5 opacity-55">
+                <span className="w-4" />
+                <span>
+                  <span className="block text-sm">{c.label}</span>
+                  <span className="block text-xs text-muted">{c.note}. Same pipeline, not built yet.</span>
+                </span>
+              </li>
+            ))}
           </motion.ul>
         )}
       </AnimatePresence>
@@ -69,74 +69,196 @@ interface ToolsProps {
   drawMode: DrawMode | null;
   onDrawMode: (mode: DrawMode | null) => void;
   onCoordinates: (polygon: GeoJSON.Polygon, label: string) => void;
+  bounds: BBox | null;
+  placeLabel: string;
 }
 
-export function DrawTools({ drawMode, onDrawMode, onCoordinates }: ToolsProps) {
+export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLabel }: ToolsProps) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
-  const [lat, setLat] = useState("-9.5");
-  const [lon, setLon] = useState("-55.5");
-  const [radius, setRadius] = useState("150");
-  const [error, setError] = useState("");
+  // One tool at a time: starting to draw closes the coordinates form, opening the form stops drawing.
+  useEffect(() => { if (drawMode) setOpen(false); }, [drawMode]);
 
   const tools: { mode: DrawMode; label: string; icon: React.ReactNode }[] = [
     { mode: "rectangle", label: "Rectangle", icon: <Square size={16} aria-hidden /> },
     { mode: "polygon", label: "Shape", icon: <Hexagon size={16} aria-hidden /> },
   ];
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const la = Number(lat), lo = Number(lon), r = Number(radius);
-    if (!(la >= -85 && la <= 85)) return setError("Latitude goes from -85 to 85.");
-    if (!(lo >= -180 && lo <= 180)) return setError("Longitude goes from -180 to 180.");
-    if (!(r >= 10 && r <= 1500)) return setError("Use a distance from 10 to 1,500 km.");
-    setError("");
-    setOpen(false);
-    onCoordinates(squareAround(la, lo, r), `${r} km around ${la.toFixed(2)}, ${lo.toFixed(2)}`);
-  }
+  const highlight = <motion.span layoutId="tool" className="absolute inset-0 rounded-[9px] bg-accent/25 ring-1 ring-accent" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />;
 
   return (
     <div ref={ref} className="relative">
       <div className="seg" role="group" aria-label="Choose an area">
         {tools.map((t) => (
-          <button key={t.mode} aria-pressed={drawMode === t.mode} onClick={() => onDrawMode(drawMode === t.mode ? null : t.mode)}
+          <button key={t.mode} aria-pressed={drawMode === t.mode}
+            onClick={() => { setOpen(false); onDrawMode(drawMode === t.mode ? null : t.mode); }}
             title={`Draw a ${t.label.toLowerCase()} on the map`}>
-            {drawMode === t.mode && <motion.span layoutId="tool" className="absolute inset-0 rounded-[9px] bg-accent/25 ring-1 ring-accent" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />}
+            {drawMode === t.mode && highlight}
             <span className="relative inline-flex items-center gap-1.5">{t.icon}<span className="hidden sm:inline">{t.label}</span></span>
           </button>
         ))}
         <button aria-pressed={open} aria-expanded={open} onClick={() => { onDrawMode(null); setOpen(!open); }} title="Enter coordinates">
+          {open && highlight}
           <span className="relative inline-flex items-center gap-1.5"><Crosshair size={16} aria-hidden /><span className="hidden sm:inline">Coordinates</span></span>
         </button>
       </div>
-      <AnimatePresence>
-        {drawMode && (
-          <motion.p {...pop} className="absolute right-0 top-full mt-2 w-60 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl">
-            {drawMode === "rectangle" ? "Click two opposite corners on the map." : "Click to add points; click the first point to finish."}
+      <AnimatePresence mode="wait">
+        {drawMode && !open && (
+          <motion.p key="hint" {...pop} role="status" className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl">
+            {drawMode === "rectangle" ? "Click two opposite corners on the map." : "Click to add points; click the first point to finish. Lines cannot cross."}
             {" "}Esc cancels.
           </motion.p>
         )}
         {open && (
-          <motion.form {...pop} onSubmit={submit}
-            className="absolute right-0 top-full z-30 mt-2 grid w-72 origin-top-right gap-3 rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/60">
-            <p className="text-sm font-semibold">Area around a point</p>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="grid gap-1 text-xs text-muted">Latitude
-                <input className="field num" inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} />
-              </label>
-              <label className="grid gap-1 text-xs text-muted">Longitude
-                <input className="field num" inputMode="decimal" value={lon} onChange={(e) => setLon(e.target.value)} />
-              </label>
-            </div>
-            <label className="grid gap-1 text-xs text-muted">Distance from the point (km)
-              <input className="field num" inputMode="numeric" value={radius} onChange={(e) => setRadius(e.target.value)} />
-            </label>
-            {error && <p className="text-xs text-[#ff9d8f]" role="alert">{error}</p>}
-            <button className="btn btn-primary" type="submit">Show this area</button>
-          </motion.form>
+          <CoordinateForm key="form" bounds={bounds} placeLabel={placeLabel}
+            onSubmit={(polygon, label) => { setOpen(false); onCoordinates(polygon, label); }} />
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+type Tab = "point" | "box";
+type Key = "lat" | "lon" | "km" | "north" | "south" | "west" | "east";
+const PARSE: Record<Key, (raw: string) => Parsed> = {
+  lat: (v) => parseDegrees(v, "lat"),
+  lon: (v) => parseDegrees(v, "lon"),
+  km: (v) => parseNumber(v, { min: 10, max: 1500, unit: "km" }),
+  north: (v) => parseDegrees(v, "lat"),
+  south: (v) => parseDegrees(v, "lat"),
+  west: (v) => parseDegrees(v, "lon"),
+  east: (v) => parseDegrees(v, "lon"),
+};
+const TAB_KEYS: Record<Tab, Key[]> = { point: ["lat", "lon", "km"], box: ["north", "west", "east", "south"] };
+const LABEL: Record<Key, string> = {
+  lat: "Latitude", lon: "Longitude", km: "Distance from the point (km)", north: "North", south: "South", west: "West", east: "East",
+};
+const round = (v: number) => String(Math.round(v * 10) / 10);
+
+function CoordinateForm({ bounds, placeLabel, onSubmit }: {
+  bounds: BBox | null; placeLabel: string; onSubmit: (polygon: GeoJSON.Polygon, label: string) => void;
+}) {
+  const [tab, setTab] = useState<Tab>("point");
+  const [values, setValues] = useState<Record<Key, string>>(() => {
+    const [w, s, e, n] = bounds ?? [-74, -34, -34.5, 5.5];
+    const lat = bounds ? (s + n) / 2 : -9.5, lon = bounds ? (w + e) / 2 : -55.5;
+    return {
+      lat: round(lat), lon: round(lon), km: "150",
+      north: round(lat + 2), south: round(lat - 2), west: round(lon - 2), east: round(lon + 2),
+    };
+  });
+  const [touched, setTouched] = useState<Set<Key>>(new Set());
+  const [submitted, setSubmitted] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
+
+  const keys = TAB_KEYS[tab];
+  const parsed = Object.fromEntries(keys.map((k) => [k, PARSE[k](values[k])])) as Record<Key, Parsed>;
+  const fieldsOk = keys.every((k) => parsed[k].value !== undefined);
+  const v = (k: Key) => parsed[k].value!;
+
+  // Cross-field checks run only once every field parses.
+  let polygon: GeoJSON.Polygon | null = null;
+  let problem = "";
+  if (fieldsOk) {
+    if (tab === "point") polygon = squareAround(v("lat"), v("lon"), v("km"));
+    else if (v("south") >= v("north")) problem = "North must be above South.";
+    else if (v("west") >= v("east")) problem = "East must be greater than West (boxes cannot cross the 180° line).";
+    else if (v("north") - v("south") < 0.1 || v("east") - v("west") < 0.1) problem = "Make the box at least 0.1° (about 11 km) on each side.";
+    else polygon = bboxPolygon([v("west"), v("south"), v("east"), v("north")]);
+    if (polygon && bounds && !overlaps(bboxOf(polygon), bounds)) {
+      problem = `This area is outside ${placeLabel}. Data covers ${describeBBox(bounds)}.`;
+      polygon = null;
+    }
+  }
+
+  const show = (k: Key) => (submitted || touched.has(k)) && parsed[k].error;
+  const set = (k: Key, value: string) => setValues((old) => ({ ...old, [k]: value }));
+  const blur = (k: Key) => setTouched((old) => new Set(old).add(k));
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitted(true);
+    if (!polygon) {
+      const bad = keys.find((k) => parsed[k].error);
+      form.current?.querySelector<HTMLInputElement>(`[name="${bad ?? keys[0]}"]`)?.focus();
+      return;
+    }
+    const label = tab === "point"
+      ? `${fmt(v("km"))} km around ${fmtPoint(v("lat"), v("lon"))}`
+      : `Box ${fmtPoint(v("north"), v("west"))} to ${fmtPoint(v("south"), v("east"))}`;
+    onSubmit(polygon, label);
+  }
+
+  const field = (k: Key, extra?: React.ReactNode) => (
+    <label key={k} className="grid gap-1 text-xs text-muted">
+      {LABEL[k]}
+      <input name={k} className="field num" inputMode={k === "km" ? "numeric" : "text"} autoComplete="off" spellCheck={false}
+        value={values[k]} onChange={(e) => set(k, e.target.value)} onBlur={() => blur(k)}
+        aria-invalid={!!show(k)} aria-describedby={show(k) ? `${k}-error` : undefined} />
+      {extra}
+      {show(k) && <span id={`${k}-error`} className="text-2xs leading-snug text-[#FF9D8F]">{parsed[k].error}</span>}
+    </label>
+  );
+
+  const chip = (km: number) => (
+    <button key={km} type="button" onClick={() => set("km", String(km))}
+      className={`num rounded-md border px-2 py-0.5 text-2xs ${values.km === String(km) ? "border-accent text-text" : "border-border hover:text-text"}`}>
+      {km} km
+    </button>
+  );
+
+  return (
+    <motion.form {...pop} ref={form} onSubmit={submit} noValidate
+      className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/60">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold">Area by coordinates</p>
+        <div className="seg !p-0.5" role="tablist" aria-label="Kind of area">
+          {(["point", "box"] as Tab[]).map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={t === tab} aria-pressed={t === tab}
+              className="!min-h-8 !px-2.5 !text-xs" onClick={() => { setTab(t); setSubmitted(false); }}>
+              {t === tab && <motion.span layoutId="coord-tab" className="absolute inset-0 rounded-[9px] bg-surface-2 ring-1 ring-border" transition={{ type: "spring", bounce: 0.2, duration: 0.35 }} />}
+              <span className="relative">{t === "point" ? "Point" : "Box"}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "point" ? (
+        <>
+          <div className="grid grid-cols-2 gap-2">{field("lat")}{field("lon")}</div>
+          {field("km", <span className="flex gap-1.5">{[50, 150, 500].map(chip)}</span>)}
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="col-span-2 mx-auto w-1/2">{field("north")}</div>
+          {field("west")}{field("east")}
+          <div className="col-span-2 mx-auto w-1/2">{field("south")}</div>
+        </div>
+      )}
+      <p className="text-2xs leading-snug text-muted">
+        Decimal degrees, like <span className="num">-9.5</span> or <span className="num">9.5 S</span>. South and west are negative.
+      </p>
+      {(submitted || touched.size > 0) && problem && <p className="text-xs text-[#FF9D8F]" role="alert">{problem}</p>}
+      {polygon && <p className="num text-xs text-muted" aria-live="polite">About {fmtKm2(areaKm2(polygon))}</p>}
+      <button className="btn btn-primary" type="submit">Show this area</button>
+    </motion.form>
+  );
+}
+
+/** The current selection, shown under the tools so it is clear what the panel describes and how to undo it. */
+export function SelectionChip({ label, placeLabel, hidden, onClear }: { label: string | null; placeLabel: string; hidden: boolean; onClear: () => void }) {
+  return (
+    <AnimatePresence>
+      {label && !hidden && (
+        <motion.div {...pop} key="selection"
+          className="flex max-w-[22rem] items-center gap-2 rounded-xl border border-accent/50 bg-bg/85 py-1 pl-3 pr-1 text-sm backdrop-blur-md">
+          <span className="h-2 w-2 shrink-0 rounded-[2px] border border-accent bg-accent/30" aria-hidden />
+          <span className="min-w-0 truncate num" title={label}>{label}</span>
+          <button onClick={onClear} className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-accent hover:bg-accent/15"
+            title={`Back to all of ${placeLabel}`}>
+            <X size={14} aria-hidden /> Clear
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

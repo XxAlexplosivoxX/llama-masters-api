@@ -12,6 +12,8 @@
   --color-nasa-blue: #0B3D91;
   --color-accent: #4C8DFF;
   --color-nasa-red: #FC3D21;
+  --color-modis: #FFB547;
+  --color-viirs: #3DD6D0;
 
   --color-heat-0: #1B2338;
   --color-heat-1: #3B0F70;
@@ -88,6 +90,8 @@
   .seg > button:hover { color: var(--color-text); }
 
   .field {
+    width: 100%;
+    min-width: 0;
     min-height: 40px;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
@@ -97,6 +101,7 @@
     color-scheme: dark;
   }
   .field:focus { border-color: var(--color-accent); outline: none; }
+  .field[aria-invalid="true"] { border-color: #FF7A66; background: color-mix(in oklab, #FF7A66 8%, var(--color-surface-2)); }
 
   .btn {
     min-height: 44px;
@@ -132,13 +137,35 @@
   background: var(--color-surface);
   color: var(--color-text);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px !important;
+  padding: 12px 14px;
   font: var(--text-xs)/1.5 var(--font-sans);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
 }
-.maplibregl-popup-tip { border-top-color: var(--color-border) !important; border-bottom-color: var(--color-border) !important; }
-.maplibregl-popup-close-button { color: var(--color-muted); font-size: 16px; padding: 2px 6px; }
+/* The tip is a CSS triangle: recolour whichever side points at the feature. */
+.maplibregl-popup-tip { border-color: transparent !important; }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--color-border) !important; }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--color-border) !important; }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--color-border) !important; }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--color-border) !important; }
+.maplibregl-popup-close-button {
+  color: var(--color-muted); font-size: 18px; width: 28px; height: 28px; top: 4px; right: 4px; border-radius: 6px;
+}
+.maplibregl-popup-close-button:hover { background: var(--color-surface-2); color: var(--color-text); }
+.hotspot-popup .hp-head { display: flex; align-items: center; gap: 8px; padding-right: 22px; }
+.hotspot-popup .hp-badge {
+  font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.06em; padding: 1px 7px; border-radius: 999px;
+  color: var(--c); background: color-mix(in oklab, var(--c) 16%, transparent); border: 1px solid color-mix(in oklab, var(--c) 45%, transparent);
+}
+.hotspot-popup .hp-sat { font-weight: 600; font-size: var(--text-sm); }
+.hotspot-popup .hp-when { margin: 4px 0 8px; color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.hotspot-popup dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; padding-top: 8px; border-top: 1px solid var(--color-border); }
+.hotspot-popup dt { color: var(--color-muted); }
+.hotspot-popup dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; text-transform: capitalize; }
 
 /* Calendar cells: keyboard focus ring drawn inside the cell. */
 .cell:focus-visible { outline: none; }

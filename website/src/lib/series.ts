@@ -1,5 +1,5 @@
 import { contains } from "./geo";
-import type { MonthlyGrid, MonthlySeries, Shape, WeeklyRow } from "./types";
+import type { MonthlyGrid, MonthlySeries, SeriesKind, Shape, WeeklyRow } from "./types";
 
 export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
@@ -21,19 +21,87 @@ export function cellsIn(grid: MonthlyGrid, shape: Shape | null): number[] {
   return picked;
 }
 
-export function gridSeries(grid: MonthlyGrid, cells: number[]): MonthlySeries {
+export const SERIES_LABEL: Record<SeriesKind, string> = { MODIS: "MODIS", VIIRS: "VIIRS", MODIS_EQ: "MODIS-equivalent" };
+const sensorOfKind = (kind: SeriesKind) => (kind === "MODIS" ? "MODIS" : "VIIRS");
+
+/** VIIRS detections in one cell-month on the MODIS scale: k_m · ((1 + v)^β_m − 1). */
+export function modisEquivalent(grid: MonthlyGrid, viirs: number, month: number): number {
+  if (viirs <= 0) return 0;
+  const c = grid.harmonization.coefficients[month % 12];
+  return c.k * ((1 + viirs) ** c.beta - 1);
+}
+
+/** Per-cell monthly values for one series kind. The adjustment is applied cell by cell, then summed. */
+export function cellValues(grid: MonthlyGrid, kind: SeriesKind): number[][] {
+  if (kind === "MODIS") return grid.cells.map((c) => c[2]);
+  if (kind === "VIIRS") return grid.cells.map((c) => c[3]);
+  return grid.cells.map((c) => c[3].map((v, m) => modisEquivalent(grid, v, m)));
+}
+
+/** Month indexes a sensor fully covers, partly covers, and where provisional data begins. */
+export function coverage(grid: MonthlyGrid, kind: SeriesKind) {
+  const info = grid.sensors[sensorOfKind(kind)];
   const startYear = Number(grid.start_month.slice(0, 4));
-  const first = monthIndex(grid.first_source_month, startYear);
-  const last = monthIndex(grid.last_source_month, startYear);
-  const values: (number | null)[] = Array.from({ length: grid.months }, (_, m) => (m < first || m > last ? null : 0));
-  for (const i of cells) {
-    const counts = grid.cells[i][2];
-    for (let m = first; m <= last; m++) values[m]! += counts[m];
-  }
-  return {
-    startYear, values, partial: values.map(() => false), approximate: false, source: grid.series,
-    baselineFrom: grid.baseline_from_year, baselineNote: grid.baseline_note,
+  const first = monthIndex(info.first_source_day.slice(0, 7), startYear);
+  const last = monthIndex(info.last_source_day.slice(0, 7), startYear);
+  const endOfMonth = (day: string) => {
+    const d = new Date(`${day}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    return d.getUTCDate() === 1;
   };
+  return {
+    startYear, first, last, info,
+    firstPartial: !info.first_source_day.endsWith("-01"),
+    lastPartial: !endOfMonth(info.last_source_day),
+    provisionalFrom: info.provisional_from_day ? monthIndex(info.provisional_from_day.slice(0, 7), startYear) : undefined,
+  };
+}
+
+export function gridSeries(grid: MonthlyGrid, values: number[][], cells: number[], kind: SeriesKind): MonthlySeries {
+  const { startYear, first, last, info, firstPartial, lastPartial, provisionalFrom } = coverage(grid, kind);
+  const out: (number | null)[] = Array.from({ length: grid.months }, (_, m) => (m < first || m > last ? null : 0));
+  for (const i of cells) {
+    const counts = values[i];
+    for (let m = first; m <= last; m++) out[m]! += counts[m];
+  }
+  const partial = out.map((_, m) => (m === first && firstPartial) || (m === last && lastPartial));
+  return {
+    startYear, values: out, partial, approximate: false, kind, provisionalFrom,
+    source: kind === "MODIS_EQ" ? `MODIS-equivalent, estimated from ${info.series}` : info.series,
+    baselineFrom: info.baseline_from_year, baselineNote: info.baseline_note,
+  };
+}
+
+/** How close the MODIS-equivalent series is to real MODIS for these cells, over the held-out years. */
+export function localCheck(grid: MonthlyGrid, modis: number[][], eq: number[][], cells: number[]) {
+  const startYear = Number(grid.start_month.slice(0, 4));
+  const [a, b] = grid.harmonization.test_years;
+  let absError = 0, actual = 0, fitted = 0;
+  for (let m = (a - startYear) * 12; m < (b - startYear + 1) * 12; m++) {
+    let A = 0, P = 0;
+    for (const i of cells) { A += modis[i][m]; P += eq[i][m]; }
+    absError += Math.abs(P - A); actual += A; fitted += P;
+  }
+  if (actual < 50) return null; // too few detections to say anything
+  return { years: [a, b] as const, wape: absError / actual, bias: fitted / actual - 1, actual };
+}
+
+/** Annual totals per series for these cells, over the years both sensors fully cover. */
+export function annualComparison(grid: MonthlyGrid, all: Record<SeriesKind, number[][]>, cells: number[]) {
+  const startYear = Number(grid.start_month.slice(0, 4));
+  const modis = coverage(grid, "MODIS"), viirs = coverage(grid, "VIIRS");
+  const firstYear = startYear + Math.ceil((Math.max(modis.first, viirs.first) + (viirs.firstPartial ? 1 : 0)) / 12);
+  const lastFull = Math.min(modis.last - (modis.lastPartial ? 1 : 0), viirs.last - (viirs.lastPartial ? 1 : 0));
+  const lastYear = startYear + Math.floor((lastFull + 1) / 12) - 1;
+  const rows: { year: number; MODIS: number; VIIRS: number; MODIS_EQ: number }[] = [];
+  for (let y = firstYear; y <= lastYear; y++) {
+    const row = { year: y, MODIS: 0, VIIRS: 0, MODIS_EQ: 0 };
+    for (const kind of ["MODIS", "VIIRS", "MODIS_EQ"] as const) {
+      for (let m = (y - startYear) * 12; m < (y - startYear + 1) * 12; m++) for (const i of cells) row[kind] += all[kind][i][m] ?? 0;
+    }
+    rows.push(row);
+  }
+  return rows;
 }
 
 /**

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { loadPlace, loadPlaces } from "./lib/data";
 import { areaKm2, bboxOf, contains } from "./lib/geo";
 import {
-  cellsIn, computeStats, fullRange, gridSeries, latestCompleteYear, type Range, weeklyToMonthly,
+  annualComparison, cellValues, cellsIn, computeStats, fullRange, gridSeries, latestCompleteYear, localCheck, type Range,
+  weeklyToMonthly,
 } from "./lib/series";
-import type { BBox, Hotspot, Loaded, MonthlySeries, Place, Shape } from "./lib/types";
+import type { BBox, Hotspot, Loaded, MonthlySeries, Place, SeriesKind, Shape } from "./lib/types";
 import { fmtKm2 } from "./lib/format";
 
 export type Status =
@@ -25,6 +26,7 @@ export function useExplorer() {
   const [range, setRange] = useState<Range | null>(null);
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
+  const [kind, setKind] = useState<SeriesKind>("MODIS");
 
   useEffect(() => {
     loadPlaces()
@@ -68,11 +70,26 @@ export function useExplorer() {
     [loaded, shape],
   );
 
+  // Per-cell monthly values for each series, computed once per place.
+  const values = useMemo(() => {
+    if (!loaded || !("grid" in loaded)) return null;
+    const g = loaded.grid;
+    return { MODIS: cellValues(g, "MODIS"), VIIRS: cellValues(g, "VIIRS"), MODIS_EQ: cellValues(g, "MODIS_EQ") };
+  }, [loaded]);
+
   const series: MonthlySeries | null = useMemo(() => {
     if (!loaded) return null;
-    if ("grid" in loaded) return cells.length ? gridSeries(loaded.grid, cells) : null;
+    if ("grid" in loaded) return cells.length && values ? gridSeries(loaded.grid, values[kind], cells, kind) : null;
     return weeklyToMonthly(loaded.weekly, platform, areaId);
-  }, [loaded, cells, platform, areaId]);
+  }, [loaded, values, cells, kind, platform, areaId]);
+
+  const harmonization = useMemo(() => {
+    if (!loaded || !("grid" in loaded) || !values || !cells.length) return null;
+    return {
+      check: localCheck(loaded.grid, values.MODIS, values.MODIS_EQ, cells),
+      annual: annualComparison(loaded.grid, values, cells),
+    };
+  }, [loaded, values, cells]);
 
   const seriesRange = useMemo(() => (series ? fullRange(series) : null), [series]);
   const activeRange = range && seriesRange
@@ -109,8 +126,11 @@ export function useExplorer() {
     places, place, loaded, status,
     shape, setShape: (next: Shape | null) => { setShape(next); setFocusYear(null); },
     areaId, setAreaId, platform, setPlatform,
-    series, stats, cells,
-    range: activeRange, setRange, resetRange: () => setRange(null),
+    series, stats, cells, kind, setKind, values, harmonization,
+    range: activeRange,
+    setRange: (next: Range) => setRange({ from: Math.min(next.from, next.to), to: Math.max(next.from, next.to) }),
+    resetRange: () => setRange(null),
+    seriesRange,
     focus, setFocusYear,
     hoverMonth, setHoverMonth,
     recent, placeBBox, selectionLabel,

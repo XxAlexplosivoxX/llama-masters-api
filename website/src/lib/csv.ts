@@ -11,7 +11,8 @@ export function download(name: string, rows: object[]) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-export function monthlyRows(series: MonthlySeries, stats: Stats, range: Range, area: string) {
+/** `extra` adds one column per series (e.g. raw MODIS, raw VIIRS, harmonized) so the adjustment can be inspected. */
+export function monthlyRows(series: MonthlySeries, stats: Stats, range: Range, area: string, extra: Record<string, (number | null)[]> = {}) {
   const rows = [];
   for (let m = range.from; m <= range.to; m++) {
     const value = series.values[m];
@@ -26,7 +27,9 @@ export function monthlyRows(series: MonthlySeries, stats: Stats, range: Range, a
       multi_year_average: clim === null ? "" : Math.round(clim * 10) / 10,
       anomaly_percent: comparable ? Math.round((value! / clim! - 1) * 1000) / 10 : "",
       source: series.source,
+      provisional: series.provisionalFrom !== undefined && m >= series.provisionalFrom,
       approximate_months: series.approximate,
+      ...Object.fromEntries(Object.entries(extra).map(([k, v]) => [k, v[m] === null ? "" : Math.round(v[m]! * 10) / 10])),
     });
   }
   return rows;

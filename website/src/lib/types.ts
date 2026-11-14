@@ -40,27 +40,53 @@ export interface AreaProperties {
 
 export type BBox = [west: number, south: number, east: number, north: number];
 
-/** Monthly detections on a regular grid, written by scripts/build-brazil.mjs. */
+export type SensorId = "MODIS" | "VIIRS";
+/** What the calendar counts: one sensor's raw detections, or VIIRS rescaled to the MODIS scale. */
+export type SeriesKind = SensorId | "MODIS_EQ";
+
+export interface SensorInfo {
+  series: string;
+  first_source_month: string;
+  first_source_day: string;
+  last_source_day: string;
+  provisional_from_day: string | null; // near-real-time from this day on
+  baseline_from_year: number;
+  baseline_note: string;
+  quality_rules: string[];
+  processing: string[];
+}
+
+export interface Scores { wape: number; bias: number; r: number }
+
+export interface Harmonization {
+  target: string;
+  method: string;
+  train_years: [number, number];
+  test_years: [number, number];
+  coefficients: { month: number; beta: number; k: number; pairs: number }[];
+  single_ratio: number;
+  train: { years: [number, number]; months: number; model: Scores; single_ratio: Scores; raw_viirs: Scores };
+  test: { years: [number, number]; months: number; model: Scores; single_ratio: Scores; raw_viirs: Scores };
+  caveats: string[];
+}
+
+/** Monthly detections on a regular grid, written by scripts/build-country.mjs. */
 export interface MonthlyGrid {
+  version: 2;
   name: string;
   label: string;
-  series: string;
   unit: string;
   cell_deg: number;
   start_month: string; // YYYY-MM of index 0
   months: number;
-  first_source_month: string;
-  last_source_month: string;
-  baseline_from_year?: number;
-  baseline_note?: string;
-  quality_rules: string[];
+  sensors: Record<SensorId, SensorInfo>;
+  harmonization: Harmonization;
   sources: string[];
-  harmonization_status: string;
   limitations: string[];
-  cells: [west: number, south: number, counts: number[]][];
+  cells: [west: number, south: number, modis: number[], viirs: number[]][];
 }
 
-/** Columnar recent detections, written by scripts/build-brazil.mjs. */
+/** Columnar recent detections, written by scripts/build-country.mjs. */
 export interface RecentColumns {
   platforms: string[];
   lon: number[];
@@ -133,6 +159,8 @@ export interface MonthlySeries {
   partial: boolean[]; // month not fully covered: never compared with complete months
   approximate: boolean; // derived from ISO weeks rather than daily records
   source: string;
+  kind?: SeriesKind;
+  provisionalFrom?: number; // month index where near-real-time (provisional) data begins
   baselineFrom?: number; // earlier complete years are shown but kept out of averages
   baselineNote?: string;
 }

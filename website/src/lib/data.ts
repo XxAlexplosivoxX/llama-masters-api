@@ -16,14 +16,35 @@ async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-const GRID_PLACES: GridPlace[] = [{
-  id: "brazil",
-  label: "Brazil",
-  kind: "grid",
-  base: "./data/brazil",
-  bbox: [-74, -34, -34.5, 5.5],
-  summary: "MODIS monthly history since 2000, any area you draw",
-}];
+interface PlaceIndexEntry {
+  id: string;
+  label: string;
+  bbox: BBox;
+  base: string;
+  history: Record<string, { first_source_month: string; last_source_day: string }>;
+}
+
+/** Countries built by scripts/build-country.mjs (public/data/places.json). */
+async function loadGridPlaces(): Promise<GridPlace[]> {
+  try {
+    const index = await getJSON<PlaceIndexEntry[]>("./data/places.json");
+    return index.map((p) => ({
+      id: p.id, label: p.label, kind: "grid", base: p.base, bbox: p.bbox,
+      summary: `MODIS since ${p.history.MODIS.first_source_month.slice(0, 4)}, VIIRS since ${p.history.VIIRS.first_source_month.slice(0, 4)}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** Shown in the switcher as a preview of where the pipeline goes next; they have no data yet. */
+export const COMING_SOON: { label: string; note: string }[] = [
+  { label: "Peru", note: "Andes and Amazon" },
+  { label: "Venezuela", note: "Llanos savanna" },
+  { label: "Mexico", note: "Yucatán and Sierra Madre" },
+  { label: "Australia", note: "Northern savanna" },
+  { label: "Indonesia", note: "Peatland fires" },
+];
 
 /** Where contract regions are read from, and whether it is the live API. */
 let regionBase = API || STATIC_REGIONS;
@@ -56,7 +77,7 @@ export async function loadPlaces(): Promise<Place[]> {
     summary: `Weekly detections by satellite, ${entry.start} to ${entry.end}`,
     synthetic: entry.name.includes("tiny"),
   }));
-  return [...GRID_PLACES, ...weekly];
+  return [...(await loadGridPlaces()), ...weekly];
 }
 
 function titleCase(name: string): string {

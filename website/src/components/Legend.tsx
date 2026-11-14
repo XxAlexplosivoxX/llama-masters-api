@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
 import { HEAT, HEAT_ZERO } from "../lib/color";
 import { fmt, fmtCompact } from "../lib/format";
-import { labelOf, MONTHS_LONG } from "../lib/series";
+import { labelOf, MONTHS_LONG, SERIES_LABEL } from "../lib/series";
 import type { MapLayer } from "../map/engine";
 import type { Explorer } from "../state";
 
 export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer: MapLayer; gridMax: number }) {
-  const { loaded, series, range, hoverMonth, recent, shape } = explorer;
+  const { loaded, series, range, hoverMonth, recent, shape, kind } = explorer;
   const isGrid = loaded && "grid" in loaded;
   const first = loaded?.recent?.[0]?.acquired_utc.slice(0, 10);
   const last = loaded?.recent?.at(-1)?.acquired_utc.slice(0, 10);
@@ -17,7 +17,7 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
     title = hoverMonth !== null
       ? `${MONTHS_LONG[hoverMonth % 12]} ${series.startYear + Math.floor(hoverMonth / 12)}`
       : `${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`;
-    detail = `Detections per ${loaded.grid.cell_deg}° cell, MODIS`;
+    detail = `${SERIES_LABEL[kind]} detections per ${loaded.grid.cell_deg}° cell${shape ? ", this area only" : ""}`;
   } else if (layer === "recent") {
     title = first ? `${first} to ${last} (UTC)` : "Last 7 days";
     detail = loaded?.recent

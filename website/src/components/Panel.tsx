@@ -1,17 +1,13 @@
-import { RotateCcw, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { HEAT, HEAT_ZERO } from "../lib/color";
 import { fmt } from "../lib/format";
 import type { Explorer } from "../state";
 import { Anomalies } from "./Anomalies";
 import { Calendar } from "./Calendar";
+import { DateRange } from "./DateRange";
+import { SensorCompare, SensorSwitch } from "./Sensors";
 import { Export } from "./Export";
 import { KeyNumbers } from "./KeyNumbers";
-
-const toInput = (startYear: number, m: number) =>
-  `${startYear + Math.floor(m / 12)}-${String((m % 12) + 1).padStart(2, "0")}`;
-const fromInput = (startYear: number, value: string) =>
-  (Number(value.slice(0, 4)) - startYear) * 12 + Number(value.slice(5, 7)) - 1;
 
 function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -36,7 +32,7 @@ function Skeleton() {
 }
 
 export function Panel({ explorer }: { explorer: Explorer }) {
-  const { status, loaded, place, series, stats, range, shape, setShape, focus, setFocusYear, hoverMonth, setHoverMonth } = explorer;
+  const { status, loaded, place, series, stats, range, shape, focus, setFocusYear, hoverMonth, setHoverMonth } = explorer;
   const waveKey = `${place?.id}-${shape?.label ?? "all"}-${explorer.areaId}-${explorer.platform}`;
 
   return (
@@ -53,11 +49,6 @@ export function Panel({ explorer }: { explorer: Explorer }) {
             {explorer.selectionLabel || "…"}
           </motion.h1>
         </AnimatePresence>
-        {shape && (
-          <button className="mt-2 inline-flex min-h-9 items-center gap-1.5 text-sm text-accent" onClick={() => setShape(null)}>
-            <X size={15} aria-hidden /> Back to all of {place?.label}
-          </button>
-        )}
         {loaded && "areas" in loaded && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="grid gap-1 text-xs text-muted">Area
@@ -92,19 +83,12 @@ export function Panel({ explorer }: { explorer: Explorer }) {
 
       {status.kind === "ready" && series && stats && range && (
         <>
-          <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-            <label className="grid gap-1 text-xs text-muted">From
-              <input type="month" className="field num min-w-0" value={toInput(series.startYear, range.from)}
-                onChange={(e) => e.target.value && explorer.setRange({ from: fromInput(series.startYear, e.target.value), to: range.to })} />
-            </label>
-            <label className="grid gap-1 text-xs text-muted">To
-              <input type="month" className="field num min-w-0" value={toInput(series.startYear, range.to)}
-                onChange={(e) => e.target.value && explorer.setRange({ from: range.from, to: fromInput(series.startYear, e.target.value) })} />
-            </label>
-            <button className="btn !min-h-10 !px-3" onClick={explorer.resetRange} aria-label="Show all dates" title="Show all dates">
-              <RotateCcw size={15} aria-hidden />
-            </button>
-          </div>
+          {loaded && "grid" in loaded && <SensorSwitch explorer={explorer} grid={loaded.grid} />}
+
+          {explorer.seriesRange && (
+            <DateRange startYear={series.startYear} bounds={explorer.seriesRange} range={range}
+              baselineFrom={series.baselineFrom} focusYear={focus} onRange={explorer.setRange} />
+          )}
 
           <KeyNumbers series={series} stats={stats} range={range} focusYear={focus} />
 
@@ -145,6 +129,12 @@ export function Panel({ explorer }: { explorer: Explorer }) {
             />
           </Section>
 
+          {loaded && "grid" in loaded && (
+            <Section title="MODIS and VIIRS compared" aside={<span className="text-xs text-muted">Detections per year</span>}>
+              <SensorCompare explorer={explorer} grid={loaded.grid} />
+            </Section>
+          )}
+
           <Section title="Download">
             <Export key={`${explorer.place?.id}:${explorer.selectionLabel}:${explorer.platform}`} explorer={explorer} />
           </Section>
@@ -161,11 +151,11 @@ function About({ explorer }: { explorer: Explorer }) {
   if (!loaded) return null;
   const info = "grid" in loaded
     ? {
-      source: loaded.grid.series,
+      source: explorer.series?.source ?? "",
       unit: loaded.grid.unit,
-      sources: loaded.grid.sources,
-      rules: loaded.grid.quality_rules,
-      harmonization: loaded.grid.harmonization_status,
+      sources: [...loaded.grid.sources, ...Object.entries(loaded.grid.sensors).flatMap(([k, v]) => v.processing.map((p) => `${k} ${p}.`))],
+      rules: [...new Set(Object.values(loaded.grid.sensors).flatMap((v) => v.quality_rules))],
+      harmonization: `${loaded.grid.harmonization.method} ${loaded.grid.harmonization.caveats.join(" ")}`,
       limitations: loaded.grid.limitations,
     }
     : {
@@ -187,8 +177,8 @@ function About({ explorer }: { explorer: Explorer }) {
         <div><dt className="font-semibold text-text">Sources</dt><dd>{info.sources.join(" ")}</dd></div>
         <div><dt className="font-semibold text-text">Quality rules</dt><dd><ul className="list-disc pl-4">{info.rules.map((r) => <li key={r}>{r}</li>)}</ul></dd></div>
         <div><dt className="font-semibold text-text">Sensors</dt><dd>{info.harmonization}</dd></div>
-        {"grid" in loaded && loaded.grid.baseline_note && (
-          <div><dt className="font-semibold text-text">Average</dt><dd>{loaded.grid.baseline_note}</dd></div>
+        {explorer.series?.baselineNote && (
+          <div><dt className="font-semibold text-text">Average</dt><dd>{explorer.series.baselineNote}</dd></div>
         )}
         <div><dt className="font-semibold text-text">Limits</dt><dd><ul className="list-disc pl-4">{info.limitations.map((r) => <li key={r}>{r}</li>)}</ul></dd></div>
         {"grid" in loaded && (

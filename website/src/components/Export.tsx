@@ -5,12 +5,23 @@ import { download, hotspotRows, monthlyRows, slug } from "../lib/csv";
 import { fetchHotspots, usingApi } from "../lib/data";
 import { fmt } from "../lib/format";
 import { bboxOf, contains } from "../lib/geo";
+import { gridSeries } from "../lib/series";
 import type { Explorer } from "../state";
 
 export function Export({ explorer }: { explorer: Explorer }) {
   const { series, stats, range, selectionLabel, recent, loaded, shape } = explorer;
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+
+  const columns = (): Record<string, (number | null)[]> => {
+    if (!loaded || !("grid" in loaded) || !explorer.values) return {};
+    const { grid } = loaded, v = explorer.values, cells = explorer.cells;
+    return {
+      modis_detections: gridSeries(grid, v.MODIS, cells, "MODIS").values,
+      viirs_snpp_detections: gridSeries(grid, v.VIIRS, cells, "VIIRS").values,
+      modis_equivalent: gridSeries(grid, v.MODIS_EQ, cells, "MODIS_EQ").values,
+    };
+  };
 
   const name = slug(`${loaded?.place.label ?? "area"}-${shape ? "drawn-area" : "all"}`);
 
@@ -46,7 +57,7 @@ export function Export({ explorer }: { explorer: Explorer }) {
           className="btn btn-primary"
           disabled={!series || !stats || !range}
           onClick={() => {
-            download(`${name}-monthly.csv`, monthlyRows(series!, stats!, range!, selectionLabel));
+            download(`${name}-monthly.csv`, monthlyRows(series!, stats!, range!, selectionLabel, columns()));
             setNote(`Downloaded ${range!.to - range!.from + 1} months for ${selectionLabel}.`);
           }}
         >

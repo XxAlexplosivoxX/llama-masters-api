@@ -25,7 +25,7 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
   const introPlayed = useRef(false);
   const onDrawnRef = useRef(onDrawn);
   onDrawnRef.current = onDrawn;
-  const { loaded, range, hoverMonth, shape, placeBBox } = explorer;
+  const { loaded, range, hoverMonth, shape, placeBBox, values, kind, cells: selected, recent } = explorer;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -48,17 +48,20 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
   }, [engine]);
 
   // Grid values: the hovered calendar month, otherwise the total over the selected range.
+  // With a selection, only its cells are drawn, and the colour scale adapts to them.
   const grid = useMemo(() => {
-    if (!loaded || !("grid" in loaded) || !range) return null;
+    if (!loaded || !("grid" in loaded) || !range || !values) return null;
     const { grid } = loaded;
-    const cells = grid.cells.map(([west, south, counts]) => {
+    const counts = values[kind];
+    const cells = (shape ? selected : grid.cells.map((_, i) => i)).map((i) => {
+      const [west, south] = grid.cells[i];
       let value = 0;
-      if (hoverMonth !== null) value = counts[hoverMonth] ?? 0;
-      else for (let m = range.from; m <= range.to; m++) value += counts[m];
+      if (hoverMonth !== null) value = counts[i][hoverMonth] ?? 0;
+      else for (let m = range.from; m <= range.to; m++) value += counts[i][m];
       return { west, south, value };
     });
     return { cellDeg: grid.cell_deg, cells, max: percentile(cells.filter((c) => c.value > 0).map((c) => c.value), 0.98) };
-  }, [loaded, range?.from, range?.to, hoverMonth]);
+  }, [loaded, values, kind, shape, selected, range?.from, range?.to, hoverMonth]);
 
   useEffect(() => {
     if (!engine) return;
@@ -67,8 +70,8 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
   }, [engine, grid]);
 
   useEffect(() => {
-    if (engine) engine.setRecent(loaded?.recent ?? []);
-  }, [engine, loaded]);
+    if (engine) engine.setRecent(recent);
+  }, [engine, recent]);
 
   useEffect(() => {
     if (engine) engine.setAreas(loaded && "areas" in loaded ? loaded.areas : null);

@@ -4,7 +4,7 @@ import { Drawer } from "vaul";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
 import { Panel } from "./components/Panel";
-import { DrawTools, LayerSwitch, PlaceSwitcher } from "./components/Toolbar";
+import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView } from "./map/MapView";
 import { shapeFromDrawing, useExplorer } from "./state";
@@ -63,9 +63,14 @@ export function App() {
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
       <PlaceSwitcher places={explorer.places} current={explorer.place} onSelect={explorer.selectPlace} />
-      <div className="flex flex-wrap justify-end gap-2">
-        <DrawTools drawMode={drawMode} onDrawMode={setDrawMode} onCoordinates={chooseArea} />
-        <LayerSwitch layer={layer} onLayer={setLayer} historyAvailable={historyAvailable} />
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <DrawTools drawMode={drawMode} onDrawMode={setDrawMode} onCoordinates={chooseArea}
+            bounds={explorer.place?.bbox ?? null} placeLabel={explorer.place?.label ?? "this place"} />
+          <LayerSwitch layer={layer} onLayer={setLayer} historyAvailable={historyAvailable} />
+        </div>
+        <SelectionChip label={explorer.shape?.label ?? null} placeLabel={explorer.place?.label ?? ""}
+          hidden={!!drawMode} onClear={() => explorer.setShape(null)} />
       </div>
     </motion.div>
   );

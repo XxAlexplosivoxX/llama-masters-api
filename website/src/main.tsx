@@ -1,3 +1,4 @@
+import "maplibre-gl/dist/maplibre-gl.css";
 import "@fontsource-variable/public-sans";
 import "./styles.css";
 import { StrictMode } from "react";

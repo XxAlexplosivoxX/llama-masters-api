@@ -25,3 +25,11 @@ export function anomalyScale(limit = 1) {
 export function heatSteps(max: number, steps = HEAT.length): number[] {
   return Array.from({ length: steps }, (_, i) => Math.max(1, Math.round(max * (i / steps) ** 2)));
 }
+
+/** Sensor identity colours (--color-modis / --color-viirs), kept apart from the heat ramp. */
+export type Sensor = "MODIS" | "VIIRS";
+export const SENSOR: Record<Sensor, { color: string; pixel: string; satellites: string }> = {
+  MODIS: { color: "#FFB547", pixel: "1 km pixels", satellites: "Terra, Aqua" },
+  VIIRS: { color: "#3DD6D0", pixel: "375 m pixels", satellites: "S-NPP, NOAA-20, NOAA-21" },
+};
+export const sensorOf = (platform: string): Sensor => (platform === "Terra" || platform === "Aqua" ? "MODIS" : "VIIRS");

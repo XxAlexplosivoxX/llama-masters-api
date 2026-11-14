@@ -1,12 +1,11 @@
-import "maplibre-gl/dist/maplibre-gl.css";
 import { Map as MapLibreMap, NavigationControl, Popup, setWorkerUrl } from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource, StyleSpecification } from "maplibre-gl";
 // MapLibre finds its worker relative to its own module URL, which Vite's
 // pre-bundling changes; let Vite bundle the worker and pass its URL instead.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { TerraDraw, TerraDrawPolygonMode, TerraDrawRectangleMode } from "terra-draw";
+import { TerraDraw, TerraDrawPolygonMode, TerraDrawRectangleMode, ValidateNotSelfIntersecting } from "terra-draw";
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
-import { HEAT } from "../lib/color";
+import { HEAT, SENSOR, sensorOf } from "../lib/color";
 import type { BBox, Hotspot } from "../lib/types";
 
 setWorkerUrl(workerUrl);
@@ -36,6 +35,26 @@ async function chooseStyle(): Promise<{ style: string | StyleSpecification; onli
     // offline or blocked: use the fallback below
   }
   return { style: OFFLINE_STYLE, online: false };
+}
+
+const escape = (v: unknown) => String(v).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const WHEN = new Intl.DateTimeFormat("en-US", {
+  month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC",
+});
+
+function hotspotHTML(p: Record<string, string | number>): string {
+  const platform = String(p.platform);
+  const sensor = sensorOf(platform);
+  const { color, pixel } = SENSOR[sensor];
+  const row = (k: string, v: string) => `<dt>${k}</dt><dd>${escape(v)}</dd>`;
+  return `<div class="hp-head"><span class="hp-badge" style="--c:${color}">${sensor}</span>`
+    + `<span class="hp-sat">${escape(platform)}</span></div>`
+    + `<p class="hp-when">${escape(WHEN.format(new Date(String(p.acquired_utc))))} UTC</p><dl>`
+    + row("Fire radiative power", `${Number(p.frp).toFixed(1)} MW`)
+    + row("Confidence", String(p.confidence))
+    + row("Pass", p.daynight === "D" ? "Daytime" : "Nighttime")
+    + row("Pixel size", pixel)
+    + "</dl>";
 }
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -134,12 +153,9 @@ export class MapEngine {
     map.on("click", "recent-dots", (event) => {
       const feature = event.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
-      const p = feature.properties;
-      const when = String(p.acquired_utc).replace("T", " ").replace("Z", " UTC");
-      new Popup({ closeButton: true, maxWidth: "240px" })
+      new Popup({ closeButton: true, maxWidth: "260px", className: "hotspot-popup" })
         .setLngLat(feature.geometry.coordinates as [number, number])
-        .setHTML(`<strong>${p.platform}</strong><br>${when}<br>Fire radiative power ${p.frp} MW<br>`
-          + `${p.daynight === "D" ? "Daytime" : "Nighttime"} pass, ${p.confidence} confidence`)
+        .setHTML(hotspotHTML(feature.properties as Record<string, string | number>))
         .addTo(map);
     });
     map.on("mouseenter", "recent-dots", () => (map.getCanvas().style.cursor = "pointer"));
@@ -150,7 +166,11 @@ export class MapEngine {
       adapter: new TerraDrawMapLibreGLAdapter({ map }),
       modes: [
         new TerraDrawRectangleMode({ styles }),
-        new TerraDrawPolygonMode({ styles: { ...styles, closingPointColor: "#4C8DFF", closingPointOutlineColor: "#E8ECF5" } }),
+        new TerraDrawPolygonMode({
+          styles: { ...styles, closingPointColor: "#4C8DFF", closingPointOutlineColor: "#E8ECF5" },
+          // A point that would make the outline cross itself is refused, so every shape has a clear inside.
+          validation: (feature) => ValidateNotSelfIntersecting(feature),
+        }),
       ],
     });
     this.draw.start();
