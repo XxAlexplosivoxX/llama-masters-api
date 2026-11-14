@@ -93,6 +93,11 @@ export function SeasonalCurve({ series, stats, focusYear, focusMonth, minYear, m
         </button>
       </div>
 
+      {series.kind === "HARMONIZED" && stats.baselineYears.some((y) => y < 2012) && stats.baselineYears.some((y) => y >= 2012) && (
+        <p className="mb-1 text-xs text-muted">
+          Band years {stats.baselineYears[0]}–{stats.baselineYears.at(-1)} mix MODIS-only years (before 2012) and MODIS + VIIRS years.
+        </p>
+      )}
       {width > 0 && (
         <svg
           ref={svg} viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block cursor-crosshair" role="img" tabIndex={0}

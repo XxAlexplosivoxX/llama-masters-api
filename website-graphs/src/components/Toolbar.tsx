@@ -24,6 +24,7 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
   const platform = useGraphsStore((s) => s.platform);
   const kind = useGraphsStore((s) => s.kind);
   const range = useGraphsStore((s) => s.range);
+  const baseline2012 = useGraphsStore((s) => s.baseline2012);
   const set = useStore().actions;
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -108,6 +109,10 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
                 MODIS alone before 2012, then MODIS + VIIRS on the MODIS scale.
               </p>
             )}
+            <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-xs text-muted">
+              <input type="checkbox" checked={baseline2012} onChange={(e) => set.setBaseline2012(e.target.checked)} className="accent-[#F97316]" />
+              Baseline from 2012 only
+            </label>
           </div>
         )}
 

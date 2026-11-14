@@ -31,6 +31,7 @@ export function usePlaceData() {
   const focusYear = useGraphsStore((s) => s.focusYear);
   const csv = useGraphsStore((s) => s.csv);
   const bbox = useGraphsStore((s) => s.bbox);
+  const baseline2012 = useGraphsStore((s) => s.baseline2012);
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -121,12 +122,17 @@ export function usePlaceData() {
     } satisfies Record<SeriesKind, number[][]>;
   }, [loaded]);
 
-  const series: MonthlySeries | null = useMemo(() => {
+  const baseSeries: MonthlySeries | null = useMemo(() => {
     if (isCsv) return csvData ? csvMonthly(csvData.result, platform) : null;
     if (!loaded) return null;
     if ("grid" in loaded) return cells.length && values ? gridSeries(loaded.grid, values[kind], cells, kind) : null;
     return weeklyToMonthly(loaded.weekly, platform, areaId ?? "");
   }, [isCsv, csvData, loaded, values, cells, kind, platform, areaId]);
+
+  // Optional VIIRS-era baseline: only moves baselineFrom, so the series values are untouched.
+  const series = useMemo(() => (baseSeries && baseline2012
+    ? { ...baseSeries, baselineFrom: Math.max(baseSeries.baselineFrom ?? 2012, 2012), baselineNote: "Averages use 2012 onward (VIIRS era), chosen in the toolbar." }
+    : baseSeries), [baseSeries, baseline2012]);
 
   const harmonization = useMemo(() => {
     if (!loaded || !("grid" in loaded) || !values || !cells.length) return null;

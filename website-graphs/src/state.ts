@@ -11,6 +11,7 @@ export interface GraphsState {
   focusMonth: number | null; // month index into the series
   csv: { name: string; text: string } | null;
   bbox: BBox | null; // area of interest inside the place; null = whole place
+  baseline2012: boolean; // restrict averages/percentiles to 2012+ (VIIRS era)
 }
 
 export type BBox = [west: number, south: number, east: number, north: number];
@@ -36,6 +37,7 @@ export interface GraphsStore {
     focusMonth: (month: number | null, ym?: string) => void;
     loadCsv: (name: string, text: string) => void;
     setBbox: (bbox: BBox | null) => void;
+    setBaseline2012: (on: boolean) => void;
   };
 }
 
@@ -49,6 +51,7 @@ const initialState = (): GraphsState => ({
   focusMonth: null,
   csv: null,
   bbox: null,
+  baseline2012: false,
 });
 
 export const CSV_PLACE_ID = "csv:upload";
@@ -104,6 +107,7 @@ export function createGraphsStore(initial?: Partial<GraphsState>): GraphsStore {
         update({ csv: { name, text }, placeId: CSV_PLACE_ID, areaId: "upload", bbox: null, range: null, focusYear: null, focusMonth: null });
         emit("filters", filters());
       },
+      setBaseline2012: (baseline2012) => update({ baseline2012, focusYear: null, focusMonth: null }),
       setBbox: (bbox) => { update({ bbox, focusMonth: null }); emit("filters", filters()); },
     },
   };

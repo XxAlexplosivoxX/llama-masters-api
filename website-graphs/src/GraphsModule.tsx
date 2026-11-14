@@ -152,12 +152,15 @@ function Module({ data }: { data: PlaceData }) {
           </Card>
 
           <Card className="bento-ranked" title="Years ranked" subtitle="Complete years vs the average year">
-            <YearsRanked stats={stats} focusYear={focus} onFocusYear={store.actions.focusYear} />
+            <YearsRanked stats={stats} focusYear={focus} onFocusYear={store.actions.focusYear} harmonized={kind === "HARMONIZED" && !!grid} />
           </Card>
 
           {data.loaded && "areas" in data.loaded && data.areas.length > 1 && (
             <Card className="bento-areas" title="Sub-area ranking" subtitle="Range total per area">
-              <AreaRanking loaded={data.loaded} platform={platform} range={range} />
+              <details>
+                <summary className="cursor-pointer text-xs text-muted">Show the ranking (weekly exports only)</summary>
+                <div className="mt-2"><AreaRanking loaded={data.loaded} platform={platform} range={range} /></div>
+              </details>
             </Card>
           )}
         </div>
