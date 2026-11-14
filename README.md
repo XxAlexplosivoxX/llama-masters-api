@@ -116,6 +116,7 @@ Without `API_TOKEN`, the API serves reads only.
 | `internal/push` | Streaming multipart upload client |
 | `testdata/tiny-region` | Synthetic fixture used by the tests (not real observations) |
 | `docs/` | Data contract, challenge, plans and references |
+| `website/` | Static web app (fire calendar); see [`website/README.md`](website/README.md) |
 
 The data are raw satellite hotspot detections, not unique fires or burned area, and
 platforms are not harmonized; the uploaded `metadata.json` (served unchanged) states
