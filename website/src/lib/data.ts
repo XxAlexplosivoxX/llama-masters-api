@@ -16,6 +16,39 @@ async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+export interface LoadProgress {
+  step: "history" | "recent" | "areas";
+  label: string;
+  loaded: number; // bytes received
+  total: number | null; // bytes expected, when the server says so
+}
+
+/** JSON download that reports bytes as they arrive (the history grid is several MB). */
+async function getJSONWithProgress<T>(url: string, signal: AbortSignal | undefined, report: (loaded: number, total: number | null) => void): Promise<T> {
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`);
+  if (!(response.headers.get("content-type") ?? "").includes("json")) throw new Error(`${url} is not JSON (the file is probably missing)`);
+  // A compressed response reports its compressed length; the stream yields more bytes than that.
+  const encoded = !!response.headers.get("content-encoding");
+  const total = !encoded && response.headers.get("content-length") ? Number(response.headers.get("content-length")) : null;
+  if (!response.body) return response.json() as Promise<T>;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  report(0, total);
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    report(loaded, total);
+  }
+  const bytes = new Uint8Array(loaded);
+  let offset = 0;
+  for (const c of chunks) { bytes.set(c, offset); offset += c.length; }
+  return JSON.parse(new TextDecoder().decode(bytes)) as T;
+}
+
 interface PlaceIndexEntry {
   id: string;
   label: string;
@@ -105,11 +138,19 @@ function fromGeoJSON(fc: GeoJSON.FeatureCollection): Hotspot[] {
   });
 }
 
-export async function loadPlace(place: Place, signal?: AbortSignal): Promise<Loaded> {
+export async function loadPlace(place: Place, signal?: AbortSignal, onProgress?: (p: LoadProgress[]) => void): Promise<Loaded> {
   if (place.kind === "grid") {
+    const steps: LoadProgress[] = [
+      { step: "history", label: "Monthly history", loaded: 0, total: null },
+      { step: "recent", label: "Last 7 days", loaded: 0, total: null },
+    ];
+    const track = (i: number) => (loaded: number, total: number | null) => {
+      steps[i] = { ...steps[i], loaded, total };
+      onProgress?.([...steps]);
+    };
     const [grid, columns] = await Promise.all([
-      getJSON<MonthlyGrid>(`${place.base}/monthly_grid.json`, signal),
-      getJSON<RecentColumns>(`${place.base}/recent_hotspots.json`, signal).catch(() => null),
+      getJSONWithProgress<MonthlyGrid>(`${place.base}/monthly_grid.json`, signal, track(0)),
+      getJSONWithProgress<RecentColumns>(`${place.base}/recent_hotspots.json`, signal, track(1)).catch(() => null),
     ]);
     return { place, grid, recent: columns ? fromColumns(columns) : [] };
   }

@@ -80,8 +80,10 @@ export class MapEngine {
     const map = new MapLibreMap({
       container,
       style,
-      center: [-20, 14],
-      zoom: 1.6,
+      // Start on South America; the minimum zoom keeps the globe from shrinking to a dot.
+      center: [-58, -12],
+      zoom: 1.7,
+      minZoom: 1.7,
       renderWorldCopies: false,
       attributionControl: { compact: true },
       maxPitch: 0,
@@ -90,6 +92,11 @@ export class MapEngine {
     const removeEarly = () => map.remove();
     signal.addEventListener("abort", removeEarly, { once: true });
     await new Promise<void>((resolve) => map.once("load", () => resolve()));
+    // Wait until the first tiles are drawn, so the opening never plays over an empty screen.
+    await Promise.race([
+      new Promise<void>((resolve) => map.once("idle", () => resolve())),
+      new Promise<void>((resolve) => setTimeout(resolve, 6000)),
+    ]);
     if (signal.aborted) throw new DOMException("Map initialization cancelled", "AbortError");
     signal.removeEventListener("abort", removeEarly);
     return new MapEngine(map, online, onDraw);
@@ -104,6 +111,15 @@ export class MapEngine {
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-right");
 
     // Data covers land, water and roads; borders and place names stay above it for orientation.
+    // Fewer basemap labels: countries, states and large cities orient; everything else competes with the data.
+    const HIDE = ["water_name", "road_oneway", "road_oneway_opposite", "highway_name_other", "highway_name_motorway",
+      "place_other", "place_suburb", "place_village", "place_town"];
+    for (const id of HIDE) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", "none");
+    if (map.getLayer("place_city")) map.setLayerZoomRange("place_city", 6, 24);
+    if (map.getLayer("place_state")) {
+      map.setLayerZoomRange("place_state", 4, 24);
+      map.setPaintProperty("place_state", "text-opacity", 0.6);
+    }
     const firstLabel = map.getStyle().layers.find((l) =>
       "source-layer" in l && ["boundary", "place"].includes(String(l["source-layer"])))?.id;
 
@@ -296,7 +312,18 @@ export class MapEngine {
    * Opening sequence: the globe turns to the place while the last seven days of
    * detections appear in acquisition order, then the history grid fades in.
    */
-  intro(bbox: BBox, padding: Padding): Promise<void> {
+  /** Resolves once MapLibre has tiled these sources (large GeoJSON takes a moment in the worker). */
+  private sourcesReady(ids: string[], timeout: number): Promise<void> {
+    return new Promise((resolve) => {
+      const done = () => { this.map.off("sourcedata", check); clearTimeout(timer); resolve(); };
+      const check = () => { if (this.destroyed || ids.every((id) => this.map.isSourceLoaded(id))) done(); };
+      const timer = setTimeout(done, timeout);
+      this.map.on("sourcedata", check);
+      check();
+    });
+  }
+
+  async intro(bbox: BBox, padding: Padding, onFrame?: (progress: number, minutes: number) => void): Promise<void> {
     const maxT = 7 * 24 * 60;
     const filtered = ["recent-heat", "recent-dots"];
     if (reducedMotion()) {
@@ -304,6 +331,10 @@ export class MapEngine {
       return Promise.resolve();
     }
     const duration = 4200;
+    this.map.setPaintProperty("grid", "fill-opacity", 0);
+    for (const id of filtered) this.map.setFilter(id, ["<=", ["get", "t"], -1]);
+    await this.sourcesReady(["recent", "grid"], 5000);
+    if (this.destroyed) return;
     this.map.setLayoutProperty("recent-heat", "visibility", "visible");
     this.map.setLayoutProperty("recent-dots", "visibility", "visible");
     this.map.setPaintProperty("grid", "fill-opacity", 0);
@@ -315,6 +346,7 @@ export class MapEngine {
         const k = Math.min((now - start) / duration, 1);
         const t = maxT * (1 - (1 - k) ** 2);
         for (const id of filtered) this.map.setFilter(id, ["<=", ["get", "t"], t]);
+        onFrame?.(k, t);
         if (k < 1) {
           this.introFrame = requestAnimationFrame(step);
           return;

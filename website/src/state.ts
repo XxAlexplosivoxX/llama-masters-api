@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadPlace, loadPlaces } from "./lib/data";
+import { loadPlace, loadPlaces, type LoadProgress } from "./lib/data";
 import { areaKm2, bboxOf, contains } from "./lib/geo";
 import {
   annualComparison, cellValues, cellsIn, computeStats, fullRange, gridSeries, latestCompleteYear, localCheck, type Range,
@@ -10,7 +10,7 @@ import { fmtKm2 } from "./lib/format";
 import { sensorOf, type Sensor } from "./lib/color";
 
 export type Status =
-  | { kind: "loading"; message: string }
+  | { kind: "loading"; message: string; progress?: LoadProgress[] }
   | { kind: "error"; message: string }
   | { kind: "ready" };
 
@@ -50,7 +50,9 @@ export function useExplorer() {
     setShape(null);
     setRange(null);
     setFocusYear(null);
-    loadPlace(place, controller.signal)
+    loadPlace(place, controller.signal, (progress) => {
+      if (!controller.signal.aborted) setStatus({ kind: "loading", message: `Loading ${place.label}`, progress });
+    })
       .then((data) => {
         if (data.place.kind === "weekly" && "areas" in data) {
           setAreaId(data.areas.features[0]?.properties.area_id ?? "");
