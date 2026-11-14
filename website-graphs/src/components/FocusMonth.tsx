@@ -5,6 +5,7 @@ import { csvMonthly } from "../lib/csv";
 import { INSTRUMENT, RESOLUTION, type MonthlySeries, type Platform, type SeriesKind } from "../types";
 import type { PlaceData } from "../hooks/usePlaceData";
 import { useGraphsStore } from "../hooks/useGraphsStore";
+import { useState } from "react";
 
 interface Props {
   data: PlaceData;
@@ -17,6 +18,8 @@ interface Bar { key: string; label: string; note?: string; value: number | null;
 export function FocusMonth({ data, month }: Props) {
   const { loaded, values, cells, series, csvData, platforms } = data;
   const areaId = useGraphsStore((s) => s.areaId) ?? "upload";
+  const [showRaw, setShowRaw] = useState(false);
+  const isGrid = !!loaded && "grid" in loaded;
 
   if (month === null || !series) {
     return <p className="rounded-lg border border-dashed border-grid p-4 text-sm text-muted">Pick a month on the curve or the calendar.</p>;
@@ -34,7 +37,7 @@ export function FocusMonth({ data, month }: Props) {
       : source ? `only ${source} this month` : "no coverage";
     bars = [
       { key: "modis", label: "MODIS", value: sum("MODIS"), color: MODIS },
-      { key: "viirs", label: "VIIRS raw", note: "375 m, not comparable", value: sum("VIIRS"), color: VIIRS },
+      ...(showRaw ? [{ key: "viirs", label: "VIIRS raw", note: "375 m, not comparable", value: sum("VIIRS"), color: VIIRS }] : []),
       { key: "eq", label: "VIIRS on MODIS scale", value: sum("MODIS_EQ"), color: MODIS_EQ },
       { key: "harm", label: "Harmonized", note, value: sum("HARMONIZED"), color: HARMONIZED },
     ];
@@ -78,7 +81,17 @@ export function FocusMonth({ data, month }: Props) {
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-2xs leading-snug text-muted">Raw counts are never added together.</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-2xs leading-snug text-muted">
+          Raw counts are never added together.{isGrid ? " Raw VIIRS (375 m) is not comparable with MODIS (1 km)." : " Instruments are not comparable on raw counts."}
+        </p>
+        {isGrid && (
+          <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted">
+            <input type="checkbox" checked={showRaw} onChange={(e) => setShowRaw(e.target.checked)} className="accent-[#F97316]" />
+            Show raw VIIRS
+          </label>
+        )}
+      </div>
     </div>
   );
 }

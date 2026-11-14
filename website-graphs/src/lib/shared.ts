@@ -1,7 +1,7 @@
 // Single import point for the website's pure logic so the numbers stay identical.
 export {
   annualComparison, cellValues, cellsIn, computeStats, coverage, fullRange, gridSeries, harmonizedSource,
-  labelOf, latestCompleteYear, localCheck, MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, rankOf, SERIES_LABEL,
+  labelOf, latestCompleteYear, localCheck, MIN_BASELINE_YEARS, modisEquivalent, MONTHS, MONTHS_LONG, rankOf, SERIES_LABEL,
   weeklyToMonthly,
 } from "../../../website/src/lib/series";
 export type { Range, Stats } from "../../../website/src/lib/series";

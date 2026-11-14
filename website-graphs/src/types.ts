@@ -21,4 +21,6 @@ export interface CsvPoint {
   platform: Platform;
   frp: number | null;
   daynight: "D" | "N" | null;
+  lon?: number; // present for gridded places' recent hotspots, used for the per-cell conversion
+  lat?: number;
 }

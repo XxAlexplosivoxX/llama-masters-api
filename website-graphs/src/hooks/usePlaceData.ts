@@ -152,13 +152,16 @@ export function usePlaceData() {
   /** Point records for the "last 7 days" card, normalized to date/platform/frp/daynight. */
   const recent: CsvPoint[] = useMemo(() => {
     if (isCsv) return csvData ? csvLast7(csvData.result) : [];
-    return (loaded?.recent ?? []).filter((p) => SATELLITE_ORDER.includes(p.platform)).map((p) => ({
+    const inBox = (p: { lon: number; lat: number }) =>
+      !bbox || (p.lon >= bbox[0] && p.lon <= bbox[2] && p.lat >= bbox[1] && p.lat <= bbox[3]);
+    return (loaded?.recent ?? []).filter((p) => SATELLITE_ORDER.includes(p.platform) && inBox(p)).map((p) => ({
       date: p.acquired_utc.slice(0, 10),
       platform: p.platform as CsvPoint["platform"],
       frp: Number.isFinite(p.frp) ? p.frp : null,
       daynight: p.daynight === "D" || p.daynight === "N" ? p.daynight : null,
+      lon: p.lon, lat: p.lat,
     }));
-  }, [isCsv, csvData, loaded]);
+  }, [isCsv, csvData, loaded, bbox]);
 
   const areas = useMemo(() => {
     if (isCsv) return csv ? [{ id: "upload", name: csv.name }] : [];

@@ -140,8 +140,8 @@ function Module({ data }: { data: PlaceData }) {
             )}
           </Card>
 
-          <Card className="bento-recent" title="Last 7 days" subtitle="MODIS and VIIRS side by side">
-            <Last7Days points={data.recent} />
+          <Card className="bento-recent" title="Last 7 days" subtitle={grid ? "MODIS vs VIIRS on the MODIS scale" : "MODIS and VIIRS side by side, raw"}>
+            <Last7Days points={data.recent} grid={grid} />
           </Card>
 
           <Card className="bento-calendar" title="Calendar" subtitle="Each square is one month">
