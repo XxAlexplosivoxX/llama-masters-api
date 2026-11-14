@@ -24,7 +24,7 @@ export type Padding = { top: number; right: number; bottom: number; left: number
 
 export interface GridCells {
   cellDeg: number;
-  cells: { west: number; south: number; value: number }[];
+  cells: { west: number; south: number }[];
 }
 
 async function chooseStyle(): Promise<{ style: string | StyleSpecification; online: boolean }> {
@@ -59,9 +59,11 @@ function hotspotHTML(p: Record<string, string | number>): string {
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function heatRamp(input: ExpressionSpecification, max: number): ExpressionSpecification {
+/** Square-root heat ramp on the cell's feature-state value; cells at zero are transparent. */
+function heatRamp(max: number): ExpressionSpecification {
+  const v: ExpressionSpecification = ["coalesce", ["feature-state", "v"], 0];
   const stops = HEAT.flatMap((color, i) => [(Math.sqrt(Math.max(max, 1)) * i) / (HEAT.length - 1), color]);
-  return ["interpolate", ["linear"], ["sqrt", input], ...stops] as unknown as ExpressionSpecification;
+  return ["case", ["<=", v, 0], "rgba(0,0,0,0)", ["interpolate", ["linear"], ["sqrt", v], ...stops]] as unknown as ExpressionSpecification;
 }
 
 export class MapEngine {
@@ -71,7 +73,9 @@ export class MapEngine {
   private onDraw: (polygon: GeoJSON.Polygon) => void;
   private layer: MapLayer = "history";
   private introFrame = 0;
-  private gridMax = 1;
+  private gridMax = -1;
+  private gridValues: number[] = [];
+  private skip = false;
   private destroyed = false;
 
   static async create(container: HTMLElement, onDraw: (polygon: GeoJSON.Polygon) => void, signal: AbortSignal) {
@@ -234,22 +238,37 @@ export class MapEngine {
     this.map.getCanvas().style.cursor = "";
   }
 
-  setGrid({ cellDeg, cells }: GridCells, max: number) {
+  /**
+   * Cell squares, set once per place or selection. Values change through feature-state
+   * (setGridValues), so hovering or playing months never re-tiles the geometry.
+   */
+  setGridCells({ cellDeg, cells }: GridCells) {
     if (this.destroyed) return;
-    this.gridMax = max;
-    const features: GeoJSON.Feature[] = [];
-    for (const { west: w, south: s, value } of cells) {
-      if (value <= 0) continue;
+    const features: GeoJSON.Feature[] = cells.map(({ west: w, south: s }, id) => {
       const e = w + cellDeg, n = s + cellDeg;
-      features.push({
-        type: "Feature",
-        properties: { v: value },
-        geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] },
-      });
-    }
+      return { type: "Feature", id, properties: {}, geometry: { type: "Polygon", coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } };
+    });
+    this.map.removeFeatureState({ source: "grid" });
+    this.gridValues = [];
     (this.map.getSource("grid") as GeoJSONSource).setData({ type: "FeatureCollection", features });
-    this.map.setPaintProperty("grid", "fill-color", heatRamp(["get", "v"], this.gridMax));
   }
+
+  /** One value per cell from setGridCells, in the same order; only changed cells are touched. */
+  setGridValues(values: number[], max: number) {
+    if (this.destroyed) return;
+    for (let id = 0; id < values.length; id++) {
+      if (values[id] !== this.gridValues[id]) this.map.setFeatureState({ source: "grid", id }, { v: values[id] });
+    }
+    this.gridValues = values;
+    // A new paint expression rebuilds the layer's shader inputs; only do it when the scale changes.
+    if (max !== this.gridMax) {
+      this.gridMax = max;
+      this.map.setPaintProperty("grid", "fill-color", heatRamp(max));
+    }
+  }
+
+  /** Ends the opening animation now (the user started exploring). */
+  skipIntro() { this.skip = true; }
 
   setRecent(points: Hotspot[]) {
     if (this.destroyed) return;
@@ -333,7 +352,10 @@ export class MapEngine {
     const duration = 4200;
     this.map.setPaintProperty("grid", "fill-opacity", 0);
     for (const id of filtered) this.map.setFilter(id, ["<=", ["get", "t"], -1]);
-    await this.sourcesReady(["recent", "grid"], 5000);
+    await Promise.race([this.sourcesReady(["recent", "grid"], 5000), new Promise<void>((r) => {
+      const poll = setInterval(() => { if (this.skip) { clearInterval(poll); r(); } }, 50);
+      setTimeout(() => clearInterval(poll), 5000);
+    })]);
     if (this.destroyed) return;
     this.map.setLayoutProperty("recent-heat", "visibility", "visible");
     this.map.setLayoutProperty("recent-dots", "visibility", "visible");
@@ -343,7 +365,7 @@ export class MapEngine {
       const start = performance.now();
       const step = (now: number) => {
         if (this.destroyed) return resolve();
-        const k = Math.min((now - start) / duration, 1);
+        const k = this.skip ? 1 : Math.min((now - start) / duration, 1);
         const t = maxT * (1 - (1 - k) ** 2);
         for (const id of filtered) this.map.setFilter(id, ["<=", ["get", "t"], t]);
         onFrame?.(k, t);

@@ -1,5 +1,6 @@
 import { Map as MapIcon } from "lucide-react";
 import { motion } from "motion/react";
+import { useMemo } from "react";
 import { SENSOR, type Sensor } from "../lib/color";
 import { fmt } from "../lib/format";
 import type { Explorer } from "../state";
@@ -16,17 +17,21 @@ export function RecentBySatellite({ explorer, showingOnMap, onShowOnMap }: {
   explorer: Explorer; showingOnMap: boolean; onShowOnMap: () => void;
 }) {
   const { recentInArea, recentSensors, toggleRecentSensor, loaded } = explorer;
+  const { by, max, newest } = useMemo(() => {
+    const by = new Map<string, { n: number; last: string }>();
+    for (const p of recentInArea) {
+      const e = by.get(p.platform) ?? { n: 0, last: "" };
+      e.n++;
+      if (p.acquired_utc > e.last) e.last = p.acquired_utc;
+      by.set(p.platform, e);
+    }
+    return {
+      by,
+      max: Math.max(1, ...[...by.values()].map((e) => e.n)),
+      newest: [...by.entries()].sort((a, b) => b[1].last.localeCompare(a[1].last))[0],
+    };
+  }, [recentInArea]);
   if (!loaded?.recent) return null;
-
-  const by = new Map<string, { n: number; last: string }>();
-  for (const p of recentInArea) {
-    const e = by.get(p.platform) ?? { n: 0, last: "" };
-    e.n++;
-    if (p.acquired_utc > e.last) e.last = p.acquired_utc;
-    by.set(p.platform, e);
-  }
-  const max = Math.max(1, ...[...by.values()].map((e) => e.n));
-  const newest = [...by.entries()].sort((a, b) => b[1].last.localeCompare(a[1].last))[0];
 
   return (
     <div className="space-y-3">
