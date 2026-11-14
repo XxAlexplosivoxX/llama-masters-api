@@ -1,0 +1,33 @@
+{
+ "name": "colombia",
+ "label": "Colombia",
+ "bbox": [
+  -79.1,
+  -4.3,
+  -66.8,
+  12.5
+ ],
+ "generated_at_utc": "2026-11-14T21:33:09.273Z",
+ "history": {
+  "MODIS": {
+   "series": "MODIS (Terra + Aqua), Collection 6.1",
+   "first_source_month": "2000-11",
+   "last_source_day": "2026-11-14"
+  },
+  "VIIRS": {
+   "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+   "first_source_month": "2012-01",
+   "last_source_day": "2026-11-02"
+  }
+ },
+ "harmonization_test": {
+  "wape": 0.1097,
+  "bias": -0.0043,
+  "r": 0.9901
+ },
+ "hotspots": {
+  "first_day": "2026-11-07",
+  "last_day": "2026-11-14",
+  "features": 2036
+ }
+}
