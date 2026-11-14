@@ -83,13 +83,15 @@ interface ToolsProps {
   onCoordinates: (polygon: GeoJSON.Polygon, label: string) => void;
   bounds: BBox | null;
   placeLabel: string;
+  onOpen?: () => void; // a tool or the form opened (mobile collapses the sheet so the map shows)
 }
 
-export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLabel }: ToolsProps) {
+export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLabel, onOpen }: ToolsProps) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
   // One tool at a time: starting to draw closes the coordinates form, opening the form stops drawing.
   useEffect(() => { if (drawMode) setOpen(false); }, [drawMode]);
+  useEffect(() => { if (open || drawMode) onOpen?.(); }, [open, drawMode]);
 
   const tools: { mode: DrawMode; label: string; icon: React.ReactNode }[] = [
     { mode: "rectangle", label: "Rectangle", icon: <Square size={16} aria-hidden /> },
@@ -115,7 +117,7 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
       </div>
       <AnimatePresence mode="wait">
         {drawMode && !open && (
-          <motion.p key="hint" {...pop} role="status" className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl">
+          <motion.p key="hint" {...pop} role="status" className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[7.25rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0">
             {drawMode === "rectangle" ? "Click two opposite corners on the map." : "Click to add points; click the first point to finish. Lines cannot cross."}
             {" "}Esc cancels.
           </motion.p>
@@ -220,7 +222,7 @@ function CoordinateForm({ bounds, placeLabel, onSubmit }: {
 
   return (
     <motion.form {...pop} ref={form} onSubmit={submit} noValidate
-      className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/60">
+      className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[7.25rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0 max-sm:max-h-[calc(100dvh-7.25rem-184px)] max-sm:overflow-y-auto border border-border bg-surface p-4 shadow-2xl shadow-black/60">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">Area by coordinates</p>
         <div className="seg !p-0.5" role="tablist" aria-label="Kind of area">

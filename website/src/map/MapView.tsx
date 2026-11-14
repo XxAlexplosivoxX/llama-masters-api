@@ -5,7 +5,6 @@ import { labelOf } from "../lib/series";
 import { MapEngine, type DrawMode, type MapLayer, type Padding } from "./engine";
 import { LoadingCard, MapCaption, stepsFrom } from "./MapStatus";
 
-const WHEN = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", hourCycle: "h23", timeZone: "UTC" });
 
 interface Props {
   explorer: Explorer;
@@ -123,8 +122,8 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
     if (!introPlayed.current) {
       introPlayed.current = true;
       setIntro({ k: 0, minutes: -1 });
+      // The intro ends on the engine's current layer; `layer` here would be the value from when it started.
       engine.intro(placeBBox, padding, (k, minutes) => setIntro({ k, minutes })).then(() => {
-        engine.setLayer(layer);
         setIntro(null);
         setAfterIntro(true);
         setTimeout(() => setAfterIntro(false), 4500);
@@ -146,12 +145,11 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
 
   // What the map is doing, in words: first load, the opening animation, then any later reload.
   const firstLoad = !failure && (!engine || (status.kind === "loading" && !introPlayed.current));
-  const firstPoint = loaded?.recent?.[0]?.acquired_utc;
   let caption: string | null = null;
-  if (intro && intro.minutes < 0) {
-    caption = `Drawing ${loaded?.recent?.length ? `${loaded.recent.length.toLocaleString("en-US")} recent hotspots and ` : ""}the monthly history`;
-  } else if (intro && firstPoint) {
-    caption = `Last 7 days as the satellites saw them: ${WHEN.format(new Date(Date.parse(firstPoint) + intro.minutes * 60000))}:00 UTC`;
+  if (intro && series && range) {
+    caption = intro.minutes < 0
+      ? "Drawing the monthly history"
+      : `Monthly history ${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`;
   } else if (afterIntro && series && range && layer === "history" && hoverMonth === null) {
     caption = `Monthly history ${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}: brighter cells had more fire`;
   } else if (status.kind === "loading" && introPlayed.current) {
@@ -174,7 +172,9 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
           </div>
         )}
       </AnimatePresence>
-      <div className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2" style={{ top: padding.bottom > 200 ? padding.top + 4 : Math.max(68, padding.top - 52), maxWidth: "calc(100% - 24px)" }}>
+      <div className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2" style={padding.bottom > 200
+          ? { bottom: padding.bottom + 12, maxWidth: "calc(100% - 24px)" }
+          : { top: Math.max(68, padding.top - 52), maxWidth: "calc(100% - 24px)" }}>
         <MapCaption text={caption} progress={intro?.k} />
       </div>
       {failure && (

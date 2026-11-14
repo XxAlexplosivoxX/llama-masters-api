@@ -41,7 +41,7 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
   const waveKey = `${place?.id}-${shape?.label ?? "all"}-${explorer.areaId}-${explorer.platform}`;
 
   return (
-    <div className="space-y-5 px-5 pb-8 pt-1 lg:pt-5">
+    <div className="mx-auto max-w-[36rem] space-y-5 px-5 pb-8 pt-1 lg:pt-5">
       <header>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.h1

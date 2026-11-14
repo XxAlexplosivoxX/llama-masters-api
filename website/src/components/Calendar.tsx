@@ -207,7 +207,7 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
           style={{
             left: `${((LABEL + (hovered.m % 12) * COL + COL / 2) / W) * 100}%`,
             top: `calc(${((TOP + Math.floor(hovered.m / 12) * ROW) / W) * 100}cqw - 8px)`,
-            transform: "translate(-50%, -100%)",
+            transform: `translate(${hovered.m % 12 < 3 ? "-18%" : hovered.m % 12 > 8 ? "-82%" : "-50%"}, -100%)`,
           }}
           role="status"
         >
