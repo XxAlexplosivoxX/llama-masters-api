@@ -111,8 +111,8 @@ function Module({ data }: { data: PlaceData }) {
           </div>
 
           <Card className="bento-now" title="Current month vs history"
-            subtitle="Latest month against the same month in the baseline years">
-            <CurrentMonth series={series} stats={stats} />
+            subtitle="This month compared with the same month in past years">
+            <CurrentMonth series={series} stats={stats} grid={grid} />
           </Card>
 
           <Card className="bento-curve" title={`Seasonal curve · ${SERIES_LABEL[kind]}`}

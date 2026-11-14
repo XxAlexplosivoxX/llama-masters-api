@@ -62,6 +62,8 @@ export interface CurrentMonth {
   position: Position | null;
   /** value / median − 1, only for complete, non-provisional months. */
   anomaly: number | null;
+  /** The same calendar month in each baseline year used for p10/p50/p90 (for showing the spread). */
+  baseline: { year: number; value: number }[];
 }
 
 /** Most recent month with data against the same calendar month in the other baseline years. */
@@ -76,5 +78,8 @@ export function currentMonth(series: MonthlySeries, stats: Stats): CurrentMonth 
   const position: Position | null = p10 === null ? null
     : value < p10 ? "below p10" : value > p90! ? "above p90" : value < p50! ? "p10 to median" : "median to p90";
   const anomaly = !partial && !provisional && p50 ? value / p50 - 1 : null;
-  return { index, value, partial, provisional, p10, p50, p90, n, position, anomaly };
+  const baseline = stats.baselineYears.filter((y) => y !== year)
+    .map((y) => ({ year: y, value: series.values[(y - series.startYear) * 12 + (index % 12)] }))
+    .filter((b): b is { year: number; value: number } => b.value !== null);
+  return { index, value, partial, provisional, p10, p50, p90, n, position, anomaly, baseline };
 }
