@@ -1,6 +1,8 @@
 # Fire calendar (website)
 
-Web app for the NASA Space Apps 2026 challenge *MODIS and VIIRS Hot Spots*. It shows when an area burns: a years × months calendar of FIRMS detections, the fire season, anomalies against the multi-year average, and CSV downloads. The MVP covers Brazil.
+For agents and new contributors: [AGENTS.md](AGENTS.md) explains the data, the harmonization, the code map and known traps.
+
+Web app for the NASA Space Apps 2026 challenge *MODIS and VIIRS Hot Spots*. It shows when an area burns: a years × months calendar of FIRMS hotspots on one harmonized MODIS + VIIRS record, the fire season, anomalies against the multi-year average, month-by-month playback, and CSV downloads. The MVP covers South America, with Brazil first.
 
 ## Run
 
