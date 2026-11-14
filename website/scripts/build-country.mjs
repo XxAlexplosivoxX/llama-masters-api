@@ -8,6 +8,7 @@
 // area API (standard processing where released, near-real-time after) and needs FIRMS_MAP_KEY in
 // .env.local. Per-year aggregates are cached in .cache/, so a rerun only downloads what changed.
 // Usage: node scripts/build-country.mjs --country brazil [--from 2000] [--archive-to 2025] [--no-api]
+//        node scripts/build-country.mjs --region south-america   (sums already-built countries, refits)
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -24,6 +25,14 @@ export const COUNTRIES = {
   paraguay: { label: "Paraguay", file: "Paraguay", bbox: [-62.7, -27.7, -54.2, -19.2] },
   argentina: { label: "Argentina", file: "Argentina", bbox: [-73.6, -55.1, -53.6, -21.7] },
   colombia: { label: "Colombia", file: "Colombia", bbox: [-79.1, -4.3, -66.8, 12.5] },
+  chile: { label: "Chile", file: "Chile", bbox: [-75.8, -56, -66.4, -17.5] },
+  peru: { label: "Peru", file: "Peru", bbox: [-81.4, -18.4, -68.6, 0] },
+  ecuador: { label: "Ecuador", file: "Ecuador", bbox: [-92.1, -5.1, -75.2, 1.7] }, // includes Galápagos
+  venezuela: { label: "Venezuela", file: "Venezuela", bbox: [-73.4, 0.6, -59.8, 12.3] },
+  uruguay: { label: "Uruguay", file: "Uruguay", bbox: [-58.5, -35, -53, -30] },
+  guyana: { label: "Guyana", file: "Guyana", bbox: [-61.4, 1.1, -56.4, 8.6] },
+  suriname: { label: "Suriname", file: "Suriname", bbox: [-58.1, 1.8, -53.9, 6.1] },
+  "french-guiana": { label: "French Guiana", file: "French_Guiana", bbox: [-54.6, 2.1, -51.5, 5.8] },
 };
 
 // MODIS confidence is 0-100 (FIRMS "low" is below 30); VIIRS uses l / n / h.
@@ -47,8 +56,20 @@ const flag = (name, fallback) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : fallback;
 };
-const ID = flag("--country", "brazil");
-const COUNTRY = COUNTRIES[ID];
+// A region is the sum of its countries' built grids (NASA clips each archive to its country,
+// so border cells add up without double counting), with its own harmonization fit.
+export const REGIONS = {
+  "south-america": {
+    label: "South America", bbox: [-92.1, -56, -34.5, 12.5],
+    countries: ["brazil", "argentina", "bolivia", "chile", "colombia", "ecuador", "french-guiana", "guyana", "paraguay",
+      "peru", "suriname", "uruguay", "venezuela"],
+  },
+};
+const REGION_ID = flag("--region", null);
+const REGION = REGION_ID ? REGIONS[REGION_ID] : null;
+if (REGION_ID && !REGION) throw new Error(`Unknown region "${REGION_ID}". Known: ${Object.keys(REGIONS).join(", ")}`);
+const ID = REGION_ID ?? flag("--country", "brazil");
+const COUNTRY = REGION ?? COUNTRIES[ID];
 if (!COUNTRY) throw new Error(`Unknown country "${ID}". Known: ${Object.keys(COUNTRIES).join(", ")}`);
 const FROM = Number(flag("--from", 2000));
 const ARCHIVE_TO = Number(flag("--archive-to", 2025));
@@ -180,6 +201,45 @@ const parts = { MODIS: [], VIIRS: [] };
 const lastDay = { MODIS: "", VIIRS: "" };
 const processing = { MODIS: [], VIIRS: [] };
 
+let mask = new Set();
+let provisionalFrom = {};
+let regionPoints = null;
+const memberGrids = [];
+if (REGION) {
+  for (const id of REGION.countries) {
+    const file = join(ROOT, "public", "data", id, "monthly_grid.json");
+    if (!existsSync(file)) throw new Error(`${id} is not built yet: run --country ${id} first`);
+    const g = JSON.parse(await readFile(file, "utf8"));
+    if (g.start_month !== `${FROM}-01`) throw new Error(`${id} starts at ${g.start_month}, expected ${FROM}-01`);
+    memberGrids.push(g);
+    const ym = (i) => `${FROM + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+    for (const [n, sensor] of [[2, "MODIS"], [3, "VIIRS"]]) {
+      const cells = {};
+      for (const c of g.cells) {
+        const key = `${Math.round(c[0] / CELL)}:${Math.round(c[1] / CELL)}`;
+        c[n].forEach((v, i) => { if (v) (cells[key] ??= {})[ym(i)] = (cells[key][ym(i)] ?? 0) + v; });
+      }
+      const info = g.sensors[sensor];
+      parts[sensor].push({ cells, quality: info.quality_counts, last: info.last_source_day });
+      // The region is only as current as its least current country.
+      if (!lastDay[sensor] || info.last_source_day < lastDay[sensor]) lastDay[sensor] = info.last_source_day;
+      if (info.provisional_from_day && (!provisionalFrom[sensor] || info.provisional_from_day < provisionalFrom[sensor])) {
+        provisionalFrom[sensor] = info.provisional_from_day;
+      }
+    }
+    const recentFile = join(ROOT, "public", "data", id, "recent_hotspots.json");
+    if (existsSync(recentFile)) {
+      const r = JSON.parse(await readFile(recentFile, "utf8"));
+      regionPoints ??= [];
+      r.lon.forEach((lon, i) => regionPoints.push({
+        lon, lat: r.lat[i], acquired_utc: r.acquired_utc[i], platform: r.platforms[r.platform[i]],
+        confidence: r.confidence[i] === 2 ? "high" : "nominal", frp: r.frp[i], daynight: r.daynight[i] ? "D" : "N",
+      }));
+    }
+    console.log(`${id}: added`);
+  }
+  for (const sensor of Object.keys(SENSORS)) processing[sensor] = memberGrids[0].sensors[sensor].processing;
+} else {
 // 1. Yearly country archives (standard processing), cached per sensor and year.
 const archiveTasks = [];
 for (const [sensor, s] of Object.entries(SENSORS)) {
@@ -200,11 +260,10 @@ await pool(archiveTasks, 3);
 for (const sensor of Object.keys(SENSORS)) lastDay[sensor] = `${ARCHIVE_TO}-12-31`;
 
 // The archive is clipped to the country by NASA; its 0.1° cells become the mask for bbox-based data.
-const mask = new Set(Object.values(parts).flat().flatMap((p) => p.fine));
+mask = new Set(Object.values(parts).flat().flatMap((p) => p.fine));
 console.log(`mask: ${mask.size.toLocaleString()} cells of ${FINE}°`);
 
 // 2. Current year from the area API: standard processing while released, then near-real-time.
-let provisionalFrom = {};
 if (USE_API && END_YEAR > ARCHIVE_TO) {
   if (!KEY) throw new Error("FIRMS_MAP_KEY is missing: add it to website/.env.local, or pass --no-api.");
   const available = await availability();
@@ -232,6 +291,8 @@ if (USE_API && END_YEAR > ARCHIVE_TO) {
     }
     console.log(`${sensor} ${ARCHIVE_TO + 1}: ${results.reduce((n, r) => n + r.quality.kept, 0).toLocaleString()} kept, to ${nrtEnd}`);
   }
+}
+
 }
 
 // 3. Dense monthly arrays per cell and sensor.
@@ -341,7 +402,7 @@ const harmonization = {
   caveats: [
     "Scored against MODIS, which is itself a sample of fires, not ground truth.",
     "Terra and Aqua orbits drifted after about 2020 and 2022, so test-year MODIS may read lower for reasons unrelated to fire.",
-    "One set of coefficients for the whole country; local landscapes may need their own.",
+    `One set of coefficients for all of ${COUNTRY.label}; local landscapes may need their own.`,
   ],
 };
 console.log("harmonization test", harmonization.test);
@@ -378,7 +439,9 @@ const grid = {
   months: MONTHS,
   sensors: { MODIS: sensorInfo("MODIS"), VIIRS: sensorInfo("VIIRS") },
   harmonization,
-  sources: [
+  sources: REGION ? [
+    `Sum of the country exports for ${REGION.countries.length} countries (${memberGrids.map((g) => g.label).join(", ")}), each built from NASA FIRMS yearly country archives and the FIRMS area API.`,
+  ] : [
     `NASA FIRMS yearly country archive (${COUNTRY.file}), ${FIRMS}/data/country/`,
     ...(USE_API ? [`NASA FIRMS area API (${ARCHIVE_TO + 1} onward), clipped to the archive's ${FINE}° country footprint`] : []),
   ],
@@ -406,8 +469,8 @@ const feeds = [
   `${FIRMS}/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_7d.csv`,
   `${FIRMS}/data/active_fire/noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_7d.csv`,
 ];
-const points = [];
-for (const url of feeds) {
+const points = regionPoints ?? [];
+for (const url of regionPoints ? [] : feeds) {
   let header = null;
   try {
     for await (const line of lines(url)) {
@@ -465,8 +528,10 @@ await writeFile(join(OUT, "meta.json"), JSON.stringify(meta, null, 1));
 // Index of every country built so far, read by the place switcher.
 const indexFile = join(ROOT, "public", "data", "places.json");
 const index = existsSync(indexFile) ? JSON.parse(await readFile(indexFile, "utf8")) : [];
-const entry = { id: ID, label: COUNTRY.label, bbox: COUNTRY.bbox, base: `./data/${ID}`, history: meta.history, hotspots };
+const entry = { id: ID, kind: REGION ? "region" : "country", label: COUNTRY.label, bbox: COUNTRY.bbox, base: `./data/${ID}`, history: meta.history, hotspots };
 const merged = [...index.filter((p) => p.id !== ID), entry]
-  .sort((a, b) => (a.id === "brazil" ? -1 : b.id === "brazil" ? 1 : a.label.localeCompare(b.label)));
+  // Regions first, then Brazil (the MVP), then countries A to Z.
+  .sort((a, b) => order(a) - order(b) || a.label.localeCompare(b.label));
+function order(p) { return p.id in REGIONS ? 0 : p.id === "brazil" ? 1 : 2; }
 await writeFile(indexFile, JSON.stringify(merged, null, 1));
 console.log("done", hotspots);

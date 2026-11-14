@@ -51,6 +51,7 @@ async function getJSONWithProgress<T>(url: string, signal: AbortSignal | undefin
 
 interface PlaceIndexEntry {
   id: string;
+  kind?: "region" | "country";
   label: string;
   bbox: BBox;
   base: string;
@@ -62,8 +63,10 @@ async function loadGridPlaces(): Promise<GridPlace[]> {
   try {
     const index = await getJSON<PlaceIndexEntry[]>("./data/places.json");
     return index.map((p) => ({
-      id: p.id, label: p.label, kind: "grid", base: p.base, bbox: p.bbox,
-      summary: `MODIS since ${p.history.MODIS.first_source_month.slice(0, 4)}, VIIRS since ${p.history.VIIRS.first_source_month.slice(0, 4)}`,
+      id: p.id, label: p.label, kind: "grid", scope: p.kind ?? "country", base: p.base, bbox: p.bbox,
+      summary: p.kind === "region"
+        ? `Every country combined, since ${p.history.MODIS.first_source_month.slice(0, 4)}`
+        : p.id === "brazil" ? "MVP: the most tested area" : `Since ${p.history.MODIS.first_source_month.slice(0, 4)}`,
     }));
   } catch {
     return [];
@@ -72,9 +75,8 @@ async function loadGridPlaces(): Promise<GridPlace[]> {
 
 /** Shown in the switcher as a preview of where the pipeline goes next; they have no data yet. */
 export const COMING_SOON: { label: string; note: string }[] = [
-  { label: "Peru", note: "Andes and Amazon" },
-  { label: "Venezuela", note: "Llanos savanna" },
-  { label: "Mexico", note: "Yucatán and Sierra Madre" },
+  { label: "Mexico and Central America", note: "Yucatán and Sierra Madre" },
+  { label: "Canada", note: "Boreal forest" },
   { label: "Australia", note: "Northern savanna" },
   { label: "Indonesia", note: "Peatland fires" },
 ];

@@ -34,7 +34,8 @@ export function useExplorer() {
     loadPlaces()
       .then((list) => {
         setPlaces(list);
-        setPlaceId(list[0]?.id ?? null);
+        // Brazil is the MVP and opens first; South America and the other countries are one click away.
+        setPlaceId((list.find((p) => p.id === "brazil") ?? list[0])?.id ?? null);
         if (!list.length) setStatus({ kind: "error", message: "No places are available. Run npm run data:brazil." });
       })
       .catch((error) => setStatus({ kind: "error", message: String(error) }));

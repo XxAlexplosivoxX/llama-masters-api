@@ -67,6 +67,10 @@ export function HowCombined({ explorer, grid }: { explorer: Explorer; grid: Mont
           ? <><span className="num text-text">{Math.round(check.wape * 100)}%</span> month to month in this area ({fmtPercent(check.bias)} overall)</>
           : <><span className="num text-text">{Math.round(h.test.model.wape * 100)}%</span> month to month across {grid.label}</>}
         ; raw VIIRS would be off by <span className="num">{Math.round(h.test.raw_viirs.wape * 100)}%</span>.
+        {" "}Across {grid.label}, one fixed ratio for every month scores <span className="num">{Math.round(h.test.single_ratio.wape * 100)}%</span>
+        {h.test.single_ratio.wape < h.test.model.wape
+          ? ", slightly better than this method here, so the seasonal adjustment is not yet proven for the whole area."
+          : `, against ${Math.round(h.test.model.wape * 100)}% for this method.`}
       </p>
 
       <div className="space-y-1.5">

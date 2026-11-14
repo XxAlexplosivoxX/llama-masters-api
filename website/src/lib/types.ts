@@ -122,6 +122,7 @@ interface PlaceBase {
 /** A place with a gridded multi-year history: any drawn area inside it gets its own calendar. */
 export interface GridPlace extends PlaceBase {
   kind: "grid";
+  scope?: "region" | "country";
   base: string;
 }
 

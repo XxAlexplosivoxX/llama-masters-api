@@ -19,6 +19,22 @@ const pop = {
 export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; current: Place | null; onSelect: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
+  const pick = (id: string) => { onSelect(id); setOpen(false); };
+  const regions = places.filter((p) => p.kind === "grid" && p.scope === "region");
+  const countries = places.filter((p) => p.kind === "grid" && p.scope !== "region");
+  const exports = places.filter((p) => p.kind === "weekly");
+  const heading = (text: string) => <p className="px-3 pb-1 pt-3 text-xs font-semibold text-muted first:pt-1.5">{text}</p>;
+  const row = (p: Place) => (
+    <button key={p.id} role="option" aria-selected={p.id === current?.id} onClick={() => pick(p.id)}
+      className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left hover:bg-surface-2">
+      <span className="mt-0.5 w-4 shrink-0 text-accent">{p.id === current?.id && <Check size={15} aria-hidden />}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{p.label}{p.synthetic ? " (synthetic)" : ""}</span>
+        <span className="block text-xs text-muted">{p.summary}</span>
+      </span>
+    </button>
+  );
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -31,34 +47,30 @@ export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; 
       </button>
       <AnimatePresence>
         {open && (
-          <motion.ul {...pop} role="listbox" aria-label="Places"
-            className="absolute left-0 top-full z-30 mt-2 w-72 origin-top-left overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60">
-            {places.map((p) => (
-              <li key={p.id}>
-                <button
-                  role="option" aria-selected={p.id === current?.id}
-                  className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-surface-2"
-                  onClick={() => { onSelect(p.id); setOpen(false); }}
-                >
-                  <span className="mt-0.5 w-4 text-accent">{p.id === current?.id && <Check size={16} aria-hidden />}</span>
-                  <span>
-                    <span className="block text-sm font-semibold">{p.label}{p.synthetic ? " (synthetic)" : ""}</span>
-                    <span className="block text-xs text-muted">{p.summary}</span>
-                  </span>
-                </button>
-              </li>
-            ))}
-            <li className="mt-1 border-t border-border px-3 pb-1 pt-2.5 text-2xs font-semibold uppercase tracking-wider text-muted">Coming soon</li>
-            {COMING_SOON.map((c) => (
-              <li key={c.label} aria-disabled className="flex items-start gap-3 px-3 py-1.5 opacity-55">
-                <span className="w-4" />
-                <span>
-                  <span className="block text-sm">{c.label}</span>
-                  <span className="block text-xs text-muted">{c.note}. Same pipeline, not built yet.</span>
-                </span>
-              </li>
-            ))}
-          </motion.ul>
+          <motion.div {...pop} role="listbox" aria-label="Places"
+            className="absolute left-0 top-full z-30 mt-2 max-h-[min(34rem,calc(100dvh-6rem))] w-80 origin-top-left overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60">
+            {regions.length > 0 && <>{heading("Region")}{regions.map(row)}</>}
+            {countries.length > 0 && (
+              <>
+                {heading("Countries")}
+                {countries.filter((p) => p.id === "brazil").map(row)}
+                <div className="grid grid-cols-2 gap-0.5">
+                  {countries.filter((p) => p.id !== "brazil").map((p) => (
+                    <button key={p.id} role="option" aria-selected={p.id === current?.id} onClick={() => pick(p.id)}
+                      className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm hover:bg-surface-2">
+                      <span className="w-4 shrink-0 text-accent">{p.id === current?.id && <Check size={15} aria-hidden />}</span>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            {exports.length > 0 && <>{heading("Weekly research exports")}{exports.map(row)}</>}
+            {heading("Coming soon")}
+            <p className="px-3 pb-2.5 text-xs leading-relaxed text-muted">
+              {COMING_SOON.map((c) => c.label).join(", ")}. Same pipeline, not built yet.
+            </p>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
