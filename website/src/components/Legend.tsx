@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { HEAT, HEAT_ZERO } from "../lib/color";
+import { HEAT, HEAT_ZERO, SENSOR } from "../lib/color";
 import { fmt, fmtCompact } from "../lib/format";
 import { labelOf, MONTHS_LONG, SERIES_LABEL } from "../lib/series";
 import type { MapLayer } from "../map/engine";
@@ -21,7 +21,7 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
   } else if (layer === "recent") {
     title = first ? `${first} to ${last} (UTC)` : "Last 7 days";
     detail = loaded?.recent
-      ? `${fmt(recent.length)} MODIS and VIIRS detections${shape ? " in this area" : ""}`
+      ? `${fmt(recent.length)} detections${shape ? " in this area" : ""}${!explorer.recentSensors.MODIS ? ", VIIRS only" : !explorer.recentSensors.VIIRS ? ", MODIS only" : ""}`
       : "This region has no recent detections export";
   }
   if (!title) return null;
@@ -34,11 +34,27 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
         </motion.div>
       </AnimatePresence>
       <div className="text-xs text-muted">{detail}</div>
-      <div className="mt-2 h-2 rounded-sm" style={{ background: `linear-gradient(90deg, ${layer === "history" ? HEAT_ZERO : "transparent"}, ${HEAT.join(",")})` }} />
-      <div className="mt-1 flex justify-between text-2xs text-muted num">
-        <span>{layer === "history" ? "1" : "Sparse"}</span>
-        <span>{layer === "history" ? `${fmtCompact(gridMax)}+` : "Dense, high power"}</span>
-      </div>
+      {layer === "history" ? (
+        <>
+          <div className="mt-2 h-2 rounded-sm" style={{ background: `linear-gradient(90deg, ${HEAT_ZERO}, ${HEAT.join(",")})` }} />
+          <div className="mt-1 flex justify-between text-2xs text-muted num">
+            <span>1</span>
+            <span>{`${fmtCompact(gridMax)}+`}</span>
+          </div>
+        </>
+      ) : (
+        <div className="mt-2 flex items-center gap-4 text-xs">
+          {(["VIIRS", "MODIS"] as const).map((s) => (
+            <span key={s} className={`inline-flex items-center gap-1.5 ${explorer.recentSensors[s] ? "" : "opacity-40 line-through"}`}>
+              <span className="inline-block rounded-full" aria-hidden style={s === "MODIS"
+                ? { width: 11, height: 11, background: `${SENSOR.MODIS.color}80`, border: `1.5px solid ${SENSOR.MODIS.color}` }
+                : { width: 7, height: 7, background: SENSOR.VIIRS.color }} />
+              {s}
+            </span>
+          ))}
+          <span className="ml-auto text-2xs text-muted">Size: fire power</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
 } from "./lib/series";
 import type { BBox, Hotspot, Loaded, MonthlySeries, Place, SeriesKind, Shape } from "./lib/types";
 import { fmtKm2 } from "./lib/format";
+import { sensorOf, type Sensor } from "./lib/color";
 
 export type Status =
   | { kind: "loading"; message: string }
@@ -27,6 +28,7 @@ export function useExplorer() {
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
   const [kind, setKind] = useState<SeriesKind>("MODIS");
+  const [recentSensors, setRecentSensors] = useState<Record<Sensor, boolean>>({ MODIS: true, VIIRS: true });
 
   useEffect(() => {
     loadPlaces()
@@ -104,10 +106,15 @@ export function useExplorer() {
   const defaultFocus = series && stats && activeRange ? latestCompleteYear(stats, activeRange, series.startYear) : null;
   const focus = focusYear ?? defaultFocus;
 
-  const recent: Hotspot[] = useMemo(() => {
+  // Last 7 days inside the selection (recentInArea), then narrowed to the sensors switched on (recent).
+  const recentInArea: Hotspot[] = useMemo(() => {
     const all = loaded?.recent ?? [];
     return shape ? all.filter((p) => contains(shape.polygon, p.lon, p.lat)) : all;
   }, [loaded, shape]);
+  const recent = useMemo(
+    () => recentInArea.filter((p) => recentSensors[sensorOf(p.platform)]),
+    [recentInArea, recentSensors],
+  );
 
   const placeBBox: BBox | null = useMemo(() => {
     if (!loaded) return place?.bbox ?? null;
@@ -133,7 +140,9 @@ export function useExplorer() {
     seriesRange,
     focus, setFocusYear,
     hoverMonth, setHoverMonth,
-    recent, placeBBox, selectionLabel,
+    recent, recentInArea, recentSensors,
+    toggleRecentSensor: (s: Sensor) => setRecentSensors((old) => ({ ...old, [s]: !old[s] })),
+    placeBBox, selectionLabel,
     selectPlace: setPlaceId,
   };
 }

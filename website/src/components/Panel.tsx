@@ -6,6 +6,7 @@ import { Anomalies } from "./Anomalies";
 import { Calendar } from "./Calendar";
 import { DateRange } from "./DateRange";
 import { SensorCompare, SensorSwitch } from "./Sensors";
+import { RecentBySatellite } from "./Recent";
 import { Export } from "./Export";
 import { KeyNumbers } from "./KeyNumbers";
 
@@ -31,7 +32,7 @@ function Skeleton() {
   );
 }
 
-export function Panel({ explorer }: { explorer: Explorer }) {
+export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Explorer; showingRecent: boolean; onShowRecent: () => void }) {
   const { status, loaded, place, series, stats, range, shape, focus, setFocusYear, hoverMonth, setHoverMonth } = explorer;
   const waveKey = `${place?.id}-${shape?.label ?? "all"}-${explorer.areaId}-${explorer.platform}`;
 
@@ -132,6 +133,12 @@ export function Panel({ explorer }: { explorer: Explorer }) {
           {loaded && "grid" in loaded && (
             <Section title="MODIS and VIIRS compared" aside={<span className="text-xs text-muted">Detections per year</span>}>
               <SensorCompare explorer={explorer} grid={loaded.grid} />
+            </Section>
+          )}
+
+          {loaded?.recent && (
+            <Section title="Last 7 days" aside={<span className="text-xs text-muted">By satellite</span>}>
+              <RecentBySatellite explorer={explorer} showingOnMap={showingRecent} onShowOnMap={onShowRecent} />
             </Section>
           )}
 

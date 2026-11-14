@@ -119,25 +119,33 @@ export class MapEngine {
     }, firstLabel);
     // Heatmap layers do not render on the globe projection; a blurred halo plus a
     // core dot per detection reads as density at low zoom and as points up close.
-    const frpColor: ExpressionSpecification = ["interpolate", ["linear"], ["get", "frp"],
-      0, HEAT[1], 8, HEAT[2], 20, HEAT[3], 50, HEAT[4], 150, HEAT[5]];
+    // Colour says which sensor saw it (MODIS amber, VIIRS cyan); size grows with fire radiative power.
+    // MODIS sits on top as a larger, see-through disc, echoing its 1 km pixel against VIIRS's 375 m.
+    const isModis: ExpressionSpecification = ["==", ["get", "s"], "M"];
+    const sensorColor: ExpressionSpecification = ["case", isModis, SENSOR.MODIS.color, SENSOR.VIIRS.color];
+    const power: ExpressionSpecification = ["*", ["case", isModis, 1.7, 1],
+      ["interpolate", ["linear"], ["get", "frp"], 0, 0.8, 20, 1, 100, 1.5, 500, 2.2]];
     map.addLayer({
       id: "recent-heat", type: "circle", source: "recent",
       paint: {
-        "circle-color": frpColor,
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 2, 6, 6, 10, 12],
+        "circle-color": sensorColor,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, ["*", 2, power], 6, ["*", 6, power], 10, ["*", 12, power]],
         "circle-blur": 1,
-        "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.16, 8, 0.26],
+        "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.12, 8, 0.2],
       },
     }, firstLabel);
     map.addLayer({
       id: "recent-dots", type: "circle", source: "recent",
+      layout: { "circle-sort-key": ["case", isModis, 1, 0] },
       paint: {
-        "circle-color": frpColor,
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 0.7, 6, 1.6, 10, 4, 14, 8],
-        "circle-opacity": 0.9,
-        "circle-stroke-color": "#0B0F1A",
-        "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 8, 0, 12, 1],
+        "circle-color": sensorColor,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"],
+          2, ["*", 0.7, power], 6, ["*", 1.6, power], 10, ["*", 4, power], 14, ["*", 8, power]],
+        "circle-opacity": ["case", isModis, 0.5, 0.9],
+        "circle-stroke-color": ["case", isModis, SENSOR.MODIS.color, "#0B0F1A"],
+        // Zoom must be the outermost input, so the sensor switch goes inside each stop.
+        "circle-stroke-width": ["interpolate", ["linear"], ["zoom"],
+          4, 0, 7, ["case", isModis, 1, 0], 8, ["case", isModis, 1.1, 0], 12, ["case", isModis, 1.5, 1]],
       },
     }, firstLabel);
     map.addLayer({ id: "mask", type: "fill", source: "mask", paint: { "fill-color": "#0B0F1A", "fill-opacity": 0.55 } });
@@ -238,6 +246,7 @@ export class MapEngine {
         properties: {
           t: (Date.parse(p.acquired_utc) - first) / 60000,
           frp: p.frp, platform: p.platform, acquired_utc: p.acquired_utc, confidence: p.confidence, daynight: p.daynight,
+          s: sensorOf(p.platform) === "MODIS" ? "M" : "V",
         },
       })),
     });

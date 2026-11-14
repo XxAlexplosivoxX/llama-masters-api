@@ -85,7 +85,7 @@ export function App() {
   );
   const panel = (
     <ErrorBoundary label="panel">
-      <Panel explorer={explorer} />
+      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => setLayer("recent")} />
     </ErrorBoundary>
   );
 
