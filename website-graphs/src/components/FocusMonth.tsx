@@ -1,10 +1,8 @@
-import { AXIS, NOTE, VALUE } from "../lib/chart";
-import { GRID, HARMONIZED, MODIS, MODIS_EQ, MUTED, SENSOR, VIIRS } from "../lib/color";
+import { HARMONIZED, MODIS, MODIS_EQ, MUTED, SENSOR, VIIRS } from "../lib/color";
 import { fmt } from "../lib/format";
 import { harmonizedSource, MONTHS_LONG, weeklyToMonthly } from "../lib/shared";
 import { csvMonthly } from "../lib/csv";
 import { INSTRUMENT, RESOLUTION, type MonthlySeries, type Platform, type SeriesKind } from "../types";
-import { useWidth } from "../hooks/useWidth";
 import type { PlaceData } from "../hooks/usePlaceData";
 import { useGraphsStore } from "../hooks/useGraphsStore";
 
@@ -13,15 +11,10 @@ interface Props {
   month: number | null; // month index into the series
 }
 
-const ROW = 30;
-const LABEL = 132;
-const VALUE_W = 64;
-
 interface Bar { key: string; label: string; note?: string; value: number | null; color: string }
 
 /** The focus month side by side by record; raw counts are never summed. */
 export function FocusMonth({ data, month }: Props) {
-  const { ref, width } = useWidth();
   const { loaded, values, cells, series, csvData, platforms } = data;
   const areaId = useGraphsStore((s) => s.areaId) ?? "upload";
 
@@ -62,32 +55,30 @@ export function FocusMonth({ data, month }: Props) {
   }
 
   const max = Math.max(1, ...bars.map((b) => b.value ?? 0));
-  const height = 8 + bars.length * ROW;
   const label = `${MONTHS_LONG[month % 12]} ${series.startYear + Math.floor(month / 12)}`;
-  const track = width - LABEL - VALUE_W;
 
   return (
-    <div ref={ref}>
-      {width > 0 && (
-        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block" role="list" aria-label={`${label} by record`}>
-          {bars.map((b, i) => {
-            const y = 8 + i * ROW;
-            const w = b.value !== null ? Math.max(2, (b.value / max) * track) : 0;
-            return (
-              <g key={b.key}>
-                <text x={0} y={y + 10} fontSize={AXIS.size} fill={AXIS.fill}>{b.label}</text>
-                {b.note && <text x={0} y={y + 21} fontSize={NOTE.size - 1.5} fill={MUTED}>{b.note}</text>}
-                <rect x={LABEL} y={y} width={Math.max(track, 1)} height={ROW - 14} rx={4} fill="none" stroke={GRID} />
-                {b.value !== null && <rect x={LABEL} y={y} width={w} height={ROW - 14} rx={4} fill={b.color} />}
-                <text x={width} y={y + 11} fontSize={VALUE.size} fontWeight={VALUE.weight} fill={VALUE.fill} textAnchor="end">
-                  {b.value === null ? "No data" : fmt(Math.round(b.value))}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
-      )}
-      <p className="mt-1 text-2xs leading-snug text-muted">Raw counts are never added together.</p>
+    <div>
+      {/* HTML rows so long labels and notes wrap inside their column instead of running under the bars. */}
+      <ul className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5" aria-label={`${label} by record`}>
+        {bars.map((b) => (
+          <li key={b.key} className="contents">
+            <span className="min-w-0 leading-tight">
+              <span className="block text-sm text-muted">{b.label}</span>
+              {b.note && <span className="block text-2xs leading-snug text-muted/80">{b.note}</span>}
+            </span>
+            <span className="h-4 rounded border border-grid">
+              {b.value !== null && (
+                <span className="block h-full rounded" style={{ width: `${Math.max(1, (b.value / max) * 100)}%`, background: b.color }} />
+              )}
+            </span>
+            <span className="num text-right text-sm font-semibold text-text">
+              {b.value === null ? "No data" : fmt(Math.round(b.value))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-2xs leading-snug text-muted">Raw counts are never added together.</p>
     </div>
   );
 }
