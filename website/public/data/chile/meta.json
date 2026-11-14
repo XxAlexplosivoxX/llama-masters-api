@@ -1,0 +1,33 @@
+{
+ "name": "chile",
+ "label": "Chile",
+ "bbox": [
+  -75.8,
+  -56,
+  -66.4,
+  -17.5
+ ],
+ "generated_at_utc": "2026-11-14T21:46:59.565Z",
+ "history": {
+  "MODIS": {
+   "series": "MODIS (Terra + Aqua), Collection 6.1",
+   "first_source_month": "2000-11",
+   "last_source_day": "2026-11-14"
+  },
+  "VIIRS": {
+   "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+   "first_source_month": "2012-01",
+   "last_source_day": "2026-11-02"
+  }
+ },
+ "harmonization_test": {
+  "wape": 0.352,
+  "bias": 0.0155,
+  "r": 0.941
+ },
+ "hotspots": {
+  "first_day": "2026-11-07",
+  "last_day": "2026-11-14",
+  "features": 853
+ }
+}

@@ -1,5 +1,34 @@
 [
  {
+  "id": "south-america",
+  "kind": "region",
+  "label": "South America",
+  "bbox": [
+   -92.1,
+   -56,
+   -34.5,
+   12.5
+  ],
+  "base": "./data/south-america",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 135825
+  }
+ },
+ {
   "id": "brazil",
   "label": "Brazil",
   "bbox": [
@@ -84,6 +113,34 @@
   }
  },
  {
+  "id": "chile",
+  "label": "Chile",
+  "bbox": [
+   -75.8,
+   -56,
+   -66.4,
+   -17.5
+  ],
+  "base": "./data/chile",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 853
+  }
+ },
+ {
   "id": "colombia",
   "label": "Colombia",
   "bbox": [
@@ -112,6 +169,92 @@
   }
  },
  {
+  "id": "ecuador",
+  "label": "Ecuador",
+  "bbox": [
+   -92.1,
+   -5.1,
+   -75.2,
+   1.7
+  ],
+  "base": "./data/ecuador",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 177
+  }
+ },
+ {
+  "id": "french-guiana",
+  "kind": "country",
+  "label": "French Guiana",
+  "bbox": [
+   -54.6,
+   2.1,
+   -51.5,
+   5.8
+  ],
+  "base": "./data/french-guiana",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 600
+  }
+ },
+ {
+  "id": "guyana",
+  "kind": "country",
+  "label": "Guyana",
+  "bbox": [
+   -61.4,
+   1.1,
+   -56.4,
+   8.6
+  ],
+  "base": "./data/guyana",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 8492
+  }
+ },
+ {
   "id": "paraguay",
   "label": "Paraguay",
   "bbox": [
@@ -137,6 +280,119 @@
    "first_day": "2026-11-07",
    "last_day": "2026-11-14",
    "features": 5617
+  }
+ },
+ {
+  "id": "peru",
+  "label": "Peru",
+  "bbox": [
+   -81.4,
+   -18.4,
+   -68.6,
+   0
+  ],
+  "base": "./data/peru",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 2145
+  }
+ },
+ {
+  "id": "suriname",
+  "kind": "country",
+  "label": "Suriname",
+  "bbox": [
+   -58.1,
+   1.8,
+   -53.9,
+   6.1
+  ],
+  "base": "./data/suriname",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 2407
+  }
+ },
+ {
+  "id": "uruguay",
+  "label": "Uruguay",
+  "bbox": [
+   -58.5,
+   -35,
+   -53,
+   -30
+  ],
+  "base": "./data/uruguay",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 67
+  }
+ },
+ {
+  "id": "venezuela",
+  "label": "Venezuela",
+  "bbox": [
+   -73.4,
+   0.6,
+   -59.8,
+   12.3
+  ],
+  "base": "./data/venezuela",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-14"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-07",
+   "last_day": "2026-11-14",
+   "features": 9113
   }
  }
 ]

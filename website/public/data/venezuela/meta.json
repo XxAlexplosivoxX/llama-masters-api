@@ -1,0 +1,33 @@
+{
+ "name": "venezuela",
+ "label": "Venezuela",
+ "bbox": [
+  -73.4,
+  0.6,
+  -59.8,
+  12.3
+ ],
+ "generated_at_utc": "2026-11-14T21:49:44.729Z",
+ "history": {
+  "MODIS": {
+   "series": "MODIS (Terra + Aqua), Collection 6.1",
+   "first_source_month": "2000-11",
+   "last_source_day": "2026-11-14"
+  },
+  "VIIRS": {
+   "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+   "first_source_month": "2012-01",
+   "last_source_day": "2026-11-02"
+  }
+ },
+ "harmonization_test": {
+  "wape": 0.0933,
+  "bias": -0.0192,
+  "r": 0.9953
+ },
+ "hotspots": {
+  "first_day": "2026-11-07",
+  "last_day": "2026-11-14",
+  "features": 9113
+ }
+}
