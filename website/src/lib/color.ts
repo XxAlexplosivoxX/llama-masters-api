@@ -21,11 +21,6 @@ export function anomalyScale(limit = 1) {
   return (relative: number) => scale(relative);
 }
 
-/** Thresholds for a stepped MapLibre expression matching heatScale. */
-export function heatSteps(max: number, steps = HEAT.length): number[] {
-  return Array.from({ length: steps }, (_, i) => Math.max(1, Math.round(max * (i / steps) ** 2)));
-}
-
 /** Sensor identity colours (--color-modis / --color-viirs), kept apart from the heat ramp. */
 export type Sensor = "MODIS" | "VIIRS";
 export const SENSOR: Record<Sensor, { color: string; pixel: string; satellites: string }> = {

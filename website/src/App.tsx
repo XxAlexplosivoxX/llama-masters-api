@@ -34,9 +34,9 @@ export function App() {
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
 
   const historyAvailable = !!explorer.loaded && "grid" in explorer.loaded;
+  // Keep the layer the user picked across places; only fall back when a place has no history.
   useEffect(() => {
     if (explorer.loaded && !historyAvailable) setLayer("recent");
-    if (historyAvailable) setLayer("history");
   }, [explorer.loaded]);
 
   useEffect(() => {
@@ -73,7 +73,8 @@ export function App() {
       <div className="flex flex-col items-end gap-2">
         <div className="flex flex-wrap justify-end gap-2">
           <DrawTools drawMode={drawMode} onDrawMode={setDrawMode} onCoordinates={chooseArea}
-            bounds={explorer.place?.bbox ?? null} placeLabel={explorer.place?.label ?? "this place"} />
+            bounds={explorer.place?.bbox ?? null} placeLabel={explorer.place?.label ?? "this place"}
+            onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
           <LayerSwitch layer={layer} onLayer={setLayer} historyAvailable={historyAvailable} />
         </div>
         <SelectionChip label={explorer.shape?.label ?? null} placeLabel={explorer.place?.label ?? ""}
@@ -100,23 +101,28 @@ export function App() {
   const legendVisible = introDone && (desktop || (snap === SNAPS[0] && !explorer.timelineOpen));
   // Desktop: between the legend and the zoom buttons. Mobile: above the collapsed sheet.
   const timelineVisible = introDone && historyAvailable && layer === "history" && (desktop || snap === SNAPS[0]);
-  const timeline = (
-    <motion.div
-      animate={{ opacity: timelineVisible ? 1 : 0 }} transition={{ duration: 0.3 }}
-      className={`pointer-events-none absolute z-10 flex ${desktop ? "bottom-4 left-[288px] right-16 justify-center" : "bottom-[180px] right-3 left-3 justify-end"} ${timelineVisible ? "" : "invisible"}`}
-    >
+  const timelineInner = (
+    <motion.div animate={{ opacity: timelineVisible ? 1 : 0 }} transition={{ duration: 0.3 }}
+      className={`flex ${desktop ? "min-w-[19rem] flex-1 justify-center" : "pointer-events-none absolute bottom-[180px] left-3 right-3 z-10 justify-end"} ${timelineVisible ? "" : "invisible"}`}>
       <Timeline explorer={explorer} onPlay={play} />
     </motion.div>
   );
-
-  const legend = (
+  const legendInner = (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: legendVisible ? 1 : 0, y: legendVisible ? 0 : 8 }} transition={{ duration: 0.4 }}
-      className={desktop ? "absolute bottom-4 left-4 z-10" : "pointer-events-none absolute bottom-[180px] left-3 z-10"}
+      className={desktop ? "" : "pointer-events-none absolute bottom-[180px] left-3 z-10"}
     >
       <Legend explorer={explorer} layer={layer} gridMax={gridMax} />
     </motion.div>
   );
+  // Desktop: legend and player share one bottom bar; when the map is narrow the player wraps above.
+  const legend = desktop ? (
+    <div className="pointer-events-none absolute bottom-4 left-4 right-16 z-10 flex flex-wrap-reverse items-end gap-3">
+      {legendInner}
+      {timelineInner}
+    </div>
+  ) : legendInner;
+  const timeline = desktop ? null : timelineInner;
 
   if (desktop) {
     return (

@@ -17,6 +17,7 @@ const OFFLINE_STYLE: StyleSpecification = {
   layers: [{ id: "background", type: "background", paint: { "background-color": "#121829" } }],
 };
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+const RECENT_LAYERS = ["recent-heat", "recent-dots"];
 
 export type MapLayer = "history" | "recent";
 export type DrawMode = "rectangle" | "polygon";
@@ -57,6 +58,8 @@ function hotspotHTML(p: Record<string, string | number>): string {
     + "</dl>";
 }
 
+const container = (map: MapLibreMap) => map.getContainer();
+
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Square-root heat ramp on the cell's feature-state value; cells at zero are transparent. */
@@ -76,6 +79,8 @@ export class MapEngine {
   private gridMax = -1;
   private gridValues: number[] = [];
   private skip = false;
+  private gridPending = false;
+  private introRunning = false;
   private destroyed = false;
 
   static async create(container: HTMLElement, onDraw: (polygon: GeoJSON.Polygon) => void, signal: AbortSignal) {
@@ -113,6 +118,8 @@ export class MapEngine {
     map.setProjection({ type: "globe" });
     if (import.meta.env.DEV) Object.assign(window, { __map: map });
     map.addControl(new NavigationControl({ showCompass: false }), "bottom-right");
+    // Compact attribution starts expanded on wide maps and covers the bottom bar; start it folded.
+    container(map).querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
 
     // Data covers land, water and roads; borders and place names stay above it for orientation.
     // Fewer basemap labels: countries, states and large cities orient; everything else competes with the data.
@@ -128,7 +135,8 @@ export class MapEngine {
       "source-layer" in l && ["boundary", "place"].includes(String(l["source-layer"])))?.id;
 
     map.addSource("grid", { type: "geojson", data: EMPTY });
-    map.addSource("recent", { type: "geojson", data: EMPTY });
+    // Up to ~140k points: a small tile buffer and capped zoom keep the worker's tiling cheap.
+    map.addSource("recent", { type: "geojson", data: EMPTY, buffer: 16, maxzoom: 10 });
     map.addSource("mask", { type: "geojson", data: EMPTY });
     map.addSource("areas", { type: "geojson", data: EMPTY });
     map.addSource("outline", { type: "geojson", data: EMPTY });
@@ -143,25 +151,33 @@ export class MapEngine {
     // MODIS sits on top as a larger, see-through disc, echoing its 1 km pixel against VIIRS's 375 m.
     const isModis: ExpressionSpecification = ["==", ["get", "s"], "M"];
     const sensorColor: ExpressionSpecification = ["case", isModis, SENSOR.MODIS.color, SENSOR.VIIRS.color];
+    const dotColor: ExpressionSpecification = ["case", isModis, `${SENSOR.MODIS.color}88`, SENSOR.VIIRS.color];
     const power: ExpressionSpecification = ["*", ["case", isModis, 1.7, 1],
       ["interpolate", ["linear"], ["get", "frp"], 0, 0.8, 20, 1, 100, 1.5, 500, 2.2]];
+    // Performance rules learned the hard way: changing a filter or a layout property makes the worker
+    // re-process the whole source, and layers at opacity 0 are still processed in every tile load, so
+    // the 7-day layers are switched with `visibility` (once per toggle) and never filtered per frame.
     map.addLayer({
       id: "recent-heat", type: "circle", source: "recent",
+      layout: { visibility: "none" },
       paint: {
         "circle-color": sensorColor,
         "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, ["*", 2, power], 6, ["*", 6, power], 10, ["*", 12, power]],
         "circle-blur": 1,
-        "circle-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0.12, 8, 0.2],
+        "circle-opacity": 0.16,
+        "circle-opacity-transition": { duration: 0, delay: 0 },
       },
     }, firstLabel);
     map.addLayer({
       id: "recent-dots", type: "circle", source: "recent",
-      layout: { "circle-sort-key": ["case", isModis, 1, 0] },
+      // No circle-sort-key (it sorts every tile); setRecent orders MODIS last so it draws on top.
+      layout: { visibility: "none" },
       paint: {
-        "circle-color": sensorColor,
+        "circle-color": dotColor,
         "circle-radius": ["interpolate", ["linear"], ["zoom"],
           2, ["*", 0.7, power], 6, ["*", 1.6, power], 10, ["*", 4, power], 14, ["*", 8, power]],
-        "circle-opacity": ["case", isModis, 0.5, 0.9],
+        "circle-opacity": 0.9,
+        "circle-opacity-transition": { duration: 0, delay: 0 },
         "circle-stroke-color": ["case", isModis, SENSOR.MODIS.color, "#0B0F1A"],
         // Zoom must be the outermost input, so the sensor switch goes inside each stop.
         "circle-stroke-width": ["interpolate", ["linear"], ["zoom"],
@@ -250,7 +266,14 @@ export class MapEngine {
     });
     this.map.removeFeatureState({ source: "grid" });
     this.gridValues = [];
-    (this.map.getSource("grid") as GeoJSONSource).setData({ type: "FeatureCollection", features });
+    this.gridPending = true;
+    this.map.setPaintProperty("grid", "fill-opacity", 0);
+    const source = this.map.getSource("grid") as GeoJSONSource;
+    source.setData({ type: "FeatureCollection", features }).then(() => {
+      if (this.destroyed) return;
+      this.gridPending = false;
+      if (this.layer === "history" && !this.introRunning) this.map.setPaintProperty("grid", "fill-opacity", 0.82);
+    });
   }
 
   /** One value per cell from setGridCells, in the same order; only changed cells are touched. */
@@ -275,7 +298,7 @@ export class MapEngine {
     const first = points.length ? Date.parse(points[0].acquired_utc) : 0;
     (this.map.getSource("recent") as GeoJSONSource).setData({
       type: "FeatureCollection",
-      features: points.map((p) => ({
+      features: [...points].sort((a, b) => Number(sensorOf(a.platform) === "MODIS") - Number(sensorOf(b.platform) === "MODIS")).map((p) => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [p.lon, p.lat] },
         properties: {
@@ -287,13 +310,17 @@ export class MapEngine {
     });
   }
 
+  /** Shows or hides the 7-day layers. Visibility only changes when it has to: each change reloads the source. */
+  private showRecent(on: boolean) {
+    const value = on ? "visible" : "none";
+    for (const id of RECENT_LAYERS) if (this.map.getLayoutProperty(id, "visibility") !== value) this.map.setLayoutProperty(id, "visibility", value);
+  }
+
   setLayer(layer: MapLayer) {
     if (this.destroyed) return;
     this.layer = layer;
-    const recent = layer === "recent" ? "visible" : "none";
-    this.map.setLayoutProperty("recent-heat", "visibility", recent);
-    this.map.setLayoutProperty("recent-dots", "visibility", recent);
-    this.map.setPaintProperty("grid", "fill-opacity", layer === "history" ? 0.82 : 0);
+    this.showRecent(layer === "recent");
+    this.map.setPaintProperty("grid", "fill-opacity", layer === "history" && !this.gridPending ? 0.82 : 0);
     this.map.triggerRepaint();
   }
 
@@ -328,8 +355,7 @@ export class MapEngine {
   }
 
   /**
-   * Opening sequence: the globe turns to the place while the last seven days of
-   * detections appear in acquisition order, then the history grid fades in.
+   * Opening sequence: the globe turns to the place, then the history grid fades in.
    */
   /** Resolves once MapLibre has tiled these sources (large GeoJSON takes a moment in the worker). */
   private sourcesReady(ids: string[], timeout: number): Promise<void> {
@@ -344,22 +370,19 @@ export class MapEngine {
 
   async intro(bbox: BBox, padding: Padding, onFrame?: (progress: number, minutes: number) => void): Promise<void> {
     const maxT = 7 * 24 * 60;
-    const filtered = ["recent-heat", "recent-dots"];
     if (reducedMotion()) {
       this.fit(bbox, padding, 0);
       return Promise.resolve();
     }
-    const duration = 4200;
+    const duration = 3200;
+    this.introRunning = true;
     this.map.setPaintProperty("grid", "fill-opacity", 0);
-    for (const id of filtered) this.map.setFilter(id, ["<=", ["get", "t"], -1]);
-    await Promise.race([this.sourcesReady(["recent", "grid"], 5000), new Promise<void>((r) => {
+    this.showRecent(false);
+    await Promise.race([this.sourcesReady(["grid"], 5000), new Promise<void>((r) => {
       const poll = setInterval(() => { if (this.skip) { clearInterval(poll); r(); } }, 50);
       setTimeout(() => clearInterval(poll), 5000);
     })]);
-    if (this.destroyed) return;
-    this.map.setLayoutProperty("recent-heat", "visibility", "visible");
-    this.map.setLayoutProperty("recent-dots", "visibility", "visible");
-    this.map.setPaintProperty("grid", "fill-opacity", 0);
+    if (this.destroyed) { this.introRunning = false; return; }
     this.fit(bbox, padding, duration);
     return new Promise((resolve) => {
       const start = performance.now();
@@ -367,13 +390,12 @@ export class MapEngine {
         if (this.destroyed) return resolve();
         const k = this.skip ? 1 : Math.min((now - start) / duration, 1);
         const t = maxT * (1 - (1 - k) ** 2);
-        for (const id of filtered) this.map.setFilter(id, ["<=", ["get", "t"], t]);
         onFrame?.(k, t);
         if (k < 1) {
           this.introFrame = requestAnimationFrame(step);
           return;
         }
-        for (const id of filtered) this.map.setFilter(id, null);
+        this.introRunning = false;
         this.setLayer(this.layer);
         resolve();
       };

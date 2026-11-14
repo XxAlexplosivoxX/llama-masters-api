@@ -28,7 +28,7 @@ export function Timeline({ explorer, onPlay }: { explorer: Explorer; onPlay: () 
       ) : (
         <motion.div key="open" role="group" aria-label="Month by month playback"
           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.2 }}
-          className="pointer-events-auto flex w-[min(34rem,calc(100vw-1.5rem))] items-center gap-2 rounded-xl sm:gap-3 border border-border bg-bg/90 px-2.5 py-2 backdrop-blur-md">
+          className="pointer-events-auto flex w-[min(34rem,100%)] items-center gap-2 rounded-xl sm:gap-3 border border-border bg-bg/90 px-2.5 py-2 backdrop-blur-md">
           <button onClick={playing ? pause : onPlay} aria-label={playing ? "Pause" : "Play"}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-[#06102A] hover:bg-[#6AA1FF]">
             {playing ? <Pause size={16} className="fill-current" aria-hidden /> : <Play size={16} className="fill-current" aria-hidden />}
