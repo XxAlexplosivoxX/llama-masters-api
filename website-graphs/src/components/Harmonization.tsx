@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { AXIS, fmtTick, NOTE, TICK } from "../lib/chart";
 import { GRID, MODIS, MODIS_EQ, MUTED, TEXT } from "../lib/color";
-import { fmt, fmtCompact, fmtPercent } from "../lib/format";
+import { fmt, fmtPercent } from "../lib/format";
+import { MONTHS } from "../lib/shared";
+import { useWidth } from "../hooks/useWidth";
 import type { MonthlyGrid } from "../types";
 import type { PlaceData } from "../hooks/usePlaceData";
 
-const W = 400, H = 140, L = 34, R = 8, T = 10, B = 20;
+const H = 160, L = 40, R = 8, T = 12, B = 20;
 const LINE = {
   MODIS: { color: MODIS, label: "MODIS" },
   MODIS_EQ: { color: TEXT, label: "VIIRS on the MODIS scale" },
@@ -17,6 +20,7 @@ export function Harmonization({ data, grid }: { data: PlaceData; grid: MonthlyGr
   const rows = data.harmonization?.annual ?? [];
   const check = data.harmonization?.check;
   const [hover, setHover] = useState<number | null>(null);
+  const { ref, width } = useWidth();
   const h = grid.harmonization;
   const ratio = rows.reduce((s, r) => s + r.VIIRS, 0) / Math.max(1, rows.reduce((s, r) => s + r.MODIS, 0));
 
@@ -35,13 +39,13 @@ export function Harmonization({ data, grid }: { data: PlaceData; grid: MonthlyGr
         </li>
       </ol>
 
-      {rows.length > 1 && <Chart rows={rows} testYears={h.test_years} hover={hover} setHover={setHover} />}
+      {rows.length > 1 && width > 0 && <Chart rows={rows} testYears={h.test_years} hover={hover} setHover={setHover} width={width} />}
 
       <p className="text-muted">
         <span className="font-semibold text-text">Checked on years it never saw.</span>{" "}
         For {h.test_years.join("–")}, converted VIIRS was off from real MODIS by{" "}
         {check
-          ? <><span className="num text-text">{Math.round(check.wape * 100)}%</span> month to month in this area ({fmtPercent(check.bias)} overall)</>
+          ? <><span className="num text-text">{Math.round(check.wape * 100)}%</span> month to month in this area (<span className="num">{fmtPercent(check.bias)}</span> overall)</>
           : <><span className="num text-text">{Math.round(h.test.model.wape * 100)}%</span> month to month across {grid.label}</>}
         ; raw VIIRS would be off by <span className="num">{Math.round(h.test.raw_viirs.wape * 100)}%</span>.
         {" "}Across {grid.label}, one fixed ratio for every month scores <span className="num">{Math.round(h.test.single_ratio.wape * 100)}%</span>
@@ -50,36 +54,61 @@ export function Harmonization({ data, grid }: { data: PlaceData; grid: MonthlyGr
           : `, against ${Math.round(h.test.model.wape * 100)}% for this method.`}
       </p>
 
-      <div>
+      <div ref={ref}>
         <p className="mb-1.5 text-xs text-muted">Monthly coefficients k<sub>m</sub> · ((1 + VIIRS)<sup>β<sub>m</sub></sup> − 1)</p>
-        <svg viewBox="0 0 400 34" className="block w-full" role="img" aria-label="Harmonization coefficients per calendar month">
-          {h.coefficients.map((c, i) => {
-            const maxK = Math.max(...h.coefficients.map((x) => x.k));
-            return (
-              <g key={c.month}>
-                <rect x={i * 33 + 2} y={30 - (c.k / maxK) * 26} width={29} height={(c.k / maxK) * 26} rx={2} fill={MODIS_EQ} opacity={0.8}>
-                  <title>{`Month ${c.month}: k=${c.k.toFixed(3)}, β=${c.beta.toFixed(3)} (${fmt(c.pairs)} pairs)`}</title>
-                </rect>
-                <text x={i * 33 + 16} y={33} fontSize="7" fill={MUTED} textAnchor="middle" className="num">{c.month}</text>
-              </g>
-            );
-          })}
-        </svg>
+        {width > 0 && <CoefficientStrip grid={grid} width={width} />}
       </div>
     </div>
   );
 }
 
-function Chart({ rows, testYears, hover, setHover }: {
-  rows: Row[]; testYears: [number, number]; hover: number | null; setHover: (i: number | null) => void;
+const STRIP_H = 72;
+
+function CoefficientStrip({ grid, width }: { grid: MonthlyGrid; width: number }) {
+  const coef = grid.harmonization.coefficients;
+  const slot = width / 12;
+  const labels = slot >= 28 ? MONTHS : MONTHS.map((m) => m[0]);
+  const maxK = Math.max(...coef.map((c) => c.k));
+  const barH = 26;
+  const top = 14; // k labels above the bars
+  const baseline = top + barH;
+  return (
+    <svg viewBox={`0 0 ${width} ${STRIP_H}`} width={width} height={STRIP_H} className="block" role="img"
+      aria-label="Harmonization coefficients per calendar month">
+      {coef.map((c, i) => {
+        const h = Math.max(2, (c.k / maxK) * barH);
+        return (
+          <g key={c.month}>
+            {slot >= 30 && (
+              <text x={i * slot + slot / 2} y={top - 3} fontSize={TICK.size} fill={TICK.fill} textAnchor="middle" className="num">
+                {c.k.toFixed(2)}
+              </text>
+            )}
+            <rect x={i * slot + 2} y={baseline - h} width={Math.max(slot - 4, 1)} height={h} rx={2} fill={MODIS_EQ}>
+              <title>{`${MONTHS[i]}: k=${c.k.toFixed(3)}, β=${c.beta.toFixed(3)} (${fmt(c.pairs)} pairs)`}</title>
+            </rect>
+            <text x={i * slot + slot / 2} y={baseline + 13} fontSize={TICK.size} fill={TICK.fill} textAnchor="middle">
+              {labels[i]}
+            </text>
+          </g>
+        );
+      })}
+      <line x1={0} x2={width} y1={baseline + 0.5} y2={baseline + 0.5} stroke={GRID} />
+    </svg>
+  );
+}
+
+function Chart({ rows, testYears, hover, setHover, width }: {
+  rows: Row[]; testYears: [number, number]; hover: number | null; setHover: (i: number | null) => void; width: number;
 }) {
   // Raw VIIRS is left out: at ~4× it would flatten the two lines that should match.
   const max = Math.max(1, ...rows.flatMap((r) => [r.MODIS, r.MODIS_EQ]));
-  const x = (i: number) => L + (i / (rows.length - 1)) * (W - L - R);
+  const x = (i: number) => L + (i / (rows.length - 1)) * (width - L - R);
   const y = (v: number) => T + (1 - v / max) * (H - T - B);
   const path = (k: keyof typeof LINE) => rows.map((r, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(r[k]).toFixed(1)}`).join("");
   const ti0 = rows.findIndex((r) => r.year === testYears[0]), ti1 = rows.findIndex((r) => r.year === testYears[1]);
   const row = hover !== null ? rows[hover] : null;
+  const yearStep = Math.max(1, Math.ceil(rows.length / Math.floor((width - L - R) / 44)));
 
   return (
     <figure>
@@ -92,28 +121,31 @@ function Chart({ rows, testYears, hover, setHover }: {
           </span>
         ))}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img"
+      <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img"
         aria-label={`Hotspots per year, ${rows[0].year} to ${rows.at(-1)!.year}: MODIS and VIIRS on the MODIS scale`}
         onPointerLeave={() => setHover(null)}
         onPointerMove={(e) => {
           const box = e.currentTarget.getBoundingClientRect();
-          const px = ((e.clientX - box.left) / box.width) * W;
-          setHover(Math.max(0, Math.min(rows.length - 1, Math.round(((px - L) / (W - L - R)) * (rows.length - 1)))));
+          const px = e.clientX - box.left;
+          setHover(Math.max(0, Math.min(rows.length - 1, Math.round(((px - L) / (width - L - R)) * (rows.length - 1)))));
         }}>
         {ti0 >= 0 && ti1 >= 0 && (
           <g>
-            <rect x={x(ti0) - 4} y={T} width={x(ti1) - x(ti0) + 8} height={H - T - B} fill="#2E96F5" opacity="0.07" rx="4" />
-            <text x={x(ti0)} y={T + 10} fontSize="9" fill={MUTED}>Test years</text>
+            <rect x={x(ti0) - 4} y={T} width={x(ti1) - x(ti0) + 8} height={H - T - B} fill={MODIS} opacity="0.07" rx={4} />
+            <text x={x(ti0)} y={T + 10} fontSize={NOTE.size} fill={MUTED}>Test years</text>
           </g>
         )}
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
-            <line x1={L} x2={W - R} y1={y(max * f)} y2={y(max * f)} stroke={GRID} />
-            <text x={L - 5} y={y(max * f) + 3} fontSize="9" fill={MUTED} textAnchor="end" className="num">{fmtCompact(Math.round(max * f))}</text>
+            <line x1={L} x2={width - R} y1={y(max * f)} y2={y(max * f)} stroke={GRID} />
+            <text x={L - 6} y={y(max * f) + 3.5} fontSize={TICK.size} fill={TICK.fill} textAnchor="end" className="num">
+              {fmtTick(Math.round(max * f))}
+            </text>
           </g>
         ))}
-        {rows.map((r, i) => (i % Math.ceil(rows.length / 7) === 0 || i === rows.length - 1) && (
-          <text key={r.year} x={x(i)} y={H - 6} fontSize="9" fill={MUTED} textAnchor="middle" className="num">{r.year}</text>
+        {rows.map((r, i) => (i % yearStep === 0 || i === rows.length - 1) && (
+          <text key={r.year} x={x(i)} y={H - 6} fontSize={TICK.size} fill={TICK.fill}
+            textAnchor={i === rows.length - 1 ? "end" : "middle"} className="num">{r.year}</text>
         ))}
         {(["MODIS", "MODIS_EQ"] as const).map((k) => (
           <path key={k} d={path(k)} fill="none" stroke={LINE[k].color}
@@ -123,7 +155,7 @@ function Chart({ rows, testYears, hover, setHover }: {
           <g pointerEvents="none">
             <line x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} stroke={MUTED} strokeDasharray="2 2" />
             {(["MODIS", "MODIS_EQ"] as const).map((k) => <circle key={k} cx={x(hover)} cy={y(row[k])} r="3" fill={LINE[k].color} />)}
-            <text x={Math.min(x(hover) + 4, W - 30)} y={H - B - 4} fontSize="10" fill={TEXT} className="num">{row.year}</text>
+            <text x={Math.min(x(hover) + 5, width - 32)} y={H - B - 4} fontSize={AXIS.size} fill={TEXT} className="num">{row.year}</text>
           </g>
         )}
       </svg>

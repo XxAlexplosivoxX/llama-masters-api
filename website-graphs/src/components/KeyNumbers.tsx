@@ -15,10 +15,10 @@ const anomaly = anomalyScale(0.8);
 
 function Figure({ label, children, caption }: { label: string; children: React.ReactNode; caption: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-grid bg-card p-4">
+    <div className="flex h-full min-w-0 flex-col rounded-2xl border border-grid bg-card p-4">
       <div className="text-xs text-muted">{label}</div>
       <div className="num mt-0.5 text-2xl font-semibold leading-tight tracking-tight">{children}</div>
-      <div className="mt-1 text-xs leading-snug text-muted">{caption}</div>
+      <div className="mt-1 mt-auto pt-1 text-xs leading-snug text-muted">{caption}</div>
     </div>
   );
 }
@@ -40,7 +40,8 @@ export function KeyNumbers({ series, stats, range, focusYear }: Props) {
         label="Hotspots in range"
         caption={`${labelOf(series.startYear, range.from)} – ${labelOf(series.startYear, range.to)} · ${SERIES_LABEL[kind]}${kind === "HARMONIZED" ? ", on the MODIS scale" : ""}`}
       >
-        {fmtCompact(Math.round(stats.rangeTotal))}
+        {fmtCompact(Math.round(stats.rangeTotal))}{" "}
+        <span className="text-sm font-normal text-muted">hotspots</span>
       </Figure>
       <Figure
         label="Fire season"

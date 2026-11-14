@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { GRID, MODIS, MUTED, SENSOR, VIIRS } from "../lib/color";
+import { fmtTick, TICK, thinBy } from "../lib/chart";
+import { GRID, MODIS, SENSOR, VIIRS, sensorOf } from "../lib/color";
 import { fmt } from "../lib/format";
-import { sensorOf } from "../lib/color";
+import { useWidth } from "../hooks/useWidth";
 import { PLATFORMS, type CsvPoint } from "../types";
 
 interface Props {
@@ -15,11 +16,13 @@ const METRICS: { id: Metric; label: string }[] = [
   { id: "day", label: "Day share (%)" },
 ];
 
-const W = 400, H = 120, L = 30, B = 16, T = 6;
+const H = 130, L = 36, B = 20, T = 8;
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Last 7 days of point data: MODIS and VIIRS side by side per day, never stacked. */
 export function Last7Days({ points }: Props) {
   const [metric, setMetric] = useState<Metric>("count");
+  const { ref, width } = useWidth();
   if (!points.length) {
     return <p className="rounded-lg border border-dashed border-grid p-4 text-sm text-muted">No near-real-time points in this selection.</p>;
   }
@@ -38,52 +41,58 @@ export function Last7Days({ points }: Props) {
   };
 
   const max = Math.max(1, ...days.flatMap((d) => [value(d, "MODIS") ?? 0, value(d, "VIIRS") ?? 0]));
-  const slot = (W - L) / days.length;
-  const barW = (slot - 6) / 2;
+  const slot = Math.max((width - L) / days.length, 1);
+  const barW = (slot - 8) / 2;
   const y = (v: number) => T + (1 - v / max) * (H - T - B);
+  const label = (d: string) => slot >= 56 ? `${DOW[new Date(`${d}T00:00:00Z`).getUTCDay()]} ${d.slice(8)}` : d.slice(8);
+  const step = thinBy(slot, 44);
 
   const bySat = PLATFORMS.map((p) => ({ p, n: points.filter((x) => x.platform === p).length }))
     .filter((e) => e.n > 0);
   const satMax = Math.max(1, ...bySat.map((e) => e.n));
 
   return (
-    <div>
-      <div className="seg mb-3" role="group" aria-label="Metric">
+    <div ref={ref}>
+      <div className="seg seg-40 mb-3" role="group" aria-label="Metric">
         {METRICS.map((m) => (
-          <button key={m.id} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)} className="!min-h-8 !px-3">
+          <button key={m.id} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)} className="!min-h-0 !px-3">
             {metric === m.id && <span className="absolute inset-0 rounded-[9px] bg-grid ring-1 ring-grid" />}
             <span className="relative">{m.label}</span>
           </button>
         ))}
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" role="img" aria-label="Last 7 days, MODIS and VIIRS side by side">
-        {[0, 1].map((t) => (
-          <g key={t}>
-            <line x1={L} x2={W} y1={y(max * t)} y2={y(max * t)} stroke={GRID} />
-            <text x={L - 4} y={y(max * t) + 3} fontSize="8.5" fill={MUTED} textAnchor="end" className="num">
-              {metric === "day" ? `${Math.round(max * t)}%` : fmt(Math.round(max * t))}
-            </text>
-          </g>
-        ))}
-        {days.map((d, i) => {
-          const x0 = L + i * slot + 3;
-          return (
-            <g key={d}>
-              {(["MODIS", "VIIRS"] as const).map((s, k) => {
-                const v = value(d, s);
-                return v === null ? null : (
-                  <rect key={s} x={x0 + k * barW} y={y(v)} width={barW - 1} height={Math.max(1, H - B - y(v))}
-                    rx={1.5} fill={s === "MODIS" ? MODIS : VIIRS}>
-                    <title>{`${d} ${s}: ${metric === "day" ? `${v.toFixed(0)}%` : metric === "frp" ? `${v.toFixed(1)} MW` : fmt(v)}`}</title>
-                  </rect>
-                );
-              })}
-              <text x={x0 + barW - 1} y={H - 4} textAnchor="middle" fontSize="8" fill={MUTED} className="num">{d.slice(8)}</text>
+      {width > 0 && (
+        <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img" aria-label="Last 7 days, MODIS and VIIRS side by side">
+          {[0, 1].map((t) => (
+            <g key={t}>
+              <line x1={L} x2={width} y1={y(max * t)} y2={y(max * t)} stroke={GRID} />
+              <text x={L - 5} y={y(max * t) + 3.5} fontSize={TICK.size} fill={TICK.fill} textAnchor="end" className="num">
+                {metric === "day" ? `${Math.round(max * t)}%` : fmtTick(Math.round(max * t))}
+              </text>
             </g>
-          );
-        })}
-      </svg>
+          ))}
+          {days.map((d, i) => {
+            const x0 = L + i * slot + 4;
+            return (
+              <g key={d}>
+                {(["MODIS", "VIIRS"] as const).map((s, k) => {
+                  const v = value(d, s);
+                  return v === null ? null : (
+                    <rect key={s} x={x0 + k * barW} y={y(v)} width={Math.max(barW - 1, 1)} height={Math.max(1, H - B - y(v))}
+                      rx={2} fill={s === "MODIS" ? MODIS : VIIRS}>
+                      <title>{`${d} ${s}: ${metric === "day" ? `${v.toFixed(0)}%` : metric === "frp" ? `${v.toFixed(1)} MW` : fmt(v)}`}</title>
+                    </rect>
+                  );
+                })}
+                {i % step === 0 && (
+                  <text x={x0 + barW - 0.5} y={H - 6} textAnchor="middle" fontSize={TICK.size} fill={TICK.fill}>{label(d)}</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      )}
       <div className="mt-1 flex gap-4 text-2xs text-muted">
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: MODIS }} /> MODIS</span>
         <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: VIIRS }} /> VIIRS</span>
@@ -104,4 +113,3 @@ export function Last7Days({ points }: Props) {
     </div>
   );
 }
-
