@@ -4,3 +4,6 @@ data/
 *.db
 *.db-shm
 *.db-wal
+
+# Large reference image, fetched on demand (see docs/references/README.md)
+docs/references/dominic-roye/examples/firefly-map.png

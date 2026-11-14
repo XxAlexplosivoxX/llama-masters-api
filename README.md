@@ -5,6 +5,9 @@ Go API for the burning-activity exports produced by
 (`scripts/prepare_region.py` → `data/processed/<region>/`). Prepared regions are
 **uploaded** to the API, stored in SQLite, and served with filtering and caching.
 
+The [data contract](docs/data-contract.md) describes what the API accepts. The
+[challenge, plans and references](docs/README.md) are copied from the research repo.
+
 ## Quick start
 
 ```sh
@@ -112,6 +115,7 @@ Without `API_TOKEN`, the API serves reads only.
 | `internal/api` | Routes, ingest, middleware (auth, CORS, logging) |
 | `internal/push` | Streaming multipart upload client |
 | `testdata/tiny-region` | Synthetic fixture used by the tests (not real observations) |
+| `docs/` | Data contract, challenge, plans and references |
 
 The data are raw satellite hotspot detections, not unique fires or burned area, and
 platforms are not harmonized; the uploaded `metadata.json` (served unchanged) states
