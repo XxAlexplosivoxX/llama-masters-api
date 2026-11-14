@@ -56,7 +56,7 @@ export function PlaceSwitcher({ places, current, csvName, csvSelected, onSelect,
   return (
     <div ref={ref} className="relative">
       <button
-        className="seg !px-3 min-h-[46px] items-center gap-2 text-sm font-semibold"
+        className="seg seg-40 !px-3 items-center gap-2 text-sm font-semibold"
         aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}
       >
         <Flame size={14} className="text-firefly-3" aria-hidden />

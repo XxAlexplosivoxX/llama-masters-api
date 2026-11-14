@@ -51,6 +51,7 @@
   }
   button, input, select { font: inherit; color: inherit; }
   button { cursor: pointer; }
+  svg text { font-variant-numeric: tabular-nums; }
   :focus-visible { outline: 2px solid var(--color-firefly-3); outline-offset: 2px; border-radius: 4px; }
 }
 
@@ -80,6 +81,9 @@
   }
   .seg > button[aria-pressed="true"] { color: var(--color-text); }
   .seg > button:hover { color: var(--color-text); }
+  /* Toolbar variant: the whole control is 40px tall, buttons stretch to fill. */
+  .seg.seg-40 { height: 40px; }
+  .seg.seg-40 > button { min-height: 0; }
 
   .field {
     min-height: 40px;
