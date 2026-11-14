@@ -34,7 +34,7 @@ exactly as in the website:
 ## Embedding contract
 
 - `state.ts` exposes `createGraphsStore()` — a framework-agnostic store with `subscribe`
-  plus typed `filters` (`{placeId, areaId, platform, kind, from, to}` as `YYYY-MM`) and
+  plus typed `filters` (`{placeId, areaId, platform, kind, from, to, bbox}`, dates as `YYYY-MM`, `bbox` as `[west, south, east, north]` or `null`; set it with `actions.setBbox`) and
   `focus` (`{year, month}`) events for the future map coupling. `GraphsModule` accepts
   `store` and `data` (a `usePlaceData` result) props.
 - `GraphsModule`'s root is a CSS container (`container-name: graphs`); its bento grid
