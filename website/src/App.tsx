@@ -3,6 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
+import { Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
 import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
@@ -55,6 +56,12 @@ export function App() {
     if (!desktop) setSnap(SNAPS[1]);
   };
 
+  const play = () => {
+    setLayer("history");
+    explorer.play();
+    if (!desktop) setSnap(SNAPS[0]);
+  };
+
   const overlay = (
     <motion.div
       initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
@@ -85,12 +92,23 @@ export function App() {
   );
   const panel = (
     <ErrorBoundary label="panel">
-      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => setLayer("recent")} />
+      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => setLayer("recent")} onPlay={play} />
     </ErrorBoundary>
   );
 
   // On mobile the open drawer carries its own legend, so the map one only shows above the collapsed sheet.
-  const legendVisible = introDone && (desktop || snap === SNAPS[0]);
+  const legendVisible = introDone && (desktop || (snap === SNAPS[0] && !explorer.timelineOpen));
+  // Desktop: between the legend and the zoom buttons. Mobile: above the collapsed sheet.
+  const timelineVisible = introDone && historyAvailable && layer === "history" && (desktop || snap === SNAPS[0]);
+  const timeline = (
+    <motion.div
+      animate={{ opacity: timelineVisible ? 1 : 0 }} transition={{ duration: 0.3 }}
+      className={`pointer-events-none absolute z-10 flex ${desktop ? "bottom-4 left-[288px] right-16 justify-center" : "bottom-[180px] right-3 left-3 justify-end"} ${timelineVisible ? "" : "invisible"}`}
+    >
+      <Timeline explorer={explorer} onPlay={play} />
+    </motion.div>
+  );
+
   const legend = (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: legendVisible ? 1 : 0, y: legendVisible ? 0 : 8 }} transition={{ duration: 0.4 }}
@@ -107,6 +125,7 @@ export function App() {
           {map}
           {overlay}
           {legend}
+          {timeline}
         </main>
         <motion.aside
           initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
@@ -125,6 +144,7 @@ export function App() {
       {map}
       {overlay}
       {legend}
+          {timeline}
       <Drawer.Root
         open modal={false} dismissible={false}
         snapPoints={[...SNAPS]} activeSnapPoint={snap} setActiveSnapPoint={setSnap}

@@ -28,6 +28,9 @@ export function useExplorer() {
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
   const [kind, setKind] = useState<SeriesKind>("HARMONIZED");
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1); // 1× = 4 months per second
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [recentSensors, setRecentSensors] = useState<Record<Sensor, boolean>>({ MODIS: true, VIIRS: true });
 
   useEffect(() => {
@@ -103,6 +106,23 @@ export function useExplorer() {
     ? { from: Math.max(range.from, seriesRange.from), to: Math.min(range.to, seriesRange.to) }
     : seriesRange;
 
+  // Playback: step the shown month through the selected dates and loop, like a weather radar.
+  // A short hold on the last month marks the loop point.
+  const playFrom = activeRange?.from ?? 0, playTo = activeRange?.to ?? 0;
+  useEffect(() => {
+    if (!playing || !activeRange) return;
+    let hold = 0;
+    const id = setInterval(() => {
+      setHoverMonth((m) => {
+        if (m === null || m < playFrom || m > playTo) return playFrom;
+        if (m === playTo) return hold++ < 3 ? m : (hold = 0, playFrom);
+        return m + 1;
+      });
+    }, 250 / speed);
+    return () => clearInterval(id);
+  }, [playing, speed, playFrom, playTo]);
+  useEffect(() => { setPlaying(false); setTimelineOpen(false); setHoverMonth(null); }, [place, shape]);
+
   const stats = useMemo(
     () => (series && activeRange ? computeStats(series, activeRange) : null),
     [series, activeRange?.from, activeRange?.to],
@@ -144,7 +164,14 @@ export function useExplorer() {
     resetRange: () => setRange(null),
     seriesRange,
     focus, setFocusYear,
-    hoverMonth, setHoverMonth,
+    hoverMonth,
+    // Pointer hovers are ignored while playing, so moving the mouse does not fight the timeline.
+    setHoverMonth: (m: number | null) => { if (!playing) setHoverMonth(m); },
+    seek: (m: number) => setHoverMonth(m),
+    playing, speed, setSpeed, timelineOpen,
+    play: () => { setHoverMonth((m) => (m === null ? activeRange?.from ?? null : m)); setTimelineOpen(true); setPlaying(true); },
+    pause: () => setPlaying(false),
+    stopPlayback: () => { setPlaying(false); setTimelineOpen(false); setHoverMonth(null); },
     recent, recentInArea, recentSensors,
     toggleRecentSensor: (s: Sensor) => setRecentSensors((old) => ({ ...old, [s]: !old[s] })),
     placeBBox, selectionLabel,

@@ -125,12 +125,13 @@ export function annualComparison(grid: MonthlyGrid, all: Record<"MODIS" | "VIIRS
   const lastFull = Math.min(modis.last - (modis.lastPartial ? 1 : 0), viirs.last - (viirs.lastPartial ? 1 : 0));
   const lastYear = startYear + Math.floor((lastFull + 1) / 12) - 1;
   const rows: { year: number; MODIS: number; VIIRS: number; MODIS_EQ: number }[] = [];
-  for (let y = firstYear; y <= lastYear; y++) {
-    const row = { year: y, MODIS: 0, VIIRS: 0, MODIS_EQ: 0 };
-    for (const kind of ["MODIS", "VIIRS", "MODIS_EQ"] as const) {
-      for (let m = (y - startYear) * 12; m < (y - startYear + 1) * 12; m++) for (const i of cells) row[kind] += all[kind][i][m] ?? 0;
+  for (let y = firstYear; y <= lastYear; y++) rows.push({ year: y, MODIS: 0, VIIRS: 0, MODIS_EQ: 0 });
+  const from = (firstYear - startYear) * 12, to = (lastYear - startYear + 1) * 12;
+  for (const kind of ["MODIS", "VIIRS", "MODIS_EQ"] as const) {
+    for (const i of cells) {
+      const v = all[kind][i];
+      for (let m = from; m < to; m++) rows[Math.floor((m - from) / 12)][kind] += v[m] ?? 0;
     }
-    rows.push(row);
   }
   return rows;
 }

@@ -1,9 +1,34 @@
 import { motion } from "motion/react";
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { anomalyScale, heatScale, HEAT_ZERO } from "../lib/color";
 import { fmt, fmtPercent } from "../lib/format";
 import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/series";
 import type { MonthlySeries } from "../lib/types";
+
+interface CellProps {
+  row: number; col: number; y: number; label: string; value: number | null; fill: string;
+  inRange: boolean; hovered: boolean; partial: boolean; dragging: boolean;
+}
+
+const Cell = memo(function Cell({ row, col, y, label, value, fill, inRange, hovered, partial, dragging }: CellProps) {
+  return (
+    <g className="cell" tabIndex={col === 0 && row === 0 ? 0 : -1} role="gridcell"
+      aria-label={`${label}: ${value === null ? "no source data" : `${fmt(value)} hotspots`}`}>
+      <motion.rect
+        x={LABEL + col * COL} y={y} width={COL - GAP} height={ROW - GAP} rx={2}
+        initial={{ fill: value === null ? fill : HEAT_ZERO, opacity: 0.25 }}
+        animate={{ fill, opacity: inRange ? 1 : 0.22 }}
+        transition={{
+          fill: { delay: row * 0.028 + col * 0.008, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+          opacity: { duration: dragging ? 0.08 : 0.25 },
+        }}
+        stroke={hovered ? "#E8ECF5" : partial ? "#9AA6C0" : "none"}
+        strokeWidth={hovered ? 1.5 : 1}
+        strokeDasharray={partial && !hovered ? "2 1.5" : undefined}
+      />
+    </g>
+  );
+});
 
 interface Props {
   series: MonthlySeries;
@@ -135,24 +160,10 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
                 {MONTHS.map((_, c) => {
                   const m = r * 12 + c;
                   const value = series.values[m];
-                  const inRange = m >= shown.from && m <= shown.to;
-                  const fill = value === null ? "url(#nodata)" : color(value);
                   return (
-                    <g key={c} className="cell" tabIndex={c === 0 && r === 0 ? 0 : -1} role="gridcell"
-                      aria-label={`${MONTHS_LONG[c]} ${year}: ${value === null ? "no source data" : `${fmt(value)} hotspots`}`}>
-                      <motion.rect
-                        x={LABEL + c * COL} y={y} width={COL - GAP} height={ROW - GAP} rx={2}
-                        initial={{ fill: value === null ? fill : HEAT_ZERO, opacity: 0.25 }}
-                        animate={{ fill, opacity: inRange ? 1 : 0.22 }}
-                        transition={{
-                          fill: { delay: r * 0.028 + c * 0.008, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-                          opacity: { duration: draft ? 0.08 : 0.25 },
-                        }}
-                        stroke={m === hoverMonth ? "#E8ECF5" : series.partial[m] ? "#9AA6C0" : "none"}
-                        strokeWidth={m === hoverMonth ? 1.5 : 1}
-                        strokeDasharray={series.partial[m] && m !== hoverMonth ? "2 1.5" : undefined}
-                      />
-                    </g>
+                    <Cell key={c} row={r} col={c} y={y} label={`${MONTHS_LONG[c]} ${year}`} value={value}
+                      fill={value === null ? "url(#nodata)" : color(value)} inRange={m >= shown.from && m <= shown.to}
+                      hovered={m === hoverMonth} partial={series.partial[m]} dragging={!!draft} />
                   );
                 })}
                 {total !== null ? (

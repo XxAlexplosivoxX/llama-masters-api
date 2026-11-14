@@ -1,3 +1,4 @@
+import { Play } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { HEAT, HEAT_ZERO } from "../lib/color";
 import { fmt } from "../lib/format";
@@ -33,7 +34,9 @@ function Skeleton() {
   );
 }
 
-export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Explorer; showingRecent: boolean; onShowRecent: () => void }) {
+export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
+  explorer: Explorer; showingRecent: boolean; onShowRecent: () => void; onPlay: () => void;
+}) {
   const { status, loaded, place, series, stats, range, shape, focus, setFocusYear, hoverMonth, setHoverMonth } = explorer;
   const waveKey = `${place?.id}-${shape?.label ?? "all"}-${explorer.areaId}-${explorer.platform}`;
 
@@ -101,7 +104,11 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
 
           <Section
             title="When does it burn?"
-            aside={<span className="text-xs text-muted">Drag across months to pick dates</span>}
+            aside={explorer.playing
+              ? <button className="link text-xs" onClick={explorer.pause}>Pause</button>
+              : <button className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline" onClick={onPlay}>
+                <Play size={12} className="fill-current" aria-hidden /> Play on the map
+              </button>}
           >
             <Calendar
               series={series} stats={stats} range={range} focusYear={focus} hoverMonth={hoverMonth}
@@ -125,7 +132,7 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
               )}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted">
-              Each square is one month; each row one year. A hotspot is a satellite pixel where an active fire was detected, so one large fire can count many times.
+              Each square is one month; each row one year. Hover a month to see it on the map, drag across months to pick dates. A hotspot is a satellite pixel where an active fire was detected, so one large fire can count many times.
             </p>
             {series.approximate && (
               <p className="mt-2 text-xs text-muted">Months are built from ISO weeks (each week counts in the month of its Thursday), so totals are approximate.</p>

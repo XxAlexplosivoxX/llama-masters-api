@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { anomalyScale } from "../lib/color";
 import { fmt, fmtCompact, fmtPercent, ordinal } from "../lib/format";
 import { labelOf, MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, rankOf, type Range, type Stats } from "../lib/series";
@@ -48,7 +49,7 @@ export function KeyNumbers({ series, stats, range, focusYear, recent }: Props) {
   const inBaseline = focusYear !== null && stats.baselineYears.includes(focusYear);
   const rank = inBaseline ? rankOf(stats, focusYear) : null;
   const first = stats.baselineYears[0], lastBase = stats.baselineYears.at(-1);
-  const week = series.kind === "VIIRS" ? null : thisWeek(recent, stats);
+  const week = useMemo(() => (series.kind === "VIIRS" ? null : thisWeek(recent, stats)), [series.kind, recent, stats]);
 
   return (
     <dl>

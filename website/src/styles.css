@@ -167,6 +167,13 @@
 .hotspot-popup dt { color: var(--color-muted); }
 .hotspot-popup dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; text-transform: capitalize; }
 
+/* Timeline scrubber. */
+input.timeline { appearance: none; height: 18px; background: transparent; cursor: pointer; }
+input.timeline::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--color-surface-2); }
+input.timeline::-moz-range-track { height: 4px; border-radius: 2px; background: var(--color-surface-2); }
+input.timeline::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%; background: var(--color-text); border: 2px solid var(--color-accent); }
+input.timeline::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--color-text); border: 2px solid var(--color-accent); }
+
 /* Calendar cells: keyboard focus ring drawn inside the cell. */
 .cell:focus-visible { outline: none; }
 .cell:focus-visible rect { stroke: var(--color-text); stroke-width: 2; }

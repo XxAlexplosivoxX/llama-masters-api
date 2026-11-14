@@ -56,25 +56,44 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
 
   // Grid values: the hovered calendar month, otherwise the total over the selected range.
   // With a selection, only its cells are drawn, and the colour scale adapts to them.
-  const grid = useMemo(() => {
-    if (!loaded || !("grid" in loaded) || !range || !values) return null;
-    const { grid } = loaded;
-    const counts = values[kind];
-    const cells = (shape ? selected : grid.cells.map((_, i) => i)).map((i) => {
-      const [west, south] = grid.cells[i];
-      let value = 0;
-      if (hoverMonth !== null) value = counts[i][hoverMonth] ?? 0;
-      else for (let m = range.from; m <= range.to; m++) value += counts[i][m];
-      return { west, south, value };
-    });
-    return { cellDeg: grid.cell_deg, cells, max: percentile(cells.filter((c) => c.value > 0).map((c) => c.value), 0.98) };
-  }, [loaded, values, kind, shape, selected, range?.from, range?.to, hoverMonth]);
+  const gridData = loaded && "grid" in loaded ? loaded.grid : null;
+  const shown = useMemo(
+    () => (gridData ? (shape ? selected : gridData.cells.map((_, i) => i)) : []),
+    [gridData, shape, selected],
+  );
+  const from = range?.from ?? 0, to = range?.to ?? -1;
+  const counts = values?.[kind] ?? null;
+
+  // Totals over the selected dates, and one fixed scale for single months, so that
+  // hovering or playing month after month compares like with like.
+  const scale = useMemo(() => {
+    if (!counts) return null;
+    const totals = shown.map((i) => { let s = 0; for (let m = from; m <= to; m++) s += counts[i][m]; return s; });
+    const stride = Math.max(1, Math.floor((shown.length * (to - from + 1)) / 150_000));
+    const monthly: number[] = [];
+    let k = 0;
+    for (const i of shown) for (let m = from; m <= to; m++) if (k++ % stride === 0 && counts[i][m] > 0) monthly.push(counts[i][m]);
+    return { totals, totalMax: percentile(totals.filter((v) => v > 0), 0.98), monthMax: percentile(monthly, 0.98) };
+  }, [counts, shown, from, to]);
 
   useEffect(() => {
-    if (!engine) return;
-    engine.setGrid(grid ?? { cellDeg: 1, cells: [] }, grid?.max ?? 1);
-    onGridScale(grid?.max ?? 0);
-  }, [engine, grid]);
+    if (!engine || !gridData) return;
+    engine.setGridCells({ cellDeg: gridData.cell_deg, cells: shown.map((i) => ({ west: gridData.cells[i][0], south: gridData.cells[i][1] })) });
+  }, [engine, gridData, shown]);
+
+  useEffect(() => {
+    if (!engine || !scale || !counts) return;
+    const month = hoverMonth !== null && hoverMonth >= from && hoverMonth <= to ? hoverMonth : null;
+    const frame = month === null ? scale.totals : shown.map((i) => counts[i][month] ?? 0);
+    const max = month === null ? scale.totalMax : scale.monthMax;
+    engine.setGridValues(frame, max);
+    onGridScale(max);
+  }, [engine, scale, hoverMonth]);
+
+  // Any exploring (hover, playback) ends the opening animation at once.
+  useEffect(() => {
+    if (engine && hoverMonth !== null) engine.skipIntro();
+  }, [engine, hoverMonth]);
 
   useEffect(() => {
     if (engine) engine.setRecent(recent);
@@ -133,7 +152,7 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
     caption = `Drawing ${loaded?.recent?.length ? `${loaded.recent.length.toLocaleString("en-US")} recent hotspots and ` : ""}the monthly history`;
   } else if (intro && firstPoint) {
     caption = `Last 7 days as the satellites saw them: ${WHEN.format(new Date(Date.parse(firstPoint) + intro.minutes * 60000))}:00 UTC`;
-  } else if (afterIntro && series && range && layer === "history") {
+  } else if (afterIntro && series && range && layer === "history" && hoverMonth === null) {
     caption = `Monthly history ${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}: brighter cells had more fire`;
   } else if (status.kind === "loading" && introPlayed.current) {
     const p = status.progress?.[0];
