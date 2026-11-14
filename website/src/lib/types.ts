@@ -41,8 +41,11 @@ export interface AreaProperties {
 export type BBox = [west: number, south: number, east: number, north: number];
 
 export type SensorId = "MODIS" | "VIIRS";
-/** What the calendar counts: one sensor's raw detections, or VIIRS rescaled to the MODIS scale. */
-export type SeriesKind = SensorId | "MODIS_EQ";
+/**
+ * What the calendar counts: the harmonized record (default), one sensor's raw hotspots,
+ * or VIIRS rescaled to the MODIS scale.
+ */
+export type SeriesKind = "HARMONIZED" | SensorId | "MODIS_EQ";
 
 export interface SensorInfo {
   series: string;

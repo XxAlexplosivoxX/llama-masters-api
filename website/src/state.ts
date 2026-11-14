@@ -27,7 +27,7 @@ export function useExplorer() {
   const [range, setRange] = useState<Range | null>(null);
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
-  const [kind, setKind] = useState<SeriesKind>("MODIS");
+  const [kind, setKind] = useState<SeriesKind>("HARMONIZED");
   const [recentSensors, setRecentSensors] = useState<Record<Sensor, boolean>>({ MODIS: true, VIIRS: true });
 
   useEffect(() => {
@@ -78,7 +78,9 @@ export function useExplorer() {
   const values = useMemo(() => {
     if (!loaded || !("grid" in loaded)) return null;
     const g = loaded.grid;
-    return { MODIS: cellValues(g, "MODIS"), VIIRS: cellValues(g, "VIIRS"), MODIS_EQ: cellValues(g, "MODIS_EQ") };
+    return {
+      HARMONIZED: cellValues(g, "HARMONIZED"), MODIS: cellValues(g, "MODIS"), VIIRS: cellValues(g, "VIIRS"), MODIS_EQ: cellValues(g, "MODIS_EQ"),
+    };
   }, [loaded]);
 
   const series: MonthlySeries | null = useMemo(() => {

@@ -130,7 +130,7 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
   const firstPoint = loaded?.recent?.[0]?.acquired_utc;
   let caption: string | null = null;
   if (intro && intro.minutes < 0) {
-    caption = `Drawing ${loaded?.recent?.length ? `${loaded.recent.length.toLocaleString("en-US")} recent detections and ` : ""}the monthly history`;
+    caption = `Drawing ${loaded?.recent?.length ? `${loaded.recent.length.toLocaleString("en-US")} recent hotspots and ` : ""}the monthly history`;
   } else if (intro && firstPoint) {
     caption = `Last 7 days as the satellites saw them: ${WHEN.format(new Date(Date.parse(firstPoint) + intro.minutes * 60000))}:00 UTC`;
   } else if (afterIntro && series && range && layer === "history") {
@@ -145,7 +145,7 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
       <div
         ref={container}
         className={`h-full w-full bg-bg transition-opacity duration-700 ${engine ? "opacity-100" : "opacity-0"}`}
-        aria-label="Map of fire detections" role="region"
+        aria-label="Map of fire hotspots" role="region"
       />
       <AnimatePresence>
         {firstLoad && (
@@ -155,7 +155,7 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
           </div>
         )}
       </AnimatePresence>
-      <div className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2" style={{ top: Math.max(68, padding.top - 52) }}>
+      <div className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2" style={{ top: padding.bottom > 200 ? padding.top + 4 : Math.max(68, padding.top - 52), maxWidth: "calc(100% - 24px)" }}>
         <MapCaption text={caption} progress={intro?.k} />
       </div>
       {failure && (

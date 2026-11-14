@@ -1,67 +1,79 @@
 import { anomalyScale } from "../lib/color";
 import { fmt, fmtCompact, fmtPercent, ordinal } from "../lib/format";
-import { labelOf, MIN_BASELINE_YEARS, MONTHS, rankOf, type Range, type Stats } from "../lib/series";
-import type { MonthlySeries } from "../lib/types";
-import { CountUp } from "./CountUp";
+import { labelOf, MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, rankOf, type Range, type Stats } from "../lib/series";
+import type { Hotspot, MonthlySeries } from "../lib/types";
 
 interface Props {
   series: MonthlySeries;
   stats: Stats;
   range: Range;
   focusYear: number | null;
+  recent: Hotspot[] | null; // last 7 days in the area, every sensor
 }
 
-function Figure({ label, children, caption }: { label: string; children: React.ReactNode; caption: string }) {
+const anomaly = anomalyScale(0.8);
+
+function Row({ label, value, note, color }: { label: string; value: React.ReactNode; note?: React.ReactNode; color?: string }) {
   return (
-    <div className="min-w-0">
-      <div className="text-xs text-muted">{label}</div>
-      <div className="mt-0.5 text-2xl font-semibold leading-tight tracking-tight">{children}</div>
-      <div className="mt-1 text-xs leading-snug text-muted">{caption}</div>
+    <div className="grid grid-cols-[6.5rem_1fr] items-baseline gap-3 border-t border-border/60 py-2.5 first:border-t-0">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd>
+        <span className="num text-lg font-semibold leading-tight" style={{ color }}>{value}</span>
+        {note && <span className="mt-0.5 block text-xs leading-snug text-muted">{note}</span>}
+      </dd>
     </div>
   );
 }
 
-export function KeyNumbers({ series, stats, range, focusYear }: Props) {
-  const anomaly = anomalyScale(0.8);
+/**
+ * This week against a typical week of the same month: MODIS points only, because the
+ * monthly record is on the MODIS scale. Returns null without enough history.
+ */
+function thisWeek(recent: Hotspot[] | null, stats: Stats) {
+  if (!recent?.length) return null;
+  const last = recent.reduce((a, p) => (p.acquired_utc > a ? p.acquired_utc : a), "");
+  const month = Number(last.slice(5, 7)) - 1;
+  const year = Number(last.slice(0, 4));
+  const clim = stats.climatology[month];
+  if (clim === null) return null;
+  const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const typical = (clim / days) * 7;
+  const modis = recent.filter((p) => p.platform === "Terra" || p.platform === "Aqua").length;
+  return { modis, typical, ratio: typical > 0 ? modis / typical : null, month };
+}
+
+export function KeyNumbers({ series, stats, range, focusYear, recent }: Props) {
   const total = focusYear !== null ? stats.yearTotals.get(focusYear) ?? null : null;
   const rel = total !== null && stats.meanYear ? total / stats.meanYear - 1 : null;
   const inBaseline = focusYear !== null && stats.baselineYears.includes(focusYear);
   const rank = inBaseline ? rankOf(stats, focusYear) : null;
-  const noBaseline = `Needs ${MIN_BASELINE_YEARS} complete years`;
+  const first = stats.baselineYears[0], lastBase = stats.baselineYears.at(-1);
+  const week = series.kind === "VIIRS" ? null : thisWeek(recent, stats);
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <Figure
-        label="Detections"
-        caption={`${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`}
-      >
-        <CountUp value={stats.rangeTotal} format={fmtCompact} />
-      </Figure>
-      <Figure
-        label="Fire season"
-        caption={stats.peak ? `${Math.round(stats.peak.share * 100)}% of an average year` : noBaseline}
-      >
-        {stats.peak ? `${MONTHS[stats.peak.from]}–${MONTHS[stats.peak.to]}` : "—"}
-      </Figure>
-      <Figure
-        label={focusYear !== null ? `${focusYear} vs average` : "Year vs average"}
-        caption={rank !== null
-          ? rank === 1 ? `Most active of ${stats.baselineYears.length} years` : `${ordinal(rank)} most active of ${stats.baselineYears.length}`
-          : total === null && focusYear !== null ? `${focusYear} is incomplete`
-          : rel !== null ? `Before ${series.baselineFrom}, not ranked` : noBaseline}
-      >
-        {rel !== null ? (
-          <span style={{ color: anomaly(rel) }}>
-            <CountUp value={Math.round(rel * 100)} format={(n) => fmtPercent(n / 100)} />
-          </span>
-        ) : "—"}
-      </Figure>
-      {total !== null && (
-        <p className="col-span-3 -mt-1 text-xs text-muted">
-          {focusYear}: <span className="num text-text">{fmt(total)}</span> detections, against an average of{" "}
-          <span className="num text-text">{fmt(Math.round(stats.meanYear ?? 0))}</span> per year.
-        </p>
+    <dl>
+      <Row label="Fire season"
+        value={stats.peak ? `${MONTHS_LONG[stats.peak.from]} to ${MONTHS_LONG[stats.peak.to]}` : "Not enough years"}
+        note={stats.peak
+          ? `${Math.round(stats.peak.share * 100)}% of a typical year's hotspots fall in these three months.`
+          : `Needs ${MIN_BASELINE_YEARS} complete years.`} />
+      {focusYear !== null && (
+        <Row label={String(focusYear)}
+          value={rel !== null ? `${fmtPercent(rel)} vs average` : "Year not complete"}
+          color={rel !== null ? anomaly(rel) : undefined}
+          note={total !== null && stats.meanYear
+            ? <>{fmt(total)} hotspots; average {fmt(Math.round(stats.meanYear))} ({first}–{lastBase}).{" "}
+              {rank !== null ? (rank === 1 ? "The most active year." : `${ordinal(rank)} most active of ${stats.baselineYears.length} years.`) : `Before ${series.baselineFrom}, so not ranked.`}</>
+            : "Pick a complete year in the calendar."} />
       )}
-    </div>
+      {week && week.ratio !== null && (
+        <Row label="Last 7 days"
+          value={week.ratio >= 0.95 && week.ratio <= 1.05 ? "About normal" : `${week.ratio.toFixed(1)}× a typical week`}
+          color={anomaly(week.ratio - 1)}
+          note={`${fmt(week.modis)} MODIS hotspots; a typical ${MONTHS[week.month]} week has about ${fmt(Math.round(week.typical))}. Provisional data.`} />
+      )}
+      <Row label="Selected dates" value={`${fmtCompact(Math.round(stats.rangeTotal))} hotspots`}
+        note={`${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`} />
+    </dl>
   );
 }

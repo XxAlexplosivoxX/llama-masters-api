@@ -53,7 +53,7 @@ export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFoc
         label: String(year),
         rel,
         detail: rel === null ? `${year}: incomplete, not compared`
-          : `${year}: ${fmt(total!)} detections, ${fmtPercent(rel)}${outsideBaseline ? " (not in the average)" : ""}`,
+          : `${year}: ${fmt(total!)} hotspots, ${fmtPercent(rel)}${outsideBaseline ? " (not in the average)" : ""}`,
         active: year === focusYear,
         outsideBaseline,
         onSelect: () => onFocusYear(year),
@@ -69,7 +69,7 @@ export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFoc
         label: name[0],
         rel,
         detail: rel === null ? `${MONTHS_LONG[c]}: no comparable data`
-          : `${MONTHS_LONG[c]} ${focusYear}: ${fmt(value!)} detections, ${fmtPercent(rel)} vs ${fmt(Math.round(clim!))} average`,
+          : `${MONTHS_LONG[c]} ${focusYear}: ${fmt(value!)} hotspots, ${fmtPercent(rel)} vs ${fmt(Math.round(clim!))} average`,
         active: m !== null && m === hoverMonth,
         onHover: (on: boolean) => onHover(on && m !== null ? m : null),
       };

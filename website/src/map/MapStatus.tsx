@@ -15,7 +15,7 @@ export interface Step {
 export function stepsFrom(basemapReady: boolean, dataReady: boolean, progress: LoadProgress[] | undefined, placeLabel: string): Step[] {
   const steps: Step[] = [{ label: "Basemap", state: basemapReady ? "done" : "active" }];
   const names: Record<LoadProgress["step"], string> = {
-    history: `Monthly fire history for ${placeLabel}`, recent: "Last 7 days of detections", areas: "Areas",
+    history: `Monthly fire history for ${placeLabel}`, recent: "Last 7 days of hotspots", areas: "Areas",
   };
   for (const p of progress ?? [{ step: "history", label: "", loaded: 0, total: null }, { step: "recent", label: "", loaded: 0, total: null }] as LoadProgress[]) {
     const done = dataReady || (p.total !== null && p.loaded >= p.total && p.loaded > 0);
@@ -66,7 +66,7 @@ export function MapCaption({ text, progress }: { text: string | null; progress?:
       {text && (
         <motion.div key={text.split(":")[0]} role="status" aria-live="polite"
           initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3, ease }}
-          className="relative overflow-hidden rounded-lg border border-border bg-bg/85 px-3 py-1.5 text-xs backdrop-blur-md">
+          className="relative overflow-hidden rounded-lg border border-border bg-bg/85 px-3 py-1.5 text-center text-xs backdrop-blur-md">
           <span className="num">{text}</span>
           {progress !== undefined && (
             <span className="absolute inset-x-0 bottom-0 h-px bg-accent/80" style={{ transform: `scaleX(${progress})`, transformOrigin: "left" }} aria-hidden />

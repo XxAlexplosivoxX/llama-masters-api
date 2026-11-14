@@ -21,8 +21,9 @@ export function cellsIn(grid: MonthlyGrid, shape: Shape | null): number[] {
   return picked;
 }
 
-export const SERIES_LABEL: Record<SeriesKind, string> = { MODIS: "MODIS", VIIRS: "VIIRS", MODIS_EQ: "MODIS-equivalent" };
-const sensorOfKind = (kind: SeriesKind) => (kind === "MODIS" ? "MODIS" : "VIIRS");
+export const SERIES_LABEL: Record<SeriesKind, string> = {
+  HARMONIZED: "Harmonized", MODIS: "MODIS", VIIRS: "VIIRS", MODIS_EQ: "VIIRS on the MODIS scale",
+};
 
 /** VIIRS detections in one cell-month on the MODIS scale: k_m · ((1 + v)^β_m − 1). */
 export function modisEquivalent(grid: MonthlyGrid, viirs: number, month: number): number {
@@ -31,16 +32,44 @@ export function modisEquivalent(grid: MonthlyGrid, viirs: number, month: number)
   return c.k * ((1 + viirs) ** c.beta - 1);
 }
 
-/** Per-cell monthly values for one series kind. The adjustment is applied cell by cell, then summed. */
+/**
+ * Per-cell monthly values for one series kind. The adjustment is applied cell by cell, then summed.
+ * Harmonized: the mean of MODIS and VIIRS-on-the-MODIS-scale in months both sensors fully cover,
+ * otherwise whichever one has data (MODIS alone before 2012).
+ */
 export function cellValues(grid: MonthlyGrid, kind: SeriesKind): number[][] {
   if (kind === "MODIS") return grid.cells.map((c) => c[2]);
   if (kind === "VIIRS") return grid.cells.map((c) => c[3]);
-  return grid.cells.map((c) => c[3].map((v, m) => modisEquivalent(grid, v, m)));
+  const eq = grid.cells.map((c) => c[3].map((v, m) => modisEquivalent(grid, v, m)));
+  if (kind === "MODIS_EQ") return eq;
+  const source = harmonizedSource(grid);
+  return grid.cells.map((c, i) => c[2].map((modis, m) =>
+    source[m] === "both" ? (modis + eq[i][m]) / 2 : source[m] === "VIIRS" ? eq[i][m] : modis));
 }
 
-/** Month indexes a sensor fully covers, partly covers, and where provisional data begins. */
+/** Which sensor the harmonized record uses in each month. */
+export function harmonizedSource(grid: MonthlyGrid): ("both" | "MODIS" | "VIIRS" | null)[] {
+  const m = sensorCoverage(grid, "MODIS"), v = sensorCoverage(grid, "VIIRS");
+  const full = (c: typeof m, i: number) => i >= c.first + (c.firstPartial ? 1 : 0) && i <= c.last - (c.lastPartial ? 1 : 0);
+  const any = (c: typeof m, i: number) => i >= c.first && i <= c.last;
+  return Array.from({ length: grid.months }, (_, i) =>
+    full(m, i) && full(v, i) ? "both" : any(m, i) ? "MODIS" : any(v, i) ? "VIIRS" : null);
+}
+
+/** Month indexes a series fully covers, partly covers, and where provisional data begins. */
 export function coverage(grid: MonthlyGrid, kind: SeriesKind) {
-  const info = grid.sensors[sensorOfKind(kind)];
+  if (kind !== "HARMONIZED") return sensorCoverage(grid, kind === "MODIS" ? "MODIS" : "VIIRS");
+  const m = sensorCoverage(grid, "MODIS"), v = sensorCoverage(grid, "VIIRS");
+  const later = v.last > m.last ? v : m;
+  const provisional = [m.provisionalFrom, v.provisionalFrom].filter((x): x is number => x !== undefined);
+  return {
+    ...m, last: later.last, lastPartial: later.lastPartial,
+    provisionalFrom: provisional.length ? Math.min(...provisional) : undefined,
+  };
+}
+
+function sensorCoverage(grid: MonthlyGrid, sensor: "MODIS" | "VIIRS") {
+  const info = grid.sensors[sensor];
   const startYear = Number(grid.start_month.slice(0, 4));
   const first = monthIndex(info.first_source_day.slice(0, 7), startYear);
   const last = monthIndex(info.last_source_day.slice(0, 7), startYear);
@@ -67,7 +96,9 @@ export function gridSeries(grid: MonthlyGrid, values: number[][], cells: number[
   const partial = out.map((_, m) => (m === first && firstPartial) || (m === last && lastPartial));
   return {
     startYear, values: out, partial, approximate: false, kind, provisionalFrom,
-    source: kind === "MODIS_EQ" ? `MODIS-equivalent, estimated from ${info.series}` : info.series,
+    source: kind === "HARMONIZED"
+      ? "Harmonized MODIS + VIIRS on the MODIS scale (MODIS alone before 2012)"
+      : kind === "MODIS_EQ" ? `VIIRS on the MODIS scale, estimated from ${info.series}` : info.series,
     baselineFrom: info.baseline_from_year, baselineNote: info.baseline_note,
   };
 }
@@ -87,7 +118,7 @@ export function localCheck(grid: MonthlyGrid, modis: number[][], eq: number[][],
 }
 
 /** Annual totals per series for these cells, over the years both sensors fully cover. */
-export function annualComparison(grid: MonthlyGrid, all: Record<SeriesKind, number[][]>, cells: number[]) {
+export function annualComparison(grid: MonthlyGrid, all: Record<"MODIS" | "VIIRS" | "MODIS_EQ", number[][]>, cells: number[]) {
   const startYear = Number(grid.start_month.slice(0, 4));
   const modis = coverage(grid, "MODIS"), viirs = coverage(grid, "VIIRS");
   const firstYear = startYear + Math.ceil((Math.max(modis.first, viirs.first) + (viirs.firstPartial ? 1 : 0)) / 12);

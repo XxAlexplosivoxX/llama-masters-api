@@ -139,7 +139,7 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
                   const fill = value === null ? "url(#nodata)" : color(value);
                   return (
                     <g key={c} className="cell" tabIndex={c === 0 && r === 0 ? 0 : -1} role="gridcell"
-                      aria-label={`${MONTHS_LONG[c]} ${year}: ${value === null ? "no source data" : `${fmt(value)} detections`}`}>
+                      aria-label={`${MONTHS_LONG[c]} ${year}: ${value === null ? "no source data" : `${fmt(value)} hotspots`}`}>
                       <motion.rect
                         x={LABEL + c * COL} y={y} width={COL - GAP} height={ROW - GAP} rx={2}
                         initial={{ fill: value === null ? fill : HEAT_ZERO, opacity: 0.25 }}
@@ -161,12 +161,12 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
                     initial={{ width: 0 }}
                     animate={{ width: Math.max(1.5, (total / maxTotal) * (BARS - 4)) }}
                     transition={{ delay: 0.25 + r * 0.028, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    fill={rel === null ? "#9AA6C0" : anomaly(rel)}
-                    opacity={focused ? 1 : stats.baselineYears.includes(year) ? 0.85 : 0.35}
+                    fill={focused ? "#E8ECF5" : "#6B7699"}
+                    opacity={focused ? 1 : stats.baselineYears.includes(year) ? 0.8 : 0.35}
                     className="cursor-pointer"
                     onClick={() => onFocusYear(year)}
                   >
-                    <title>{`${year}: ${fmt(total)} detections${rel !== null ? `, ${fmtPercent(rel)} vs average year` : ""}`}</title>
+                    <title>{`${year}: ${fmt(total)} hotspots${rel !== null ? `, ${fmtPercent(rel)} vs average year` : ""}`}</title>
                   </motion.rect>
                 ) : (
                   <line x1={W - BARS} x2={W - BARS + 10} y1={y + ROW / 2 - 1} y2={y + ROW / 2 - 1} stroke="#2A3350" strokeWidth={2}>
@@ -185,7 +185,7 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
             key={c} x={LABEL + c * COL} y={avgY} width={COL - GAP} height={ROW - GAP} rx={2}
             fill={clim === null ? "url(#nodata)" : color(clim)}
           >
-            <title>{clim === null ? "Average needs 3 complete years" : `${MONTHS_LONG[c]} average: ${fmt(Math.round(clim))} detections`}</title>
+            <title>{clim === null ? "Average needs 3 complete years" : `${MONTHS_LONG[c]} average: ${fmt(Math.round(clim))} hotspots`}</title>
           </rect>
         ))}
       </svg>
@@ -202,7 +202,7 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
         >
           <div className="font-semibold">{MONTHS_LONG[hovered.m % 12]} {hovered.year}</div>
           <div className="num text-muted">
-            {hovered.value === null ? "No source data" : `${fmt(hovered.value)} detections`}
+            {hovered.value === null ? "No source data" : `${fmt(hovered.value)} hotspots`}
             {hovered.partial && hovered.value !== null ? " (partial month)" : ""}
           </div>
           {hovered.value !== null && hovered.clim !== null && !hovered.partial && hovered.clim > 0 && (

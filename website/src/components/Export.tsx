@@ -17,6 +17,7 @@ export function Export({ explorer }: { explorer: Explorer }) {
     if (!loaded || !("grid" in loaded) || !explorer.values) return {};
     const { grid } = loaded, v = explorer.values, cells = explorer.cells;
     return {
+      harmonized: gridSeries(grid, v.HARMONIZED, cells, "HARMONIZED").values,
       modis_detections: gridSeries(grid, v.MODIS, cells, "MODIS").values,
       viirs_snpp_detections: gridSeries(grid, v.VIIRS, cells, "VIIRS").values,
       modis_equivalent: gridSeries(grid, v.MODIS_EQ, cells, "MODIS_EQ").values,
@@ -37,8 +38,8 @@ export function Export({ explorer }: { explorer: Explorer }) {
         const points = shape ? result.points.filter((p) => contains(shape.polygon, p.lon, p.lat)) : result.points;
         download(`${name}-hotspots.csv`, hotspotRows(points));
         setNote(result.truncated
-          ? `Downloaded ${fmt(points.length)} detections. The server capped the result: draw a smaller area for the full list.`
-          : `Downloaded ${fmt(points.length)} detections.`);
+          ? `Downloaded ${fmt(points.length)} hotspots. The server capped the result: draw a smaller area for the full list.`
+          : `Downloaded ${fmt(points.length)} hotspots.`);
       } catch (error) {
         setNote(`Download failed: ${String(error)}`);
       } finally {
@@ -47,7 +48,7 @@ export function Export({ explorer }: { explorer: Explorer }) {
       return;
     }
     download(`${name}-hotspots-last-7-days.csv`, hotspotRows(recent));
-    setNote(`Downloaded ${fmt(recent.length)} detections.`);
+    setNote(`Downloaded ${fmt(recent.length)} hotspots.`);
   }
 
   return (

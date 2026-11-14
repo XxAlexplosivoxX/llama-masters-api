@@ -17,12 +17,12 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
     title = hoverMonth !== null
       ? `${MONTHS_LONG[hoverMonth % 12]} ${series.startYear + Math.floor(hoverMonth / 12)}`
       : `${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`;
-    detail = `${SERIES_LABEL[kind]} detections per ${loaded.grid.cell_deg}° cell${shape ? ", this area only" : ""}`;
+    detail = `${SERIES_LABEL[kind]} hotspots per ${loaded.grid.cell_deg}° cell${shape ? ", this area only" : ""}`;
   } else if (layer === "recent") {
     title = first ? `${first} to ${last} (UTC)` : "Last 7 days";
     detail = loaded?.recent
-      ? `${fmt(recent.length)} detections${shape ? " in this area" : ""}${!explorer.recentSensors.MODIS ? ", VIIRS only" : !explorer.recentSensors.VIIRS ? ", MODIS only" : ""}`
-      : "This region has no recent detections export";
+      ? `${fmt(recent.length)} hotspots${shape ? " in this area" : ""}${!explorer.recentSensors.MODIS ? ", VIIRS only" : !explorer.recentSensors.VIIRS ? ", MODIS only" : ""}`
+      : "This region has no recent hotspots export";
   }
   if (!title) return null;
 

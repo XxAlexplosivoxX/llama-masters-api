@@ -35,7 +35,7 @@ export function RecentBySatellite({ explorer, showingOnMap, onShowOnMap }: {
         const total = SATELLITES[sensor].reduce((n, s) => n + (by.get(s)?.n ?? 0), 0);
         const { color, pixel } = SENSOR[sensor];
         return (
-          <div key={sensor} className={`rounded-xl border p-3 transition-colors ${on ? "border-border bg-bg/40" : "border-border/50 opacity-60"}`}>
+          <div key={sensor} className={`border-t border-border/60 pt-3 transition-opacity first:border-t-0 first:pt-0 ${on ? "" : "opacity-50"}`}>
             <button className="flex w-full items-center gap-2.5 text-left" role="switch" aria-checked={on} onClick={() => toggleRecentSensor(sensor)}>
               <span className="relative h-5 w-9 shrink-0 rounded-full border border-border bg-surface-2" aria-hidden>
                 <motion.span className="absolute top-0.5 h-3.5 w-3.5 rounded-full" animate={{ left: on ? 18 : 2, backgroundColor: on ? color : "#4A5372" }}

@@ -5,7 +5,8 @@ import type { Explorer } from "../state";
 import { Anomalies } from "./Anomalies";
 import { Calendar } from "./Calendar";
 import { DateRange } from "./DateRange";
-import { SensorCompare, SensorSwitch } from "./Sensors";
+import { HowCombined } from "./Sensors";
+import { SERIES_LABEL } from "../lib/series";
 import { RecentBySatellite } from "./Recent";
 import { Export } from "./Export";
 import { KeyNumbers } from "./KeyNumbers";
@@ -39,7 +40,6 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
   return (
     <div className="space-y-5 px-5 pb-8 pt-1 lg:pt-5">
       <header>
-        <p className="text-sm text-muted">Fire activity in</p>
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.h1
             key={explorer.selectionLabel}
@@ -50,6 +50,14 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
             {explorer.selectionLabel || "…"}
           </motion.h1>
         </AnimatePresence>
+        {loaded && "grid" in loaded && (
+          <p className="mt-1 text-sm text-muted">
+            {explorer.kind === "HARMONIZED"
+              ? <>Fire hotspots from NASA's MODIS and VIIRS satellites, combined into one record.</>
+              : <>Showing {SERIES_LABEL[explorer.kind]} only.{" "}
+                <button className="link" onClick={() => explorer.setKind("HARMONIZED")}>Back to the combined record</button></>}
+          </p>
+        )}
         {loaded && "areas" in loaded && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="grid gap-1 text-xs text-muted">Area
@@ -84,18 +92,16 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
 
       {status.kind === "ready" && series && stats && range && (
         <>
-          {loaded && "grid" in loaded && <SensorSwitch explorer={explorer} grid={loaded.grid} />}
-
           {explorer.seriesRange && (
             <DateRange startYear={series.startYear} bounds={explorer.seriesRange} range={range}
               baselineFrom={series.baselineFrom} focusYear={focus} onRange={explorer.setRange} />
           )}
 
-          <KeyNumbers series={series} stats={stats} range={range} focusYear={focus} />
+          <KeyNumbers series={series} stats={stats} range={range} focusYear={focus} recent={loaded?.recent ? explorer.recentInArea : null} />
 
           <Section
-            title="When it burns"
-            aside={<span className="text-xs text-muted">Drag across months to set dates</span>}
+            title="When does it burn?"
+            aside={<span className="text-xs text-muted">Drag across months to pick dates</span>}
           >
             <Calendar
               series={series} stats={stats} range={range} focusYear={focus} hoverMonth={hoverMonth}
@@ -105,7 +111,7 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
               <span className="inline-flex items-center gap-2">
                 Fewer
                 <span className="h-2.5 w-24 rounded-sm" style={{ background: `linear-gradient(90deg, ${HEAT_ZERO}, ${HEAT.join(",")})` }} />
-                More detections
+                More hotspots
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <svg width="12" height="12" aria-hidden><rect width="12" height="12" rx="2" fill="#121829" stroke="#2A3350" strokeDasharray="0" /><path d="M0 12 L12 0" stroke="#2A3350" strokeWidth="2" /></svg>
@@ -118,26 +124,23 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
                 </span>
               )}
             </div>
+            <p className="mt-2 text-xs leading-relaxed text-muted">
+              Each square is one month; each row one year. A hotspot is a satellite pixel where an active fire was detected, so one large fire can count many times.
+            </p>
             {series.approximate && (
               <p className="mt-2 text-xs text-muted">Months are built from ISO weeks (each week counts in the month of its Thursday), so totals are approximate.</p>
             )}
           </Section>
 
-          <Section title="Compared with the average">
+          <Section title="Which years burned more?">
             <Anomalies
               series={series} stats={stats} focusYear={focus} hoverMonth={hoverMonth} waveKey={waveKey}
               onFocusYear={setFocusYear} onHover={setHoverMonth}
             />
           </Section>
 
-          {loaded && "grid" in loaded && (
-            <Section title="MODIS and VIIRS compared" aside={<span className="text-xs text-muted">Detections per year</span>}>
-              <SensorCompare explorer={explorer} grid={loaded.grid} />
-            </Section>
-          )}
-
           {loaded?.recent && (
-            <Section title="Last 7 days" aside={<span className="text-xs text-muted">By satellite</span>}>
+            <Section title="What is burning now?" aside={<span className="text-xs text-muted">Last 7 days, by satellite</span>}>
               <RecentBySatellite explorer={explorer} showingOnMap={showingRecent} onShowOnMap={onShowRecent} />
             </Section>
           )}
@@ -145,6 +148,12 @@ export function Panel({ explorer, showingRecent, onShowRecent }: { explorer: Exp
           <Section title="Download">
             <Export key={`${explorer.place?.id}:${explorer.selectionLabel}:${explorer.platform}`} explorer={explorer} />
           </Section>
+
+          {loaded && "grid" in loaded && (
+            <Section title="How MODIS and VIIRS are combined">
+              <HowCombined explorer={explorer} grid={loaded.grid} />
+            </Section>
+          )}
 
           <About explorer={explorer} />
         </>
@@ -189,7 +198,7 @@ function About({ explorer }: { explorer: Explorer }) {
         )}
         <div><dt className="font-semibold text-text">Limits</dt><dd><ul className="list-disc pl-4">{info.limitations.map((r) => <li key={r}>{r}</li>)}</ul></dd></div>
         {"grid" in loaded && (
-          <div><dt className="font-semibold text-text">Last 7 days</dt><dd>{fmt(loaded.recent.length)} near-real-time MODIS and VIIRS detections, shown on the map. They are not added to the monthly history.</dd></div>
+          <div><dt className="font-semibold text-text">Last 7 days</dt><dd>{fmt(loaded.recent.length)} near-real-time MODIS and VIIRS hotspots, shown on the map. They are not added to the monthly history.</dd></div>
         )}
       </dl>
     </details>
