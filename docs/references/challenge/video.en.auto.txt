@@ -1,0 +1,127 @@
+YouTube automatic English captions; not manually verified against audio.
+Video: https://www.youtube.com/watch?v=tEPHsiZtuvk
+
+[00:03] Hello, I'm Marina Compagnucci from
+[00:05] CONAE, the Argentinian Space Agency.
+[00:08] Right now, we are at the Teofilo
+[00:10] Tabanera Space Center located in
+[00:12] Cordoba, Argentina.
+[00:14] I'm an author of the challenge called
+[00:16] harmonization of MODIS and VIIRS
+[00:18] hotspots.
+[00:19] You know,
+[00:21] I have the privilege of working with a
+[00:22] team of scientists that provide early
+[00:25] warning and emergency response to
+[00:27] various events happening around the
+[00:29] globe.
+[00:30] Those events are fires,
+[00:33] floodings, oil spills that can last from
+[00:36] a few days to even weeks.
+[00:38] Almost half of those events, half of
+[00:41] those emergencies are fires.
+[00:44] Either wildfires from forested areas or
+[00:48] human-related fires from agricultural
+[00:51] activities, industrial activities, or
+[00:54] land clearing.
+[00:55] In the case of ongoing fires, these
+[00:58] scientists use satellite's hotspot to
+[01:01] monitor [music] them and to know where
+[01:03] the highest probabilities of active
+[01:05] fires are.
+[01:07] But, there is another powerful tool that
+[01:10] also uses hotspot. In this case,
+[01:12] integrating historical and recent data
+[01:15] coming from hotspots.
+[01:17] This tool is called um burning activity
+[01:20] calendar, [music]
+[01:21] also a fire activity calendar. And it
+[01:24] helps visualize
+[01:26] trends,
+[01:27] anomalies, or even seasonal patterns in
+[01:30] fire behavior.
+[01:32] For example, it shows you how many
+[01:34] hotspots a particular month has across
+[01:38] different years.
+[01:40] Consider that climate models are
+[01:42] projecting that
+[01:44] fire weather will become more common and
+[01:47] more intense. So, [music] these tools,
+[01:49] both the calendar and hotspot, are
+[01:51] really important.
+[01:53] The images you're watching were
+[01:54] processed for a fire that happened in
+[01:57] Chilecito, La Rioja, Argentina in July
+[02:00] 2026.
+[02:02] At the beginning of the event,
+[02:03] scientists used hotspots to inspect the
+[02:06] area and to wait for a satellite to
+[02:07] pass.
+[02:09] Then, with the images, they can work
+[02:11] with more detail. But, hotspots remain
+[02:14] important since they could identify
+[02:16] areas where fires may or may not spread.
+[02:20] By the end of the event, they have more
+[02:23] detail of the burned area. Now, we have
+[02:26] finally arrived at the core of [music]
+[02:28] the challenge.
+[02:29] Even though MODIS and VIIRS sensors have
+[02:32] tracked [music] active fire hotspots for
+[02:34] more than two decades, the problem is
+[02:36] this record is split among these two
+[02:39] different sensors whose data cannot be
+[02:41] directly compared.
+[02:42] Why? Because they have different spatial
+[02:45] resolution, different sensitivities, and
+[02:48] even different observation schedules.
+[02:51] And to make matters worse, MODIS sensors
+[02:54] are retiring from their operational life
+[02:57] and being replaced by VIIRS sensors. So,
+[03:00] if there is no method to compare their
+[03:02] data, almost 10 years of historical
+[03:05] information will be lost. And fire
+[03:07] managers will be left without a
+[03:09] historical calendar that tells them when
+[03:12] and where fires occur.
+[03:15] That is why we need your help with this
+[03:17] real and pressing problem.
+[03:19] Your challenge, should you choose it, is
+[03:21] to develop a harmonized burn activity
+[03:24] calendar that combines the extensive
+[03:27] historical information from MODIS
+[03:30] with the continuity and greater detail
+[03:32] of VIIRS. So, that that [music] by the
+[03:34] end of this challenge, we have a
+[03:37] consistent time series of hotspot
+[03:40] activity. All this in our application.
+[03:43] Consider using NASA FIRMS website
+[03:46] >> [music]
+[03:46] >> and the resources coming from our our
+[03:48] agency and other agencies to approach
+[03:51] this challenge. [music]
+[03:53] When we were thinking about the
+[03:54] challenge, we thought of it as having
+[03:56] two parts to approach.
+[03:58] The first one is the harmonization
+[03:59] [music]
+[04:00] of hotspots from MODIS and VIIRS. So,
+[04:03] that by the end of this phase, it
+[04:05] doesn't matter if one hot spot came from
+[04:07] one sensor or the other. Their real
+[04:09] focus is [music] on them, trends,
+[04:12] anomalies, and patterns they unveil.
+[04:16] The second part is the development of
+[04:18] the web application
+[04:20] that takes these hot spots as input and
+[04:22] pours them in a calendar so that a user,
+[04:26] for example, can choose a specific day,
+[04:28] a particular region, and visualize its
+[04:31] its fire activity history.
+[04:33] And probably follow some analytics.
+[04:36] Or maybe you and your team decide to
+[04:38] approach this challenge in a completely
+[04:40] different manner, and it's really
+[04:42] successful. So we're really really
+[04:44] looking forward to what your team comes
+[04:46] up with, and [music] cheers and good
+[04:48] luck.
