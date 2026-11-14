@@ -87,7 +87,7 @@
 
   .field {
     min-height: 40px;
-    background: var(--color-card);
+    background: #111827;
     border: 1px solid var(--color-grid);
     border-radius: 8px;
     padding: 0 10px;

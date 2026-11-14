@@ -51,9 +51,16 @@ export function DateRange({ startYear, bounds, range, baselineFrom, focusYear, o
           onChange={(m) => onRange({ from: m, to: range.to })} />
         <ArrowRight size={16} className="mb-3 shrink-0 text-muted" aria-hidden />
         <MonthField label="To" startYear={startYear} value={range.to} min={range.from} max={bounds.to} align="right"
+          trailing={
+            <span className="num ml-2 rounded-full bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-normal normal-case tracking-normal text-slate-300">
+              {months} months
+            </span>
+          }
           onChange={(m) => onRange({ from: range.from, to: m })} />
-        <button className="field !min-h-10 !px-3" onClick={() => onRange(bounds)} disabled={same(range, bounds)}
-          aria-label="Show all dates" title="Show all dates">
+        <button
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-slate-800 hover:text-text disabled:opacity-40"
+          onClick={() => onRange(bounds)} disabled={same(range, bounds)}
+          aria-label="Reset filters" title="Reset filters">
           <RotateCcw size={15} aria-hidden />
         </button>
       </div>
@@ -63,12 +70,11 @@ export function DateRange({ startYear, bounds, range, baselineFrom, focusYear, o
           return (
             <button key={p.label} onClick={() => onRange(p.range)} aria-pressed={active}
               className={`num rounded-full border px-2.5 py-1 text-xs transition-colors ${active
-                ? "border-firefly-3 bg-firefly-3/15 text-text" : "border-grid text-muted hover:border-muted hover:text-text"}`}>
+                ? "border-[#F97316] bg-[#F97316]/15 text-text" : "border-grid text-muted hover:border-muted hover:text-text"}`}>
               {p.label}
             </button>
           );
         })}
-        <span className="num ml-auto text-2xs text-muted">{months} month{months === 1 ? "" : "s"}</span>
       </div>
     </div>
   );
@@ -81,11 +87,12 @@ interface FieldProps {
   min: number;
   max: number;
   align?: "left" | "right";
+  trailing?: React.ReactNode;
   onChange: (month: number) => void;
 }
 
 /** A month button that opens a year stepper and month grid; months outside [min, max] are disabled. */
-function MonthField({ label, startYear, value, min, max, align = "left", onChange }: FieldProps) {
+function MonthField({ label, startYear, value, min, max, align = "left", trailing, onChange }: FieldProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"months" | "years">("months");
   const [year, setYear] = useState(startYear + Math.floor(value / 12));
@@ -103,9 +110,11 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
 
   return (
     <div ref={ref} className="relative min-w-0 flex-1">
-      <span className="mb-1 block text-xs text-muted" id={`${label}-label`}>{label}</span>
+      <span className="mb-1 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400" id={`${label}-label`}>
+        {label}{trailing}
+      </span>
       <button type="button" onClick={toggle} aria-haspopup="dialog" aria-expanded={open} aria-labelledby={`${label}-label ${label}-value`}
-        className={`field num flex w-full items-center justify-between gap-2 text-left ${open ? "!border-firefly-3" : ""}`}>
+        className={`field num flex w-full items-center justify-between gap-2 text-left ${open ? "!border-[#F97316]" : ""}`}>
         <span id={`${label}-value`}>{labelOf(startYear, value)}</span>
         <CalendarDays size={15} className="shrink-0 text-muted" aria-hidden />
       </button>
@@ -137,14 +146,14 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
                     aria-pressed={selected} aria-label={`${MONTHS_LONG[m]} ${year}`}
                     title={disabled ? (i < min ? `Before ${labelOf(startYear, min)}` : `After ${labelOf(startYear, max)}`) : undefined}
                     className={`h-9 rounded-lg text-sm transition-colors disabled:cursor-not-allowed disabled:text-muted/35 ${selected
-                      ? "bg-firefly-3 font-semibold text-[#06102A]" : "hover:bg-bg enabled:text-text"}`}>
+                      ? "bg-[#F97316] font-semibold text-[#1A0B00]" : "hover:bg-bg enabled:text-text"}`}>
                     {name}
                   </button>
                 );
               })
               : Array.from({ length: maxYear - minYear + 1 }, (_, k) => minYear + k).map((y) => (
                 <button key={y} type="button" onClick={() => { setYear(y); setView("months"); }}
-                  className={`num h-9 rounded-lg text-sm hover:bg-bg ${y === year ? "ring-1 ring-firefly-3" : ""}`}>
+                  className={`num h-9 rounded-lg text-sm hover:bg-bg ${y === year ? "ring-1 ring-[#F97316]" : ""}`}>
                   {y}
                 </button>
               ))}

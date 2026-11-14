@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useGraphsStore, useStore } from "../hooks/useGraphsStore";
 import type { PlaceData } from "../hooks/usePlaceData";
@@ -7,7 +8,7 @@ import { DateRange } from "./DateRange";
 import { PlaceSwitcher } from "./PlaceSwitcher";
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1.5 text-xs text-muted">{children}</div>;
+  return <div className="mb-1.5 text-xs font-medium uppercase tracking-[0.14em] text-slate-400">{children}</div>;
 }
 
 interface Props {
@@ -63,9 +64,10 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-grid bg-card p-4">
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
-        <div className="flex flex-1 flex-wrap items-end gap-x-4 gap-y-3">
+    <div className="rounded-2xl border border-slate-800 bg-[#0B1120] p-4">
+      <div className="flex flex-wrap items-stretch gap-x-6 gap-y-4">
+        {/* Left zone: data and region. */}
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
         <div>
           <Label>Place</Label>
           <PlaceSwitcher
@@ -85,7 +87,7 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
               {kinds.map((k) => (
                 <button
                   key={k.id}
-                  className={kind === k.id ? "bg-grid text-text ring-1 ring-grid" : ""}
+                  className={kind === k.id ? "bg-[#F97316] font-semibold text-[#1A0B00]" : ""}
                   aria-pressed={kind === k.id}
                   onClick={() => set.setKind(k.id)}
                 >
@@ -93,6 +95,12 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
                 </button>
               ))}
             </div>
+            {kind === "HARMONIZED" && (
+              <p className="mt-1.5 flex max-w-64 items-start gap-1.5 text-xs leading-snug text-slate-400">
+                <Info size={13} className="mt-0.5 shrink-0" aria-hidden />
+                MODIS alone before 2012, then MODIS + VIIRS on the MODIS scale.
+              </p>
+            )}
           </div>
         )}
 
@@ -115,20 +123,20 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
 
         </div>
 
+        {/* Right zone: timeframe, separated by a subtle divider once side by side. */}
         {series && bounds && active && (
-          <div className="w-full sm:w-[34rem] sm:max-w-[42%] xl:ml-auto">
-            <DateRange
-              startYear={startYear} bounds={bounds} range={active}
-              baselineFrom={series.baselineFrom} focusYear={data.focus}
-              onRange={(r) => selectRange(r.from, r.to)}
-            />
-          </div>
+          <>
+            <div className="hidden w-px self-stretch bg-slate-800 lg:block" aria-hidden />
+            <div className="flex-1">
+              <DateRange
+                startYear={startYear} bounds={bounds} range={active}
+                baselineFrom={series.baselineFrom} focusYear={data.focus}
+                onRange={(r) => selectRange(r.from, r.to)}
+              />
+            </div>
+          </>
         )}
       </div>
-
-      {isGrid && kind === "HARMONIZED" && (
-        <p className="mt-3 text-xs text-muted">MODIS alone before 2012, then MODIS + VIIRS on the MODIS scale.</p>
-      )}
 
       {clamped && <p className="mt-1.5 text-xs text-alert">{clamped}</p>}
       {uploadState.info && <p className="mt-1.5 text-xs text-muted">{uploadState.info}</p>}
