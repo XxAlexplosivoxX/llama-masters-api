@@ -7,3 +7,4 @@ export {
 export type { Range, Stats } from "../../../website/src/lib/series";
 export { COMING_SOON, loadPlace, loadPlaces, usingApi } from "../../../website/src/lib/data";
 export type { LoadProgress } from "../../../website/src/lib/data";
+export { bboxPolygon } from "../../../website/src/lib/geo";

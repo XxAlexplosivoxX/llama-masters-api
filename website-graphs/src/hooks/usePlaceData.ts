@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { csvLast7, csvMonthly, parseFirmsText, type FirmsResult } from "../lib/csv";
 import {
   annualComparison, cellValues, cellsIn, computeStats, fullRange, gridSeries, latestCompleteYear, localCheck,
-  loadPlace, loadPlaces, weeklyToMonthly, type LoadProgress, type Range,
+  bboxPolygon, loadPlace, loadPlaces, weeklyToMonthly, type LoadProgress, type Range,
 } from "../lib/shared";
 import { SATELLITE_ORDER, type CsvPoint, type Loaded, type MonthlySeries, type Place, type SeriesKind } from "../types";
 import { CSV_PLACE_ID } from "../state";
@@ -30,6 +30,7 @@ export function usePlaceData() {
   const range = useGraphsStore((s) => s.range);
   const focusYear = useGraphsStore((s) => s.focusYear);
   const csv = useGraphsStore((s) => s.csv);
+  const bbox = useGraphsStore((s) => s.bbox);
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -103,10 +104,12 @@ export function usePlaceData() {
     return () => controller.abort();
   }, [place, isCsv, csv]);
 
-  // All grid cells: the graphs module always analyses the whole place.
+  // Grid cells whose centre falls in the area of interest (every cell for the whole place).
   const cells = useMemo(
-    () => (loaded && "grid" in loaded ? cellsIn(loaded.grid, null) : []),
-    [loaded],
+    () => (loaded && "grid" in loaded
+      ? cellsIn(loaded.grid, bbox ? { label: "Area of interest", polygon: bboxPolygon(bbox) } : null)
+      : []),
+    [loaded, bbox],
   );
 
   const values = useMemo(() => {
@@ -176,7 +179,7 @@ export function usePlaceData() {
     status, places, place, loaded, isCsv, csvData, csv,
     areas, platforms, series, stats, values, cells, harmonization,
     range: activeRange, setRange, seriesRange,
-    focus, recent,
+    focus, recent, bbox,
     selectPlace: store.actions.setPlace,
   };
 }

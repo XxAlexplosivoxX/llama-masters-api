@@ -95,7 +95,11 @@ function Module({ data }: { data: PlaceData }) {
     <div className="graphs-root">
       <Toolbar data={data} onUpload={onUpload} uploadState={uploadState} />
 
-      {!series || !stats || !range ? (
+      {grid && data.bbox && !data.cells.length ? (
+        <p className="mt-4 rounded-lg border border-dashed border-grid p-4 text-sm text-muted" role="status">
+          No {grid.cell_deg}° grid cell has its centre inside this box. Enlarge it or reset to the whole place.
+        </p>
+      ) : !series || !stats || !range ? (
         <p className="mt-4 rounded-lg border border-dashed border-grid p-4 text-sm text-muted" role="status">
           This selection has no monthly data.
         </p>

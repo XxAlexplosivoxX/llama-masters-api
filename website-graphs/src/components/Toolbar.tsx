@@ -4,6 +4,7 @@ import { useGraphsStore, useStore } from "../hooks/useGraphsStore";
 import type { PlaceData } from "../hooks/usePlaceData";
 import { fullRange, labelOf } from "../lib/shared";
 import type { SeriesKind } from "../types";
+import { AreaFilter } from "./AreaFilter";
 import { DateRange } from "./DateRange";
 import { PlaceSwitcher } from "./PlaceSwitcher";
 
@@ -137,6 +138,12 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
           </>
         )}
       </div>
+
+      {isGrid && (
+        <div className="mt-4 border-t border-slate-800 pt-4">
+          <AreaFilter data={data} />
+        </div>
+      )}
 
       {clamped && <p className="mt-1.5 text-xs text-alert">{clamped}</p>}
       {uploadState.info && <p className="mt-1.5 text-xs text-muted">{uploadState.info}</p>}

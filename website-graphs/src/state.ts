@@ -10,10 +10,13 @@ export interface GraphsState {
   focusYear: number | null;
   focusMonth: number | null; // month index into the series
   csv: { name: string; text: string } | null;
+  bbox: BBox | null; // area of interest inside the place; null = whole place
 }
 
+export type BBox = [west: number, south: number, east: number, north: number];
+
 type EventMap = {
-  filters: { placeId: string | null; areaId: string | null; platform: string; kind: SeriesKind; from: string | null; to: string | null };
+  filters: { placeId: string | null; areaId: string | null; platform: string; kind: SeriesKind; from: string | null; to: string | null; bbox: BBox | null };
   focus: { year: number | null; month: string | null };
 };
 type Handler<K extends keyof EventMap> = (payload: EventMap[K]) => void;
@@ -32,6 +35,7 @@ export interface GraphsStore {
     focusYear: (year: number | null) => void;
     focusMonth: (month: number | null, ym?: string) => void;
     loadCsv: (name: string, text: string) => void;
+    setBbox: (bbox: BBox | null) => void;
   };
 }
 
@@ -44,6 +48,7 @@ const initialState = (): GraphsState => ({
   focusYear: null,
   focusMonth: null,
   csv: null,
+  bbox: null,
 });
 
 export const CSV_PLACE_ID = "csv:upload";
@@ -67,6 +72,7 @@ export function createGraphsStore(initial?: Partial<GraphsState>): GraphsStore {
     kind: state.kind,
     from: state.range && ym ? ym(state.range.from) : null,
     to: state.range && ym ? ym(state.range.to) : null,
+    bbox: state.bbox,
   });
 
   return {
@@ -81,7 +87,7 @@ export function createGraphsStore(initial?: Partial<GraphsState>): GraphsStore {
     },
     actions: {
       setPlace: (placeId) => {
-        update({ placeId, areaId: null, range: null, focusYear: null, focusMonth: null });
+        update({ placeId, areaId: null, bbox: null, range: null, focusYear: null, focusMonth: null });
         emit("filters", filters());
       },
       setArea: (areaId) => { update({ areaId }); emit("filters", filters()); },
@@ -95,9 +101,10 @@ export function createGraphsStore(initial?: Partial<GraphsState>): GraphsStore {
       focusYear: (year) => { update({ focusYear: year }); emit("focus", { year, month: null }); },
       focusMonth: (month, ym) => { update({ focusMonth: month }); emit("focus", { year: state.focusYear, month: ym ?? null }); },
       loadCsv: (name, text) => {
-        update({ csv: { name, text }, placeId: CSV_PLACE_ID, areaId: "upload", range: null, focusYear: null, focusMonth: null });
+        update({ csv: { name, text }, placeId: CSV_PLACE_ID, areaId: "upload", bbox: null, range: null, focusYear: null, focusMonth: null });
         emit("filters", filters());
       },
+      setBbox: (bbox) => { update({ bbox, focusMonth: null }); emit("filters", filters()); },
     },
   };
 }
