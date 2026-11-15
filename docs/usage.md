@@ -10,12 +10,13 @@ The team instance runs on an Azure VM (Chile Central) with HTTPS, deployed with
 [deploy/](../deploy/README.md):
 
 ```sh
-API=https://68-211-179-63.sslip.io
+API=https://api.llama-backend.rocks
 curl "$API/healthz"          # {"status":"ok","writes_enabled":true}
 ```
 
-The name comes from sslip.io, which resolves it to the VM's static IP. For a
-local server, use `http://localhost:8080`.
+The same server also answers at `https://68-211-179-63.sslip.io`, which works
+as long as the VM keeps its static IP. For a local server, use
+`http://localhost:8080`.
 
 ## Regions
 
@@ -145,7 +146,7 @@ Read it before publishing numbers.
 ```python
 import pandas as pd
 
-API = "https://68-211-179-63.sslip.io"
+API = "https://api.llama-backend.rocks"
 weekly = pd.read_json(f"{API}/v1/regions/world/weekly?platform=Aqua", dtype={"reported_detections": "Int64"})
 weekly["week_start"] = pd.to_datetime(weekly["week_start"])
 complete = weekly[weekly["week_complete"] & weekly["source_complete"]]
