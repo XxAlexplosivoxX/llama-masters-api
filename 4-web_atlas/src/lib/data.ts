@@ -12,7 +12,7 @@ import type {
 } from "./types";
 
 /**
- * The API (3-api). The site is served by the same Worker, so the default is the same origin;
+ * The API (3-api_atlas). The site is served by the same Worker, so the default is the same origin;
  * VITE_API_URL points a local dev server at the deployed API instead.
  */
 const API = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/$/, "");

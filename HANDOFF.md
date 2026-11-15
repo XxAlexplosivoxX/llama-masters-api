@@ -10,7 +10,8 @@ FIRMS fire detections from two generations of satellites, MODIS (Terra/Aqua, 200
 (S-NPP 2012→, NOAA-20, NOAA-21), turned into **one continuous monthly record per country on the
 VIIRS scale**, served by an API and explored on a map website.
 
-- Site: <https://llama-masters.esauflores.com>, also <https://atlas.tonalli.earth>
+- Site: <https://tonalli.earth> (landing) and <https://tonalli.earth/atlas/> (atlas). The older
+  addresses atlas.tonalli.earth and llama-masters.esauflores.com redirect to `/atlas/`.
 - API: <https://llama-masters-api.esauflores.com/v1/places>
 - Code: branch `monorepo` of <https://github.com/XxAlexplosivoxX/llama-masters-api> (remote `origin`).
   The team's earlier Go API lives on that repo's `main`; `monorepo` has its own history (no common
@@ -23,7 +24,7 @@ VIIRS scale**, served by an API and explored on a map website.
 ```
 NASA FIRMS ──1-extract_data──▶ R2 raw/ ──2-process_data──▶ R2 clean/ → aggregates/ → exports/
                                                                                    │
-                                     4-web (React) ◀── 3-api (Cloudflare Worker) ◀─┘
+              5-web_landing + 4-web_atlas (React) ◀── 3-api_atlas (Cloudflare Worker) ◀─┘
 ```
 
 | Step | What | Runs on | Docs |
@@ -31,8 +32,9 @@ NASA FIRMS ──1-extract_data──▶ R2 raw/ ──2-process_data──▶ R
 | `0-plans/` | Plans: harmonization (the method), hackathon, visualization, forecasting | — | [README](0-plans/README.md) |
 | `1-extract_data/` | FIRMS yearly archives + area API → `raw/` Parquet | Railway `extract-1..4` | [README](1-extract_data/README.md) |
 | `2-process_data/` | `prepare` → `clean` + `aggregate` (8 shards) → `export` | Railway `prepare`, `process-1..8`, `export` | [README](2-process_data/README.md) |
-| `3-api/` | Hono Worker: serves `exports/` from R2 and the built site | Cloudflare Workers | [README](3-api/README.md) |
-| `4-web/` | Map-first website (React, MapLibre, Vite+) | Same Worker, static assets | [README](4-web/README.md), [AGENTS](4-web/AGENTS.md) |
+| `3-api_atlas/` | Hono Worker: serves `exports/` from R2 and the built site | Cloudflare Workers | [README](3-api_atlas/README.md) |
+| `4-web_atlas/` | The atlas, map-first (React, MapLibre, Vite+), at `/atlas/` | Same Worker, static assets | [README](4-web_atlas/README.md), [AGENTS](4-web_atlas/AGENTS.md) |
+| `5-web_landing/` | Landing page at tonalli.earth (React, Vite+) | Same Worker, static assets | [README](5-web_landing/README.md) |
 
 Everything heavy runs on Railway; R2 bucket `llama-masters-firms` holds all data. **Nothing big is
 downloaded to a laptop.** Railway services are declared in [`.railway/railway.ts`](.railway/railway.ts).
@@ -65,7 +67,7 @@ mean brightness temperature (`modis_bt`, `viirs_bt`, kelvin). The site reads ver
 - Legend: detections scale, and a **Temperature** on/off button with °C / °F / K.
 - Temperature view: colour = mean fire brightness temperature, **harmonized** (MODIS mapped onto
   the VIIRS I4 scale by quantile mapping, fitted in the browser on the cell-months both sensors
-  saw, in `4-web/src/lib/temperature.ts`); solidity = detections (cells with few fires are faint).
+  saw, in `4-web_atlas/src/lib/temperature.ts`); solidity = detections (cells with few fires are faint).
   In the MODIS-only or VIIRS-only views each sensor keeps its own scale.
 - Country border highlight, loading pill at the top centre.
 
@@ -77,11 +79,11 @@ hotter than MODIS in the same cell and month, which is why temperature needs har
 
 ```sh
 mise install && mise run setup             # Python 3.12 (uv), Bun
-mise run api:test                          # 3-api tests (bun test)
-cd 4-web && bun run check                  # format, lint, types (Vite+); `bun run fix` to fix
-cd 4-web && VITE_API_URL=https://llama-masters-api.esauflores.com bun run build \
+mise run api:test                          # 3-api_atlas tests (bun test)
+cd 4-web_atlas && bun run check                  # format, lint, types (Vite+); `bun run fix` to fix
+cd 4-web_atlas && VITE_API_URL=https://llama-masters-api.esauflores.com bun run build \
   && bunx vp preview --port 4173           # local site against the live API
-cd 3-api && bun run deploy                 # builds 4-web and deploys Worker + site
+cd 3-api_atlas && bun run deploy                 # builds both sites into site/, deploys Worker + sites
 
 # Pipeline on Railway, from the repo root (order matters)
 npx -y @railway/cli@5.74.0 up --service prepare --detach

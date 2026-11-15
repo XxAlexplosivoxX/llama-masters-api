@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Same palette as the atlas (4-web_atlas/src/styles.css), so the two read as one site. */
+@theme {
+  --font-sans: "Public Sans Variable", "Public Sans", system-ui, sans-serif;
+
+  --color-bg: #0b0f1a;
+  --color-surface: #121829;
+  --color-surface-2: #1b2338;
+  --color-border: #2a3350;
+  --color-text: #e8ecf5;
+  --color-muted: #9aa6c0;
+  --color-accent: #4c8dff;
+  --color-modis: #ffb547;
+  --color-viirs: #3dd6d0;
+
+  --color-heat-1: #3b0f70;
+  --color-heat-2: #721f81;
+  --color-heat-3: #b73779;
+  --color-heat-4: #f1605d;
+  --color-heat-5: #feaf77;
+  --color-heat-6: #fcfdbf;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  select {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+.heat-text {
+  background: linear-gradient(90deg, var(--color-heat-4), var(--color-heat-5) 55%, var(--color-heat-6));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

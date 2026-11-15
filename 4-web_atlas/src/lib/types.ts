@@ -1,4 +1,4 @@
-// Shapes of the files the API serves (3-api), written by 2-process_data/src/export.py.
+// Shapes of the files the API serves (3-api_atlas), written by 2-process_data/src/export.py.
 
 export type BBox = [west: number, south: number, east: number, north: number];
 
