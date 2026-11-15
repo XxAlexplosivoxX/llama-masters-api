@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Crosshair, Hexagon, Square, X } from "lucide-react";
+import { Check, ChevronDown, Crosshair, Hexagon, Shapes, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
@@ -48,7 +48,7 @@ export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; 
       <AnimatePresence>
         {open && (
           <motion.div {...pop} role="listbox" aria-label="Places"
-            className="absolute left-0 top-full z-30 mt-2 max-h-[min(34rem,calc(100dvh-6rem))] w-80 origin-top-left overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60">
+            className="absolute left-0 top-full z-30 mt-2 max-h-[min(34rem,calc(100dvh-6rem))] w-80 origin-top-left overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:origin-top-right">
             {regions.length > 0 && <>{heading("Region")}{regions.map(row)}</>}
             {countries.length > 0 && (
               <>
@@ -89,9 +89,10 @@ interface ToolsProps {
 
 export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLabel, onOpen }: ToolsProps) {
   const [open, setOpen] = useState(false);
-  const ref = useDismiss(open, () => setOpen(false));
+  const [menu, setMenu] = useState(false);
+  const ref = useDismiss(open || menu, () => { setOpen(false); setMenu(false); });
   // One tool at a time: starting to draw closes the coordinates form, opening the form stops drawing.
-  useEffect(() => { if (drawMode) setOpen(false); }, [drawMode]);
+  useEffect(() => { if (drawMode) { setOpen(false); setMenu(false); } }, [drawMode]);
   useEffect(() => { if (open || drawMode) onOpen?.(); }, [open, drawMode]);
 
   const tools: { mode: DrawMode; label: string; icon: React.ReactNode }[] = [
@@ -102,23 +103,59 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
 
   return (
     <div ref={ref} className="relative">
-      <div className="seg" role="group" aria-label="Choose an area">
+      {/* Mobile: one button that opens a vertical menu. */}
+      <div className="seg sm:hidden">
+        <button aria-pressed={!!drawMode || open} aria-expanded={menu} aria-haspopup="menu"
+          aria-label="Choose an area" title="Choose an area"
+          className="w-10 justify-center !px-0"
+          onClick={() => setMenu(!menu)}>
+          {(!!drawMode || open) && highlight}
+          <span className="relative inline-flex items-center gap-0.5">
+            {drawMode ? tools.find((t) => t.mode === drawMode)!.icon : open ? <Crosshair size={16} aria-hidden /> : <Shapes size={16} aria-hidden />}
+            <ChevronDown size={12} aria-hidden />
+          </span>
+        </button>
+      </div>
+      {/* Desktop: the three tools as a segmented control. */}
+      <div className="seg max-sm:hidden" role="group" aria-label="Choose an area">
         {tools.map((t) => (
-          <button key={t.mode} aria-pressed={drawMode === t.mode}
+          <button key={t.mode} aria-pressed={drawMode === t.mode} aria-label={t.label}
             onClick={() => { setOpen(false); onDrawMode(drawMode === t.mode ? null : t.mode); }}
             title={`Draw a ${t.label.toLowerCase()} on the map`}>
             {drawMode === t.mode && highlight}
-            <span className="relative inline-flex items-center gap-1.5">{t.icon}<span className="hidden sm:inline">{t.label}</span></span>
+            <span className="relative inline-flex items-center gap-1.5">{t.icon}{t.label}</span>
           </button>
         ))}
-        <button aria-pressed={open} aria-expanded={open} onClick={() => { onDrawMode(null); setOpen(!open); }} title="Enter coordinates">
+        <button aria-pressed={open} aria-expanded={open} aria-label="Coordinates"
+          onClick={() => { onDrawMode(null); setOpen(!open); }} title="Enter coordinates">
           {open && highlight}
-          <span className="relative inline-flex items-center gap-1.5"><Crosshair size={16} aria-hidden /><span className="hidden sm:inline">Coordinates</span></span>
+          <span className="relative inline-flex items-center gap-1.5"><Crosshair size={16} aria-hidden />Coordinates</span>
         </button>
       </div>
+      <AnimatePresence>
+        {menu && (
+          <motion.div {...pop} role="menu" aria-label="Choose an area"
+            className="absolute left-0 top-full z-30 mt-2 w-48 origin-top-left rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 sm:hidden">
+            {tools.map((t) => (
+              <button key={t.mode} role="menuitemradio" aria-checked={drawMode === t.mode}
+                onClick={() => { setMenu(false); setOpen(false); onDrawMode(drawMode === t.mode ? null : t.mode); }}
+                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2">
+                {t.icon}{t.label}
+                <span className="ml-auto text-accent">{drawMode === t.mode && <Check size={15} aria-hidden />}</span>
+              </button>
+            ))}
+            <button role="menuitemradio" aria-checked={open}
+              onClick={() => { setMenu(false); onDrawMode(null); setOpen(!open); }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-surface-2">
+              <Crosshair size={16} aria-hidden />Coordinates
+              <span className="ml-auto text-accent">{open && <Check size={15} aria-hidden />}</span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AnimatePresence mode="wait">
         {drawMode && !open && (
-          <motion.p key="hint" {...pop} role="status" className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[7.25rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0">
+          <motion.p key="hint" {...pop} role="status" className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.75rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0">
             {drawMode === "rectangle" ? "Click two opposite corners on the map." : "Click to add points; click the first point to finish. Lines cannot cross."}
             {" "}Esc cancels.
           </motion.p>
@@ -223,7 +260,7 @@ function CoordinateForm({ bounds, placeLabel, onSubmit }: {
 
   return (
     <motion.form {...pop} ref={form} onSubmit={submit} noValidate
-      className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[7.25rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0 max-sm:max-h-[calc(100dvh-7.25rem-184px)] max-sm:overflow-y-auto border border-border bg-surface p-4 shadow-2xl shadow-black/60">
+      className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.75rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0 max-sm:max-h-[calc(100dvh-4.75rem-184px)] max-sm:overflow-y-auto border border-border bg-surface p-4 shadow-2xl shadow-black/60">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">Area by coordinates</p>
         <div className="seg !p-0.5" role="tablist" aria-label="Kind of area">
@@ -278,18 +315,18 @@ export function SelectionChip({ label, placeLabel, hidden, onClear }: { label: s
 }
 
 export function LayerSwitch({ layer, onLayer, historyAvailable }: { layer: MapLayer; onLayer: (l: MapLayer) => void; historyAvailable: boolean }) {
-  const options: { id: MapLayer; label: string }[] = [
-    { id: "history", label: "History" },
-    { id: "recent", label: "Last 7 days" },
+  const options: { id: MapLayer; label: string; short: string }[] = [
+    { id: "history", label: "History", short: "History" },
+    { id: "recent", label: "Last 7 days", short: "7 days" },
   ];
   return (
     <div className="seg" role="group" aria-label="Map layer">
       {options.map((o) => (
-        <button key={o.id} aria-pressed={layer === o.id} onClick={() => onLayer(o.id)}
+        <button key={o.id} aria-pressed={layer === o.id} onClick={() => onLayer(o.id)} aria-label={o.label}
           disabled={o.id === "history" && !historyAvailable}
-          className="disabled:cursor-not-allowed disabled:opacity-40">
+          className="max-sm:px-2.5 disabled:cursor-not-allowed disabled:opacity-40">
           {layer === o.id && <motion.span layoutId="layer" className="absolute inset-0 rounded-[9px] bg-surface-2 ring-1 ring-border" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />}
-          <span className="relative">{o.label}</span>
+          <span className="relative"><span className="sm:hidden">{o.short}</span><span className="hidden sm:inline">{o.label}</span></span>
         </button>
       ))}
     </div>

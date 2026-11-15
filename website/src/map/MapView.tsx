@@ -197,7 +197,7 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
         )}
       </AnimatePresence>
       <div className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2" style={padding.bottom > 200
-          ? { bottom: padding.bottom + 12, maxWidth: "calc(100% - 24px)" }
+          ? { top: padding.top + 8, maxWidth: "calc(100% - 24px)" }
           : { top: Math.max(68, padding.top - 52), maxWidth: "calc(100% - 24px)" }}>
         <MapCaption text={caption} progress={intro?.k} />
       </div>

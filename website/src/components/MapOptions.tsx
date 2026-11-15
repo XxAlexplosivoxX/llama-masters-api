@@ -43,6 +43,7 @@ export function MapOptions({ options, onChange, online, onOpen }: {
     <div ref={ref} className="relative">
       <div className="seg">
         <button ref={trigger} aria-label="Map options" title="Map options" aria-haspopup="dialog"
+          className="max-sm:w-10 max-sm:justify-center max-sm:px-0"
           aria-expanded={open} aria-controls={open ? id : undefined} aria-pressed={open} onClick={() => open ? close() : setOpen(true)}>
           <Layers size={16} aria-hidden />
         </button>

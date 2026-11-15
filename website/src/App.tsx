@@ -79,17 +79,17 @@ export function App() {
       className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start justify-between gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto"
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
-      <PlaceSwitcher places={explorer.places} current={explorer.place} onSelect={explorer.selectPlace} />
-      <div className="flex max-w-full flex-col items-end gap-2">
-        <div className="flex flex-wrap justify-end gap-2">
+      <div className="order-2 max-sm:ms-auto sm:order-1">
+        <PlaceSwitcher places={explorer.places} current={explorer.place} onSelect={explorer.selectPlace} />
+      </div>
+      <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
+        <div className="flex items-start justify-end gap-1.5 sm:gap-2">
           <DrawTools drawMode={drawMode} onDrawMode={setDrawMode} onCoordinates={chooseArea}
             bounds={explorer.place?.bbox ?? null} placeLabel={explorer.place?.label ?? "this place"}
             onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
-          <div className="flex items-start gap-2">
-            <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
-            <MapOptions options={mapOptions} onChange={setMapOptions} online={mapOnline}
-              onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
-          </div>
+          <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
+          <MapOptions options={mapOptions} onChange={setMapOptions} online={mapOnline}
+            onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
         </div>
         <SelectionChip label={explorer.shape?.label ?? null} placeLabel={explorer.place?.label ?? ""}
           hidden={!!drawMode} onClear={() => explorer.setShape(null)} />
