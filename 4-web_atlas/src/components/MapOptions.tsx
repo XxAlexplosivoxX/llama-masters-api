@@ -5,6 +5,7 @@ import { useDismiss } from "../hooks/useDismiss";
 import { DEFAULT_MAP_OPTIONS, type MapOptions as Options } from "../hooks/useMapOptions";
 import { UNIT_LABEL } from "../lib/temperature";
 import type { Explorer } from "../state";
+import { useTourDemo } from "../tour/demo";
 
 export function MapOptions({
   options,
@@ -30,6 +31,7 @@ export function MapOptions({
     trigger.current?.focus({ preventScroll: true });
   };
   const ref = useDismiss(open, close);
+  useTourDemo("map-options", setOpen);
   useEffect(() => {
     if (!open) return;
     onOpen?.();
@@ -95,6 +97,7 @@ export function MapOptions({
           <motion.div
             ref={panel}
             id={id}
+            data-tour="map-options-menu"
             role="dialog"
             aria-labelledby={`${id}-title`}
             tabIndex={-1}

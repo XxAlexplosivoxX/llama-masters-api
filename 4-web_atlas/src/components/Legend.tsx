@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { HEAT, HEAT_ZERO, SENSOR } from "../lib/color";
 import { fmt, fmtCompact } from "../lib/format";
@@ -9,6 +10,7 @@ import { fmtTemp, TEMP, type TempScale, type TempUnit } from "../lib/temperature
 import type { MapLayer } from "../map/engine";
 import type { GridScale } from "../map/MapView";
 import type { Explorer } from "../state";
+import { useTourDemo } from "../tour/demo";
 
 const SENSOR_BAND = {
   MODIS: "MODIS brightness, bands 21/22",
@@ -73,6 +75,7 @@ export function Legend({
 }) {
   const { loaded, series, range, hoverMonth, recent, shape, kind, metric, unit } = explorer;
   const [segOpen, setSegOpen] = useState(false);
+  useTourDemo("record", setSegOpen);
   const isGrid = loaded && "grid" in loaded;
   const first = loaded?.recent?.[0]?.acquired_utc.slice(0, 10);
   const last = loaded?.recent?.at(-1)?.acquired_utc.slice(0, 10);
@@ -117,8 +120,7 @@ export function Legend({
         : explorer.recentSensors.VIIRS
           ? "VIIRS"
           : "";
-  const segLabel =
-    layer === "history" ? SERIES_LABEL[kind] : recentChoice === "BOTH" ? "Both" : recentChoice || "None";
+  const segLabel = layer === "history" ? SERIES_LABEL[kind] : recentChoice === "BOTH" ? "Both" : recentChoice || "None";
 
   return (
     <div
@@ -142,41 +144,53 @@ export function Legend({
           </button>
         )}
       </div>
-      {(!compact || segOpen) &&
-        (layer === "history" ? (
-          <div className="mb-4 mt-3">
-            <Seg<SeriesKind>
-              tall
-              label="Satellite record"
-              value={kind}
-              onChange={explorer.setKind}
-              options={[
-                { id: "HARMONIZED", label: "Harmonized" },
-                { id: "MODIS", label: "MODIS" },
-                { id: "VIIRS", label: "VIIRS" },
-              ]}
-            />
-          </div>
-        ) : (
-          <div className="mb-4 mt-3">
-            <Seg
-              tall
-              label="Recent hotspot sensors"
-              value={recentChoice}
-              onChange={(sensor) => {
-                const modis = sensor === "BOTH" || sensor === "MODIS";
-                const viirs = sensor === "BOTH" || sensor === "VIIRS";
-                if (explorer.recentSensors.MODIS !== modis) explorer.toggleRecentSensor("MODIS");
-                if (explorer.recentSensors.VIIRS !== viirs) explorer.toggleRecentSensor("VIIRS");
-              }}
-              options={[
-                { id: "BOTH", label: "Both" },
-                { id: "MODIS", label: "MODIS" },
-                { id: "VIIRS", label: "VIIRS" },
-              ]}
-            />
-          </div>
-        ))}
+      <AnimatePresence initial={false}>
+        {(!compact || segOpen) && (
+          <motion.div
+            key="seg"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            {layer === "history" ? (
+              <div className="mb-4 mt-3">
+                <Seg<SeriesKind>
+                  tall
+                  label="Satellite record"
+                  value={kind}
+                  onChange={explorer.setKind}
+                  options={[
+                    { id: "HARMONIZED", label: "Harmonized" },
+                    { id: "MODIS", label: "MODIS" },
+                    { id: "VIIRS", label: "VIIRS" },
+                  ]}
+                />
+              </div>
+            ) : (
+              <div className="mb-4 mt-3">
+                <Seg
+                  tall
+                  label="Recent hotspot sensors"
+                  value={recentChoice}
+                  onChange={(sensor) => {
+                    const modis = sensor === "BOTH" || sensor === "MODIS";
+                    const viirs = sensor === "BOTH" || sensor === "VIIRS";
+                    if (explorer.recentSensors.MODIS !== modis) explorer.toggleRecentSensor("MODIS");
+                    if (explorer.recentSensors.VIIRS !== viirs) explorer.toggleRecentSensor("VIIRS");
+                  }}
+                  options={[
+                    { id: "BOTH", label: "Both" },
+                    { id: "MODIS", label: "MODIS" },
+                    { id: "VIIRS", label: "VIIRS" },
+                  ]}
+                />
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {!compact && (
         <div className="mt-1.5 text-xs text-muted" title={description}>
           {detail}

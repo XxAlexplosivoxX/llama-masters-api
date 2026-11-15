@@ -1,4 +1,5 @@
 import { CircleQuestionMark } from "lucide-react";
+import { motion } from "motion/react";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { TourSide, TourStep } from "./steps";
@@ -45,6 +46,17 @@ function clippedRect(el: Element, parent: HTMLElement | null): Box | null {
     bottom = Math.min(bottom, c.bottom);
   }
   if (right - left < 4 || bottom - top < 4) return null;
+  return { left, top, width: right - left, height: bottom - top };
+}
+
+/** Smallest box around every visible part of a target (a button and its open menu). */
+function union(boxes: (Box | null)[]): Box | null {
+  const shown = boxes.filter((b): b is Box => !!b);
+  if (!shown.length) return null;
+  const left = Math.min(...shown.map((b) => b.left));
+  const top = Math.min(...shown.map((b) => b.top));
+  const right = Math.max(...shown.map((b) => b.left + b.width));
+  const bottom = Math.max(...shown.map((b) => b.top + b.height));
   return { left, top, width: right - left, height: bottom - top };
 }
 
@@ -141,13 +153,21 @@ export function Tour({
         setRect(null);
         return;
       }
-      const el = document.querySelector(`[data-tour="${step.target}"]`);
+      // `target` may list several ids: the first is required, the rest (an open menu) widen the spotlight.
+      const [main, ...extra] = step.target.split(" ");
+      const el = document.querySelector(`[data-tour="${main}"]`);
       const parent = el ? scrollParent(el) : null;
       if (el && parent && !revealed) {
         revealIn(el, parent);
         revealed = true;
       }
-      const box = el ? clippedRect(el, parent) : null;
+      const box = el
+        ? union(
+            [el, ...extra.map((id) => document.querySelector(`[data-tour="${id}"]`))].map(
+              (e) => e && clippedRect(e, parent),
+            ),
+          )
+        : null;
       if (box) {
         setShown(index);
         if (!same(box, last)) {
@@ -249,8 +269,11 @@ export function Tour({
           transition,
         }}
       />
-      <div
+      <motion.div
         ref={cardRef}
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -264,14 +287,20 @@ export function Tour({
           transition: cardPos ? `left 300ms ${EASE}, top 300ms ${EASE}` : undefined,
         }}
       >
-        <div aria-live="polite">
+        <motion.div
+          key={shown}
+          aria-live="polite"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
           <h2 id={titleId} className="text-base font-semibold leading-snug">
             {current.title}
           </h2>
           <p id={bodyId} className="mt-1.5 text-sm leading-relaxed text-muted">
             {current.body}
           </p>
-        </div>
+        </motion.div>
         <div className="mt-4 flex items-center gap-2">
           <span className="num text-xs text-muted">
             {shown + 1} of {steps.length}
@@ -291,7 +320,7 @@ export function Tour({
             {isFirst ? "Start" : isLast ? "Done" : "Next"}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>,
     document.body,
   );

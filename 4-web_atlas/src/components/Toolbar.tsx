@@ -9,6 +9,7 @@ import { fmt, fmtKm2 } from "../lib/format";
 import { CONTINENTS, continentOf, type Continent } from "../lib/continents";
 import { describeBBox, fmtPoint, overlaps, parseDegrees, parseNumber, type Parsed } from "../lib/validate";
 import { GLOBAL_ID } from "../lib/global";
+import { useTourDemo } from "../tour/demo";
 
 const pop = {
   initial: { opacity: 0, y: -6, scale: 0.98 },
@@ -32,6 +33,7 @@ export function PlaceSwitcher({
   const [query, setQuery] = useState("");
   const [continent, setContinent] = useState<Continent | "All">("All");
   const ref = useDismiss(open, () => setOpen(false));
+  useTourDemo("place", setOpen);
   useEffect(() => {
     if (open) {
       onOpen?.();
@@ -78,6 +80,7 @@ export function PlaceSwitcher({
         {open && (
           <motion.div
             {...pop}
+            data-tour="place-menu"
             className="absolute left-0 top-full z-30 mt-2 flex max-h-[min(34rem,calc(100dvh-6rem))] w-[22rem] origin-top-left flex-col rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:h-80 max-sm:w-64 max-sm:origin-top-right"
           >
             <input
@@ -192,6 +195,7 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
     setOpen(false);
     setMenu(false);
   });
+  useTourDemo("area", setMenu);
   // One tool at a time: starting to draw closes the coordinates form, opening the form stops drawing.
   useEffect(() => {
     if (drawMode) {
@@ -249,6 +253,7 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
           <motion.div
             {...pop}
             role="menu"
+            data-tour="area-menu"
             aria-label="Choose an area"
             className="absolute left-0 top-full z-30 mt-2 w-48 origin-top-left rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60"
           >

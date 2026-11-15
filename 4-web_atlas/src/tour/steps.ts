@@ -7,12 +7,15 @@ export type TourStep = {
   body: string;
   /** Replaces `body` on phones. */
   bodyMobile?: string;
-  /** `data-tour` value of the element to highlight; none = centred card. */
+  /** `data-tour` values to highlight, space-separated: the first must exist, the rest widen the spotlight. None = centred card. */
   target?: string;
   side?: TourSide;
   only?: "desktop" | "mobile";
   /** Desktop only: open ("details") or close ("map") the details panel. */
   view?: "map" | "details";
+  /** Popover opened during the step (`useTourDemo`); desktop only unless `demoMobile`. */
+  demo?: string;
+  demoMobile?: boolean;
 };
 
 export const TOUR_STEPS: TourStep[] = [
@@ -20,80 +23,84 @@ export const TOUR_STEPS: TourStep[] = [
     id: "welcome",
     view: "map",
     title: "Welcome to Tonalli ATLAS",
-    body: "An atlas of satellite fire hotspots: NASA's MODIS and VIIRS joined into one monthly record per country, from 2000 to today. This tour shows the controls in about a minute.",
+    body: "NASA fire hotspots from MODIS and VIIRS, on one scale since 2000.",
   },
   {
     id: "name",
     view: "map",
-    title: "Why Tonalli ATLAS?",
-    body: "Tonalli is a Nawat word of the Pipil people for the sun and its fire, and for the count of days and nights, the calendar. ATLAS: Analytics, Tracking & Logging Archive for Satellites, a collection of maps of the whole world.",
+    title: "Why the name?",
+    body: "Tonalli: Pipil (Nahuat) for sun, fire and the count of days. ATLAS: Analytics, Tracking & Logging Archive for Satellites.",
   },
   {
     id: "brand",
     target: "brand",
     side: "bottom",
     view: "map",
-    title: "Home page",
-    body: "Select the name to go back to the Tonalli home page, with the method and data sources.",
-    bodyMobile: "Tap the sun to go back to the Tonalli home page, with the method and data sources.",
+    title: "Home",
+    body: "Back to the Tonalli home page.",
   },
   {
     id: "place",
-    target: "place",
-    side: "bottom",
+    target: "place place-menu",
+    side: "right",
     view: "map",
+    demo: "place",
     title: "Choose a country",
-    body: "Search by name or code, or filter by continent. Global lets you combine several countries.",
+    body: "Search, filter by continent, or pick Global.",
   },
   {
     id: "area",
-    target: "area",
-    side: "bottom",
+    target: "area area-menu",
+    side: "left",
     view: "map",
+    demo: "area",
     title: "Select an area",
-    body: "Draw a rectangle or a shape on the map, or type coordinates, to see only that area.",
+    body: "Draw a rectangle or shape, or type coordinates.",
   },
   {
     id: "record",
     target: "record",
     side: "top",
     view: "map",
-    title: "Pick the satellite record",
-    body: "Harmonized puts both satellites on one scale. MODIS or VIIRS show a single sensor.",
-    bodyMobile: "Tap the record name to switch between Harmonized (both satellites on one scale), MODIS and VIIRS.",
+    demo: "record",
+    demoMobile: true,
+    title: "Satellite record",
+    body: "Harmonized joins both satellites. MODIS or VIIRS show one.",
   },
   {
     id: "play",
     target: "play",
     side: "bottom",
     view: "map",
-    title: "Play the timeline",
-    body: "Press Play to run the map month by month, then pause or scrub.",
+    title: "Play",
+    body: "Watch the map month by month.",
   },
   {
     id: "layers",
     target: "layers",
     side: "bottom",
     view: "map",
-    title: "Switch the layer",
-    body: "History shows monthly hotspots since 2000. Last 7 days shows each hotspot from the past week.",
+    title: "Layer",
+    body: "Monthly history, or the last 7 days.",
   },
   {
     id: "map-options",
-    target: "map-options",
-    side: "bottom",
+    target: "map-options map-options-menu",
+    side: "left",
     view: "map",
-    title: "Style the map",
-    body: "Change the basemap, names, borders, opacity and projection, or colour the map by fire temperature.",
+    demo: "map-options",
+    title: "Map options",
+    body: "Basemap, names, borders, temperature and more.",
   },
   {
     id: "year",
-    target: "calendar-card",
+    target: "calendar-card year-picker",
     side: "left",
     view: "map",
     only: "desktop",
+    demo: "year",
     title: "Browse a year",
-    body: "Use the arrows or the year label to change year. Point at a month to see it on the map.",
+    body: "Pick a year. Point at a month to map it.",
   },
   {
     id: "details",
@@ -101,25 +108,25 @@ export const TOUR_STEPS: TourStep[] = [
     side: "left",
     view: "map",
     only: "desktop",
-    title: "Open Details",
-    body: "Details has the full calendar, charts and downloads. Next opens it for you.",
+    title: "Details",
+    body: "Full calendar, charts and downloads.",
   },
   {
     id: "sheet",
     target: "drawer",
     side: "top",
     only: "mobile",
-    title: "Open the sheet",
-    body: "Drag the handle up for the calendar and charts, down for the map.",
+    title: "Details",
+    body: "Drag up for the calendar and charts.",
   },
   {
     id: "calendar",
     target: "calendar",
     side: "left",
     view: "details",
-    title: "Pick your dates",
-    body: "Each square is a month, each row a year. Drag across months to set the dates; click a year to focus it.",
-    bodyMobile: "Each square is a month, each row a year. Tap a month to see it on the map, or a year to focus it.",
+    title: "Pick dates",
+    body: "Drag across months. Click a year to focus it.",
+    bodyMobile: "Tap a month to map it, a year to focus it.",
   },
   {
     id: "years",
@@ -127,23 +134,23 @@ export const TOUR_STEPS: TourStep[] = [
     side: "left",
     view: "details",
     title: "Compare years",
-    body: "Red years had more hotspots than average, blue fewer. Select a bar to focus that year.",
+    body: "Red: above average. Blue: below.",
   },
   {
     id: "download",
     target: "download",
     side: "left",
     view: "details",
-    title: "Export the data",
-    body: "Download monthly counts or last-7-days hotspots as CSV.",
+    title: "Download",
+    body: "Monthly counts or recent hotspots, as CSV.",
   },
   {
     id: "done",
     target: "tour-button",
     side: "bottom",
     view: "map",
-    title: "You're set",
-    body: "Replay the Tonalli ATLAS tour any time from this button.",
+    title: "All set",
+    body: "Replay the tour from here.",
   },
 ];
 
@@ -152,5 +159,6 @@ export function tourStepsFor(desktop: boolean): TourStep[] {
   return TOUR_STEPS.filter((s) => !s.only || s.only === device).map((s) => ({
     ...s,
     body: !desktop && s.bodyMobile ? s.bodyMobile : s.body,
+    demo: desktop || s.demoMobile ? s.demo : undefined,
   }));
 }

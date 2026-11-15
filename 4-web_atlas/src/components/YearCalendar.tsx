@@ -8,6 +8,7 @@ import { fmt, fmtCompact, fmtPercent } from "../lib/format";
 import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/series";
 import { useDismiss } from "../hooks/useDismiss";
 import type { MonthlySeries } from "../lib/types";
+import { useTourDemo } from "../tour/demo";
 
 const pop = {
   initial: { opacity: 0, y: -6, scale: 0.98 },
@@ -78,6 +79,7 @@ export function YearCalendar({
 
   const [picking, setPicking] = useState(false);
   const pickerRef = useDismiss(picking, () => setPicking(false));
+  useTourDemo("year", setPicking);
   const yearButton = useRef<HTMLButtonElement>(null);
   const yearGrid = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -141,6 +143,7 @@ export function YearCalendar({
             <motion.div
               {...pop}
               role="dialog"
+              data-tour="year-picker"
               aria-label="Choose a year"
               className="absolute inset-x-0 top-full z-30 mt-2 origin-top rounded-xl border border-border bg-surface p-2.5 shadow-2xl shadow-black/60"
             >

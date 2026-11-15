@@ -446,3 +446,16 @@ input.timeline::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-muted);
 }
+
+/* Disclosures ("How is this calculated?", "About this data") fade in when opened. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  details[open] > :not(summary) {
+    animation: reveal 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}

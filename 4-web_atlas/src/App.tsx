@@ -18,6 +18,7 @@ import { GlobalPrompt } from "./components/GlobalPrompt";
 import { BrandLink, BrandName, TonalliMark } from "./components/Brand";
 import { Tour, TourButton } from "./tour/Tour";
 import { markTourSeen, tourSeen } from "./tour/seen";
+import { setTourDemo } from "./tour/demo";
 import { tourStepsFor, type TourStep } from "./tour/steps";
 
 const DESKTOP = "(min-width: 1024px)";
@@ -104,6 +105,7 @@ export function App() {
   };
   const tourStep = useCallback(
     (step: TourStep) => {
+      setTourDemo(step.demo ?? null);
       if (!desktop) setSnap(SNAPS[1]);
       else if (step.view === "details") setDetailsOpen(true);
       else if (step.view === "map") {
@@ -114,6 +116,7 @@ export function App() {
     [desktop],
   );
   const closeTour = useCallback(() => {
+    setTourDemo(null);
     markTourSeen();
     setTourOpen(false);
     const saved = tourSaved.current;
