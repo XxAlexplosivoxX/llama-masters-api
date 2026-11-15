@@ -82,10 +82,7 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
   const hasTemps = !!(layer === "recent" ? explorer.recentTemps : explorer.temps);
 
   return (
-    <div
-      data-tour="legend"
-      className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md"
-    >
+    <div className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">
       {hasTemps && (
         <div className="mb-2.5 flex gap-1.5">
           <div className="flex-1">

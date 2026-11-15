@@ -118,34 +118,32 @@ export function Panel({
 
       {status.kind === "ready" && series && stats && range && (
         <>
-          <div className="space-y-5" data-tour="overview">
-            {explorer.seriesRange && (
-              <DateRange
-                startYear={series.startYear}
-                bounds={explorer.seriesRange}
-                range={range}
-                baselineFrom={series.baselineFrom}
-                focusYear={focus}
-                onRange={explorer.setRange}
-              />
-            )}
-
-            <KeyNumbers
-              series={series}
-              stats={stats}
+          {explorer.seriesRange && (
+            <DateRange
+              startYear={series.startYear}
+              bounds={explorer.seriesRange}
               range={range}
+              baselineFrom={series.baselineFrom}
               focusYear={focus}
-              recent={loaded?.recent ? explorer.recentInArea : null}
-              mapMonth={
-                !showingRecent && hoverMonth !== null && hoverMonth >= range.from && hoverMonth <= range.to
-                  ? hoverMonth
-                  : null
-              }
-              playing={explorer.playing}
-              grid={loaded?.grid ?? null}
-              meta={loaded?.meta ?? null}
+              onRange={explorer.setRange}
             />
-          </div>
+          )}
+
+          <KeyNumbers
+            series={series}
+            stats={stats}
+            range={range}
+            focusYear={focus}
+            recent={loaded?.recent ? explorer.recentInArea : null}
+            mapMonth={
+              !showingRecent && hoverMonth !== null && hoverMonth >= range.from && hoverMonth <= range.to
+                ? hoverMonth
+                : null
+            }
+            playing={explorer.playing}
+            grid={loaded?.grid ?? null}
+            meta={loaded?.meta ?? null}
+          />
 
           <Section
             title="When does it burn?"
@@ -250,7 +248,7 @@ export function Panel({
           </Section>
 
           {loaded && (
-            <Section title="How MODIS and VIIRS are combined" tour="combined">
+            <Section title="How MODIS and VIIRS are combined">
               <HowCombined explorer={explorer} loaded={loaded} />
             </Section>
           )}
