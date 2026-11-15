@@ -26,13 +26,13 @@ VITE_API_URL=https://llama-masters-api.esauflores.com
 
 ## API used
 
-| Route                     | Used for                                                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/v1/places`              | Country list (search by name or ISO code)                                                                                                           |
-| `/v1/places/<id>/grid`    | `monthly_grid.json` v5: 0.1° cells (coarser for big countries), raw MODIS and VIIRS-scale counts per month, as compact columns decoded in `data.ts` |
-| `/v1/places/<id>/monthly` | Country and state series, baseline, conversion scores                                                                                               |
-| `/v1/places/<id>/meta`    | Satellite coverage, harmonization factors, sources, limits                                                                                          |
-| `/v1/places/<id>/recent`  | Last 7 days of hotspots (columnar)                                                                                                                  |
+| Route                     | Used for                                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/v1/places`              | Country list (search by name or ISO code)                                                                                                                                            |
+| `/v1/places/<id>/grid`    | `monthly_grid.json` v6: 0.1° cells (coarser for big countries), raw MODIS and VIIRS-scale counts and mean brightness temperatures per month, as compact columns decoded in `data.ts` |
+| `/v1/places/<id>/monthly` | Country and state series, baseline, conversion scores                                                                                                                                |
+| `/v1/places/<id>/meta`    | Satellite coverage, harmonization factors, sources, limits                                                                                                                           |
+| `/v1/places/<id>/recent`  | Last 7 days of hotspots (columnar)                                                                                                                                                   |
 
 Files that start after January (the record starts in November 2000) are padded on load so month 0 is always January (`src/lib/data.ts`).
 

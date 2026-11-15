@@ -10,7 +10,7 @@ import { CalendarToggle, Summary } from "./components/Summary";
 // Area selection (DrawTools, SelectionChip) is switched off for now: the site works by country.
 import { LayerSwitch, PlaceSwitcher } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
-import { MapView } from "./map/MapView";
+import { MapView, type GridScale } from "./map/MapView";
 import { shapeFromDrawing, useExplorer } from "./state";
 import { useDrawerViewport } from "./hooks/useDrawerViewport";
 import { MapOptions } from "./components/MapOptions";
@@ -36,7 +36,7 @@ export function App() {
   const [layer, setLayer] = useState<MapLayer>("history");
   const [drawMode, setDrawMode] = useState<DrawMode | null>(null);
   const [introDone, setIntroDone] = useState(false);
-  const [gridMax, setGridMax] = useState(0);
+  const [gridScale, setGridScale] = useState<GridScale>({ kind: "count", max: 0 });
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(() => {
@@ -166,7 +166,7 @@ export function App() {
         onOnline={setMapOnline}
         onDrawn={(polygon) => chooseArea(polygon)}
         onIntroDone={() => setIntroDone(true)}
-        onGridScale={setGridMax}
+        onGridScale={setGridScale}
       />
     </ErrorBoundary>
   );
@@ -190,7 +190,7 @@ export function App() {
     <motion.div
       animate={{ opacity: timelineVisible ? 1 : 0 }}
       transition={{ duration: 0.3 }}
-      className={`timeline-host flex min-w-0 ${desktop ? "basis-[19rem] flex-1 justify-center" : "w-full justify-end"} ${timelineVisible ? "" : "hidden"}`}
+      className={`timeline-host flex min-w-0 ${desktop ? "w-[34rem] max-w-full justify-center" : "w-full justify-end"} ${timelineVisible ? "" : "hidden"}`}
     >
       <Timeline explorer={explorer} onPlay={play} />
     </motion.div>
@@ -202,14 +202,15 @@ export function App() {
       transition={{ duration: 0.4 }}
       className={legendVisible ? "max-w-full" : "hidden"}
     >
-      <Legend explorer={explorer} layer={layer} gridMax={gridMax} />
+      <Legend explorer={explorer} layer={layer} gridScale={gridScale} />
     </motion.div>
   );
-  // Desktop: legend and player share one bottom bar; when the map is narrow the player wraps above.
+  // Desktop: three columns (legend | player | an equal empty side), so the player sits in the middle of the map.
   const legend = desktop ? (
-    <div className="pointer-events-none absolute bottom-4 left-4 right-16 z-10 flex flex-wrap-reverse items-end gap-3">
+    <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-10 grid grid-cols-[1fr_auto_1fr] items-end gap-3">
       {legendInner}
       {timelineInner}
+      <span aria-hidden />
     </div>
   ) : (
     <div

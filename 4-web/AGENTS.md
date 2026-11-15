@@ -60,13 +60,13 @@ Deploy: from `3-api`, `bun run deploy` builds this app and deploys the Worker. C
 
 Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `src/lib/types.ts`):
 
-| Route                     | File                   | Content                                                                                                                                                                                                                                        |
-| ------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/v1/places`              | `places.json`          | id, label, ISO codes, bbox, states, first month, last day, `version`                                                                                                                                                                           |
-| `/v1/places/<id>/grid`    | `monthly_grid.json`    | version 5: flat columns (`count`, month `gap`, integer `value` × `scale`), decoded by `data.ts` into `[west, south, modis, viirsEq]` cells with sparse `[month, value, ...]` pairs; `cell_deg` 0.1° or coarser for big countries (size budget) |
-| `/v1/places/<id>/monthly` | `monthly.json`         | country + states: MODIS, S-NPP, NOAA-20, NOAA-21, `viirs_eq` (the record), `modis_eq` (converted MODIS every month), p10/p90, baseline, held-out scores                                                                                        |
-| `/v1/places/<id>/meta`    | `meta.json`            | satellite spans, harmonization factors and score, method, sources, limitations                                                                                                                                                                 |
-| `/v1/places/<id>/recent`  | `recent_hotspots.json` | last 7 days of points, columnar                                                                                                                                                                                                                |
+| Route                     | File                   | Content                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/v1/places`              | `places.json`          | id, label, ISO codes, bbox, states, first month, last day, `version`                                                                                                                                                                                                                                                                                |
+| `/v1/places/<id>/grid`    | `monthly_grid.json`    | version 6 (5 still read): flat columns (`count`, month `gap`, integer `value` × `scale`), decoded by `data.ts` into `[west, south, modis, viirsEq, modisBt, viirsBt]` cells with sparse `[month, value, ...]` pairs (`modisBt` pairs line up with `modis`; temperatures in K, 0 = none); `cell_deg` 0.1° or coarser for big countries (size budget) |
+| `/v1/places/<id>/monthly` | `monthly.json`         | country + states: MODIS, S-NPP, NOAA-20, NOAA-21, `viirs_eq` (the record), `modis_eq` (converted MODIS every month), p10/p90, baseline, held-out scores                                                                                                                                                                                             |
+| `/v1/places/<id>/meta`    | `meta.json`            | satellite spans, harmonization factors and score, method, sources, limitations                                                                                                                                                                                                                                                                      |
+| `/v1/places/<id>/recent`  | `recent_hotspots.json` | last 7 days of points, columnar                                                                                                                                                                                                                                                                                                                     |
 
 - Every month axis carries `source` (observed | reconstructed), `satellite` (NOAA-20 | NOAA-21 |
   S-NPP | MODIS), `partial` and `provisional`.
@@ -196,7 +196,13 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   - `Timeline.tsx`: radar-style playback (4 months/s at 1×; 0.5×/1×/2×/4×, so 0.5× is 500 ms/month),
     scrubber, loops with a short hold at the end. Responsive player rows keep all four speeds visible.
   - `DateRange.tsx` (custom month picker + presets), `KeyNumbers.tsx`, `Anomalies.tsx`,
-    `Recent.tsx`, `Export.tsx`, `Legend.tsx`, `Sensors.tsx`, `ErrorBoundary.tsx`.
+    `Recent.tsx`, `Export.tsx`, `Sensors.tsx`, `ErrorBoundary.tsx`.
+  - `Legend.tsx`: also holds the map switch Detections | Temperature and the unit (°C, °F, K;
+    `map:metric`, `map:unit` in localStorage). Temperature = FIRMS brightness temperature (pixel, not
+    flame). `lib/temperature.ts`: each sensor has its own scale (2nd–98th percentile, fixed per place;
+    VIIRS I4 saturates near 367 K, MODIS reaches ~500 K), never one shared scale. A grid frame shows one
+    sensor: the view's, or for Harmonized VIIRS when it covers the month (range: its last month), else
+    MODIS; ranges are a detection-weighted mean. 7-day dots use `recentScales` per sensor.
 - `hooks/useDismiss.ts`: outside-click / Escape to close popovers.
 - `components/charts/`: shared accessible tabs: "Seasonal pattern", "This month vs past years" and
   "MODIS vs VIIRS" (the seam: `modis_eq` against real VIIRS, whole country only).

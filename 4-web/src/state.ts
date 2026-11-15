@@ -5,6 +5,27 @@ import { cellValues, cellsIn, computeStats, fullRange, gridSeries, latestComplet
 import type { BBox, Hotspot, Loaded, MonthlySeries, Place, SeriesKind, Shape } from "./lib/types";
 import { fmtKm2 } from "./lib/format";
 import { sensorOf, type Sensor } from "./lib/color";
+import { recentScales, tempScales, type Metric, type TempUnit } from "./lib/temperature";
+
+/** A small preference kept per browser (storage can be unavailable: then it lives in memory only). */
+function usePref<T extends string>(key: string, initial: T, allowed: readonly T[]) {
+  const [value, setValue] = useState<T>(() => {
+    try {
+      const saved = localStorage.getItem(key) as T | null;
+      return saved && allowed.includes(saved) ? saved : initial;
+    } catch {
+      return initial;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* Keep the in-memory value. */
+    }
+  }, [key, value]);
+  return [value, setValue] as const;
+}
 
 export type Status =
   | { kind: "loading"; message: string; progress?: LoadProgress[] }
@@ -21,6 +42,8 @@ export function useExplorer() {
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
   const [playbackMonth, setPlaybackMonth] = useState<number | null>(null);
+  const [metric, setMetric] = usePref<Metric>("map:metric", "count", ["count", "temperature"]);
+  const [unit, setUnit] = usePref<TempUnit>("map:unit", "C", ["K", "C", "F"]);
   const [kind, setKind] = useState<SeriesKind>("HARMONIZED");
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1); // 1× = 4 months per second
@@ -70,6 +93,10 @@ export function useExplorer() {
     const g = loaded.grid;
     return { HARMONIZED: cellValues(g, "HARMONIZED"), MODIS: cellValues(g, "MODIS"), VIIRS: cellValues(g, "VIIRS") };
   }, [loaded]);
+
+  // Each sensor's temperature colour range, fixed per place so months compare.
+  const temps = useMemo(() => (loaded ? tempScales(loaded.grid) : null), [loaded]);
+  const recentTemps = useMemo(() => (loaded ? recentScales(loaded.recent) : null), [loaded]);
 
   const series: MonthlySeries | null = useMemo(() => {
     if (!loaded || !cells.length || !values) return null;
@@ -195,6 +222,12 @@ export function useExplorer() {
     placeBBox,
     selectionLabel,
     selectPlace: setPlaceId,
+    metric,
+    setMetric,
+    unit,
+    setUnit,
+    temps,
+    recentTemps,
   };
 }
 

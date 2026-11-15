@@ -121,14 +121,34 @@ function unpack(col: SparseColumns, lead: number): SparseSeries[] {
 }
 
 function decodeGrid(file: MonthlyGridFile): MonthlyGrid {
-  if (file.version !== 5)
-    throw new Error(`monthly_grid.json has version ${String(file.version)}; this site reads version 5 (export.py).`);
+  if (file.version !== 5 && file.version !== 6)
+    throw new Error(`monthly_grid.json has version ${String(file.version)}; this site reads 5 and 6 (export.py).`);
   const lead = padAxis(file);
   const modis = unpack(file.modis, lead),
     viirsEq = unpack(file.viirs_eq, lead);
+  const viirsBt = file.viirs_bt ? unpack(file.viirs_bt, lead) : modis.map(() => []);
+  // MODIS temperatures follow the MODIS values one for one (0 = none), so the pairs line up with modis.
+  let j = 0;
+  const modisBt = modis.map((pairs) => {
+    const out: SparseSeries = [];
+    for (let i = 0; i < pairs.length; i += 2, j++) out.push(pairs[i], file.modis_bt?.[j] ?? 0);
+    return out;
+  });
   const { west, south } = file.cells;
-  const { cells: _cells, modis: _m, viirs_eq: _v, version: _version, series: _series, ...axis } = file;
-  return { ...axis, cells: west.map((w, i) => [w, south[i], modis[i], viirsEq[i]]) };
+  const {
+    cells: _cells,
+    modis: _m,
+    viirs_eq: _v,
+    modis_bt: _mb,
+    viirs_bt: _vb,
+    version: _version,
+    series: _series,
+    ...axis
+  } = file;
+  return {
+    ...axis,
+    cells: west.map((w, i) => [w, south[i], modis[i], viirsEq[i], modisBt[i], viirsBt[i]]),
+  };
 }
 
 function alignMonthly(monthly: MonthlyFile): MonthlyFile {
@@ -151,6 +171,7 @@ function fromColumns(c: RecentColumns): Hotspot[] {
     platform: c.platforms[c.platform[i]],
     confidence: c.confidence[i],
     frp: c.frp[i] ?? 0,
+    bright: c.bright?.[i] ?? null,
     state: c.state[i] >= 0 ? c.states[c.state[i]] : null,
   }));
 }

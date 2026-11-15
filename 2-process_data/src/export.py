@@ -179,13 +179,16 @@ class Country:
         d = con.execute(f"""
             SELECT CAST(list_position(?, satellite) - 1 AS TINYINT) AS sat, x, y,
                    CAST(coalesce(list_position(?, state_id), 0) - 1 AS INTEGER) AS st,
-                   CAST(datediff('month', CAST(? AS DATE), month) AS INTEGER) AS t, n
+                   CAST(datediff('month', CAST(? AS DATE), month) AS INTEGER) AS t, n,
+                   coalesce(bt_sum, 0) AS bt_sum, coalesce(bt_n, 0) AS bt_n
             FROM read_parquet('{path}') WHERE satellite IN ({", ".join(f"'{s}'" for s in SATS)})""",
                         [list(SATS), self.state_ids, cal.start]).fetchnumpy()
         self.sat, self.x, self.y, self.st, self.t = (np.asarray(d[k]).astype(np.int64) for k in ("sat", "x", "y", "st", "t"))
         self.n = np.asarray(d["n"]).astype(np.float64)
+        self.bt_sum = np.asarray(d["bt_sum"]).astype(np.float64)  # brightness temperature, K: sum and count
+        self.bt_n = np.asarray(d["bt_n"]).astype(np.float64)
         keep = (self.t >= 0) & (self.t < cal.months)
-        for k in ("sat", "x", "y", "st", "t", "n"):
+        for k in ("sat", "x", "y", "st", "t", "n", "bt_sum", "bt_n"):
             setattr(self, k, getattr(self, k)[keep])
         T, S = cal.months, len(self.state_ids)
         c5_keys, self.c5 = group(self.x // FIT_STEP, self.y // FIT_STEP)
@@ -304,7 +307,8 @@ def baseline(values: np.ndarray, cal: Calendar) -> dict:
 
 
 def grid_cells(c: Country, cal: Calendar, R: np.ndarray, modis_factor: np.ndarray, viirs_factor: np.ndarray):
-    """Raw MODIS and the harmonized record per display cell, coarsened until it fits GRID_BUDGET."""
+    """Raw MODIS, the harmonized record and mean brightness temperatures per display cell, coarsened
+    until it fits GRID_BUDGET."""
     modis = (c.sat == TERRA) | (c.sat == AQUA)
     recon = modis & (cal.source[c.t] == "reconstructed")
     observed = (cal.viirs[c.t] >= 0) & (c.sat == cal.viirs[c.t])
@@ -318,16 +322,30 @@ def grid_cells(c: Country, cal: Calendar, R: np.ndarray, modis_factor: np.ndarra
         lin = inv * T + c.t
         mod = np.bincount(lin, raw, len(keys) * T).reshape(-1, T)
         har = np.round(np.bincount(lin, eq, len(keys) * T).reshape(-1, T), 1)
-        return step, keys, mod, har, int((mod > 0).sum() + (har > 0).sum())
+        return step, keys, inv, mod, har, int((mod > 0).sum() + (har > 0).sum())
 
     # the finest step under the budget (lazy: coarser steps are only computed when needed), else the coarsest
-    step, keys, mod, har, size = next((g for g in map(at, GRID_STEPS) if g[4] <= GRID_BUDGET), None) or at(GRID_STEPS[-1])
-    keep = (mod > 0).any(1) | (har > 0).any(1)
-    keys, mod, har = keys[keep], mod[keep], har[keep]
+    step, keys, inv, mod, har, size = next((g for g in map(at, GRID_STEPS) if g[5] <= GRID_BUDGET), None) or at(GRID_STEPS[-1])
+
+    def mean_bt(rows: np.ndarray) -> np.ndarray:
+        """Mean brightness temperature (K) per cell x month of the given rows; 0 where none."""
+        lin = inv[rows] * T + c.t[rows]
+        # float64 even with no rows (bincount of an empty array is integer)
+        total = np.bincount(lin, c.bt_sum[rows], len(keys) * T).reshape(-1, T).astype(np.float64)
+        count = np.bincount(lin, c.bt_n[rows], len(keys) * T).reshape(-1, T).astype(np.float64)
+        return np.divide(total, count, out=np.zeros_like(total), where=count > 0)
+
+    modis_bt, viirs_bt = mean_bt(modis), mean_bt(~modis)
+    keep = (mod > 0).any(1) | (har > 0).any(1) | (viirs_bt > 0).any(1)
+    keys, mod, har, modis_bt, viirs_bt = keys[keep], mod[keep], har[keep], modis_bt[keep], viirs_bt[keep]
     grid = {
         "cells": {"west": np.round(keys[:, 0] * step / 10, 1).tolist(), "south": np.round(keys[:, 1] * step / 10, 1).tolist()},
         "modis": sparse_columns(mod, 1),
         "viirs_eq": sparse_columns(har, GRID_EQ_SCALE),
+        # brightness temperature (K, whole degrees): MODIS on the MODIS positions above (0 = none);
+        # VIIRS (every VIIRS satellite) with its own positions, since they differ from viirs_eq's
+        "modis_bt": np.round(modis_bt[np.nonzero(mod)]).astype(np.int64).tolist(),
+        "viirs_bt": sparse_columns(viirs_bt, 1),
     }
     return step / 10, grid, size
 
@@ -419,14 +437,15 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
 
     cell_deg, grid, size = grid_cells(c, cal, R, modis_factor, viirs_factor)
     hashes.append(write_json(con, root, f"{pid}/monthly_grid.json", {
-        **common, "version": 5, "unit": "detections", "cell_deg": cell_deg, "series": ["modis", "viirs_eq"],
+        **common, "version": 6, "unit": "detections", "cell_deg": cell_deg, "series": ["modis", "viirs_eq"],
+        "temperature": {"unit": "K", "modis": "MODIS brightness (band 21/22)", "viirs": "VIIRS I4 brightness"},
         **month_info, **grid}))
 
     rec = con.execute(f"""
         SELECT longitude, latitude,
                strftime(acq_date, '%Y-%m-%d') || 'T' || substr(lpad(CAST(acq_time AS VARCHAR), 4, '0'), 1, 2) || ':'
                    || substr(lpad(CAST(acq_time AS VARCHAR), 4, '0'), 3, 2) || 'Z' AS acquired_utc,
-               satellite, CAST(confidence AS VARCHAR) AS confidence, frp, state_id
+               satellite, CAST(confidence AS VARCHAR) AS confidence, frp, state_id, bright
         FROM read_parquet('{root}/aggregates/country={name}/recent.parquet')
         WHERE acq_date > CAST(? AS DATE) - INTERVAL {RECENT_DAYS} DAY ORDER BY acq_date, acq_time""",
                       [cal.last_day]).fetchall()
@@ -438,7 +457,8 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
         "lon": [round(r[0], 4) for r in rec], "lat": [round(r[1], 4) for r in rec],
         "acquired_utc": [r[2] for r in rec], "platform": [platforms.index(r[3]) for r in rec],
         "state": [rec_states.index(r[6]) if r[6] is not None else -1 for r in rec],
-        "confidence": [r[4] for r in rec], "frp": [num(r[5], 2) for r in rec]}))
+        "confidence": [r[4] for r in rec], "frp": [num(r[5], 2) for r in rec],
+        "bright": [num(r[7], 1) for r in rec]}))  # brightness temperature, K (MODIS or VIIRS I4)
 
     observed_from = next((cal.label[t] for t in range(cal.months) if cal.source[t] == "observed"), None)
     hashes.append(write_json(con, root, f"{pid}/meta.json", {

@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { LoadProgress } from "../lib/data";
 
@@ -39,47 +38,48 @@ export function stepsFrom(
   return steps;
 }
 
-/** First-load card: what is loading, in which order, and how far along each download is. */
+/** First-load pill at the top middle: one line naming the current step, a thin progress line under it. */
 export function LoadingCard({ title, steps }: { title: string; steps: Step[] }) {
   const known = steps.filter((s) => s.fraction !== undefined || s.state === "done");
   const overall = known.length
     ? known.reduce((sum, s) => sum + (s.state === "done" ? 1 : (s.fraction ?? 0)), 0) / steps.length
     : 0;
+  // A download in progress (it has MB to show) says more than the basemap, which loads alongside.
+  const current =
+    steps.find((s) => s.state === "active" && s.detail) ??
+    steps.find((s) => s.state === "active") ??
+    steps.find((s) => s.state === "waiting");
+  const label = current ? `Loading ${current.label.charAt(0).toLowerCase()}${current.label.slice(1)}` : title;
   return (
     <motion.div
       role="status"
       aria-live="polite"
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8, transition: { duration: 0.3 } }}
-      transition={{ duration: 0.4, ease }}
-      className="w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface/95 p-4 shadow-2xl shadow-black/50 backdrop-blur"
+      transition={{ duration: 0.3, ease }}
+      className="relative flex h-9 max-w-[calc(100vw-2rem)] items-center gap-2 overflow-hidden rounded-full border border-border bg-bg/90 pl-3 pr-4 text-xs shadow-xl shadow-black/40 backdrop-blur-md"
     >
-      <p className="text-sm font-semibold">{title}</p>
-      <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-        <motion.div
-          className="h-full rounded-full bg-accent"
-          animate={{ width: `${Math.max(4, overall * 100)}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-      <ol className="mt-3 space-y-1.5 text-xs">
-        {steps.map((s) => (
-          <li key={s.label} className="flex items-center gap-2">
-            <span className="grid h-4 w-4 shrink-0 place-items-center" aria-hidden>
-              {s.state === "done" ? (
-                <Check size={13} className="text-accent" />
-              ) : s.state === "active" ? (
-                <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-              ) : (
-                <span className="h-2 w-2 rounded-full border border-muted/60" />
-              )}
-            </span>
-            <span className={s.state === "waiting" ? "text-muted" : "text-text"}>{s.label}</span>
-            {s.detail && <span className="num ml-auto text-muted">{s.detail}</span>}
-          </li>
-        ))}
-      </ol>
+      <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" aria-hidden />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={label}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.2 }}
+          className="truncate"
+        >
+          {label}
+        </motion.span>
+      </AnimatePresence>
+      {current?.detail && <span className="num shrink-0 text-muted">{current.detail}</span>}
+      <motion.span
+        className="absolute bottom-0 left-0 h-0.5 bg-accent"
+        animate={{ width: `${Math.max(4, overall * 100)}%` }}
+        transition={{ duration: 0.3 }}
+        aria-hidden
+      />
     </motion.div>
   );
 }

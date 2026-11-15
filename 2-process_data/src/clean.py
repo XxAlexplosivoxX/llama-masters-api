@@ -22,7 +22,8 @@ For each country and sensor, in this order:
 One query per sensor gives the report counts and the distinct border points; shapely places
 those; a second pass joins them back and writes the rows (unsorted; aggregate sorts).
 
-Rows keep latitude/longitude (float32), date, time, satellite, confidence, frp, state, state_id,
+Rows keep latitude/longitude (float32), date, time, satellite, confidence, frp, bright (brightness
+temperature in K: MODIS `brightness`, VIIRS I4 `bright_ti4`), state, state_id,
 iso, `source` (archive/api) and `provisional` (NRT).
 
 On Railway (reads every archive file, so not on a laptop):
@@ -68,6 +69,12 @@ ISO_MIN_SHARE = 0.05  # an ISO group needs this share of the country's archive r
 COUNTS = ("archive_rows", "api_rows", "static_by_type", "static_by_mask", "low_confidence")  # report columns
 EXACT_CHUNK = 50_000  # border points per exact-test task
 FIELDS = "latitude, longitude, acq_date, acq_time, satellite, confidence, frp, type"
+BRIGHT = {"modis": "brightness", "viirs": "bright_ti4"}  # brightness temperature (K) of each sensor family
+
+
+def fields(sensor: str) -> str:
+    """FIELDS plus the sensor's brightness temperature as `bright`."""
+    return f"{FIELDS}, CAST({BRIGHT[family(sensor)]} AS FLOAT) AS bright"
 
 
 # --- Work list ----------------------------------------------------------------------------------
@@ -178,16 +185,17 @@ def outline_pieces(geoms: np.ndarray, size: int = 16) -> tuple[np.ndarray, np.nd
 
 def sources(con: duckdb.DuckDBPyConnection, inputs: Inputs, sensor: str, country: str) -> str:
     """SQL for the archive rows plus the country's API rows after the archive's last day."""
-    parts = [f"SELECT {FIELDS}, 'SP' AS processing, 'archive' AS source FROM empty_rows"]
+    cols = fields(sensor)
+    parts = [f"SELECT {cols}, 'SP' AS processing, 'archive' AS source FROM empty_rows"]
     after = ""
     archive = inputs.archive(sensor, country)
     if archive:
-        parts.append(f"SELECT {FIELDS}, 'SP' AS processing, 'archive' AS source FROM read_parquet('{archive}')")
+        parts.append(f"SELECT {cols}, 'SP' AS processing, 'archive' AS source FROM read_parquet('{archive}')")
         last = one(con, f"SELECT max(acq_date) FROM read_parquet('{archive}')")[0]
         after = f"WHERE acq_date > DATE '{last}'"
     api = inputs.staged.get((sensor, country))
     if api:
-        parts.append(f"SELECT {FIELDS}, processing, 'api' AS source "
+        parts.append(f"SELECT {cols}, processing, 'api' AS source "
                      f"FROM read_parquet({api!r}, union_by_name = true) {after}")
     return " UNION ALL BY NAME ".join(parts)
 
@@ -277,7 +285,7 @@ def clean_sensor(con: duckdb.DuckDBPyConnection, inputs: Inputs, pool: ThreadPoo
                           "hsidx": sidx[ok].astype(np.int16)})
     write_parquet(con, f"""
         SELECT CAST(f.latitude AS FLOAT) AS latitude, CAST(f.longitude AS FLOAT) AS longitude, acq_date, acq_time,
-               {satellite_label(sensor)} AS satellite, confidence, frp, s.state, s.state_id, s.iso, source,
+               {satellite_label(sensor)} AS satellite, confidence, frp, bright, s.state, s.state_id, s.iso, source,
                processing = 'NRT' AS provisional
         FROM ({f}) f
         LEFT JOIN hits h ON f.sidx IS NULL AND h.longitude = f.longitude AND h.latitude = f.latitude
@@ -362,7 +370,7 @@ def main() -> None:
     inputs = Inputs(con, root)
     pool = ThreadPoolExecutor(args.threads)
     con.execute("CREATE TEMP TABLE empty_rows (latitude DOUBLE, longitude DOUBLE, acq_date DATE, acq_time VARCHAR, "
-                "satellite VARCHAR, confidence VARCHAR, frp FLOAT, type TINYINT)")  # fixes the column types
+                "satellite VARCHAR, confidence VARCHAR, frp FLOAT, type TINYINT, brightness FLOAT, bright_ti4 FLOAT)")  # fixes the column types
     failed = []
     for i, country in enumerate(todo, 1):
         print(f"[{i}/{len(todo)}] ", end="", flush=True)

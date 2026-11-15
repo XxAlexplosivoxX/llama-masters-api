@@ -45,10 +45,12 @@ def aggregate_country(con: duckdb.DuckDBPyConnection, root: str, country: str, p
         SELECT satellite, CAST(floor(CAST(longitude AS DOUBLE) * 10) AS SMALLINT) AS x,
                CAST(floor(CAST(latitude AS DOUBLE) * 10) AS SMALLINT) AS y, state_id,
                CAST(date_trunc('month', acq_date) AS DATE) AS month,
-               CAST(count(*) AS INTEGER) AS n, CAST(count(*) FILTER (provisional) AS INTEGER) AS provisional
+               CAST(count(*) AS INTEGER) AS n, CAST(count(*) FILTER (provisional) AS INTEGER) AS provisional,
+               -- brightness temperature: sum and count of the rows that have one (mean = bt_sum / bt_n)
+               CAST(sum(bright) AS DOUBLE) AS bt_sum, CAST(count(bright) AS INTEGER) AS bt_n
         FROM {rows} GROUP BY ALL""", f"{out}/cells.parquet", order="satellite, month, x, y")
     write_parquet(con, f"""
-        SELECT latitude, longitude, acq_date, acq_time, satellite, confidence, frp, state_id
+        SELECT latitude, longitude, acq_date, acq_time, satellite, confidence, frp, bright, state_id
         FROM {rows}
         WHERE acq_date > (SELECT max(acq_date) FROM {rows}) - INTERVAL {RECENT_DAYS} DAY""",
                   f"{out}/recent.parquet", order="acq_date, acq_time")

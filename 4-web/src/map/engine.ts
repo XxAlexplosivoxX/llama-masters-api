@@ -7,6 +7,7 @@ import { TerraDraw, TerraDrawPolygonMode, TerraDrawRectangleMode, ValidateNotSel
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import { HEAT, SENSOR, sensorOf } from "../lib/color";
 import type { BBox, Hotspot } from "../lib/types";
+import { fmtTemp, TEMP, type Metric, type TempSensor, type TempUnit } from "../lib/temperature";
 import type { MapOptions } from "../hooks/useMapOptions";
 
 setWorkerUrl(workerUrl);
@@ -56,7 +57,7 @@ function confidenceLabel(value: string): string {
   return v.startsWith("h") ? "High" : v.startsWith("n") ? "Nominal" : v.startsWith("l") ? "Low" : value;
 }
 
-function hotspotHTML(p: Record<string, string | number>): string {
+function hotspotHTML(p: Record<string, string | number>, unit: TempUnit): string {
   const platform = String(p.platform);
   const sensor = sensorOf(platform);
   const { color, pixel } = SENSOR[sensor];
@@ -66,6 +67,7 @@ function hotspotHTML(p: Record<string, string | number>): string {
     `<span class="hp-sat">${escape(platform)}</span></div>` +
     `<p class="hp-when">${escape(WHEN.format(new Date(String(p.acquired_utc))))} UTC</p><dl>` +
     row("Fire radiative power", `${Number(p.frp).toFixed(1)} MW`) +
+    (Number(p.b) > 0 ? row("Brightness temperature", fmtTemp(Number(p.b), unit)) : "") +
     row("Confidence", confidenceLabel(String(p.confidence))) +
     (p.state ? row("State", String(p.state)) : "") +
     row("Pixel size", pixel) +
@@ -76,6 +78,26 @@ function hotspotHTML(p: Record<string, string | number>): string {
 const container = (map: MapLibreMap) => map.getContainer();
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Linear temperature ramp from lo to hi (K) on the cell's feature-state value; zero is transparent. */
+function tempRamp(lo: number, hi: number): ExpressionSpecification {
+  const v: ExpressionSpecification = ["coalesce", ["feature-state", "v"], 0];
+  const stops = TEMP.flatMap((color, i) => [lo + ((hi - lo) * i) / (TEMP.length - 1), color]);
+  return [
+    "case",
+    ["<=", v, 0],
+    "rgba(0,0,0,0)",
+    ["interpolate", ["linear"], v, ...stops],
+  ] as unknown as ExpressionSpecification;
+}
+
+/** A 7-day point's colour on its own sensor's temperature scale (`bn`: 0..1 within that scale). */
+const TEMP_DOT: ExpressionSpecification = [
+  "case",
+  ["<", ["get", "bn"], 0],
+  "#9AA6C0",
+  ["interpolate", ["linear"], ["get", "bn"], ...TEMP.flatMap((color, i) => [i / (TEMP.length - 1), color])],
+] as unknown as ExpressionSpecification;
 
 /** Square-root heat ramp on the cell's feature-state value; cells at zero are transparent. */
 function heatRamp(max: number): ExpressionSpecification {
@@ -96,7 +118,11 @@ export class MapEngine {
   private onDraw: (polygon: GeoJSON.Polygon) => void;
   private layer: MapLayer = "history";
   private introFrame = 0;
-  private gridMax = -1;
+  private gridRamp = "";
+  private sensorColor: ExpressionSpecification = ["literal", "#FFFFFF"];
+  private dotColor: ExpressionSpecification = ["literal", "#FFFFFF"]; // which paint expression the grid has: "count:<max>" or "temp:<lo>:<hi>"
+  private unit: TempUnit = "C";
+  private recentMetric: Metric = "count";
   private gridOpacity = 0.82;
   private basemap: MapOptions["basemap"] | "dark" = "dark"; // dark = the style itself, used offline
   private labels = true;
@@ -227,6 +253,8 @@ export class MapEngine {
     const isModis: ExpressionSpecification = ["==", ["get", "s"], "M"];
     const sensorColor: ExpressionSpecification = ["case", isModis, SENSOR.MODIS.color, SENSOR.VIIRS.color];
     const dotColor: ExpressionSpecification = ["case", isModis, `${SENSOR.MODIS.color}88`, SENSOR.VIIRS.color];
+    this.sensorColor = sensorColor;
+    this.dotColor = dotColor;
     const power: ExpressionSpecification = [
       "*",
       ["case", isModis, 1.7, 1],
@@ -343,7 +371,7 @@ export class MapEngine {
       if (!feature || feature.geometry.type !== "Point") return;
       new Popup({ closeButton: true, maxWidth: "260px", className: "hotspot-popup" })
         .setLngLat(feature.geometry.coordinates as [number, number])
-        .setHTML(hotspotHTML(feature.properties as Record<string, string | number>))
+        .setHTML(hotspotHTML(feature.properties as Record<string, string | number>, this.unit))
         .addTo(map);
     });
     map.on("mouseenter", "recent-dots", () => (map.getCanvas().style.cursor = "pointer"));
@@ -519,10 +547,37 @@ export class MapEngine {
     }
     this.gridValues = values;
     // A new paint expression rebuilds the layer's shader inputs; only do it when the scale changes.
-    if (max !== this.gridMax) {
-      this.gridMax = max;
-      this.map.setPaintProperty("grid", "fill-color", heatRamp(max));
+    this.setGridRamp(`count:${max}`, () => heatRamp(max));
+  }
+
+  /** Mean temperatures per cell (K, 0 = no fires) on the lo..hi scale of one sensor. */
+  setGridTemps(values: number[], lo: number, hi: number) {
+    if (this.destroyed) return;
+    for (let id = 0; id < values.length; id++) {
+      if (values[id] !== this.gridValues[id]) this.map.setFeatureState({ source: "grid", id }, { v: values[id] });
     }
+    this.gridValues = values;
+    this.setGridRamp(`temp:${lo}:${hi}`, () => tempRamp(lo, hi));
+  }
+
+  private setGridRamp(key: string, ramp: () => ExpressionSpecification) {
+    if (key === this.gridRamp) return;
+    this.gridRamp = key;
+    this.map.setPaintProperty("grid", "fill-color", ramp());
+  }
+
+  /** Unit for temperatures in hotspot popups. */
+  setUnit(unit: TempUnit) {
+    this.unit = unit;
+  }
+
+  /** 7-day points coloured by sensor (count view) or by temperature on their sensor's scale. */
+  setRecentMetric(metric: Metric) {
+    if (this.destroyed || metric === this.recentMetric) return;
+    this.recentMetric = metric;
+    const temp = metric === "temperature";
+    this.map.setPaintProperty("recent-heat", "circle-color", temp ? TEMP_DOT : this.sensorColor);
+    this.map.setPaintProperty("recent-dots", "circle-color", temp ? TEMP_DOT : this.dotColor);
   }
 
   /** Ends the opening animation now (the user started exploring). */
@@ -530,7 +585,7 @@ export class MapEngine {
     this.skip = true;
   }
 
-  setRecent(points: Hotspot[]) {
+  setRecent(points: Hotspot[], scales: Record<TempSensor, { lo: number; hi: number }> | null) {
     if (this.destroyed) return;
     const first = points.length ? Date.parse(points[0].acquired_utc) : 0;
     (this.map.getSource("recent") as GeoJSONSource).setData({
@@ -548,6 +603,12 @@ export class MapEngine {
             confidence: p.confidence,
             state: p.state ?? "",
             s: sensorOf(p.platform) === "MODIS" ? "M" : "V",
+            b: p.bright ?? 0,
+            bn: (() => {
+              const sc = scales?.[sensorOf(p.platform)];
+              if (!sc || p.bright == null) return -1; // no temperature: grey
+              return Math.min(1, Math.max(0, (p.bright - sc.lo) / Math.max(1, sc.hi - sc.lo)));
+            })(),
           },
         })),
     });

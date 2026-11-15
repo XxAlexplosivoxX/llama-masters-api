@@ -40,15 +40,16 @@ One query per sensor gives the report counts and the distinct border points, sha
 those in parallel threads, and a second pass writes the rows. No temp tables, no sort (aggregate
 sorts), so memory stays around 1 GB even for the largest countries.
 
-Columns: latitude, longitude, acq_date, acq_time, satellite, confidence, frp, state, state_id,
+Columns: latitude, longitude, acq_date, acq_time, satellite, confidence, frp, bright (brightness
+temperature in K: MODIS `brightness`, VIIRS I4 `bright_ti4`), state, state_id,
 iso, source (archive/api), provisional (NRT). What each filter removed:
 `clean/_reports/country=<C>/cleaning.parquet` and the log.
 
 ## aggregate.py (one worker per shard, after clean.py)
 
 Same shards as `clean.py`. Per country: `cells.parquet` (satellite Terra/Aqua/S-NPP/NOAA-20/NOAA-21,
-0.1° cell `x`, `y`, `state_id`, `month`, `n`, `provisional`), `recent.parquet` (the country's last
-7 days of points) and a report per satellite (first and last day, first NRT day). A country is
+0.1° cell `x`, `y`, `state_id`, `month`, `n`, `provisional`, `bt_sum` and `bt_n` for the mean
+brightness temperature), `recent.parquet` (the country's last 7 days of points, with `bright`) and a report per satellite (first and last day, first NRT day). A country is
 skipped when its report is newer than its cleaning report.
 
 ## export.py (once, after every worker)
@@ -76,8 +77,8 @@ Files per country (`exports/<id>/`, id = slug of the FIRMS country name, e.g. `v
 |---|---|
 | `meta.json` | sensors (first/last/NRT days), coefficients (country and world), country score, states on fallback, sources, limitations |
 | `monthly.json` | per month `source` (observed/reconstructed), `satellite`, `partial`, `provisional`; per area raw `MODIS`, `S-NPP`, `NOAA-20`, `NOAA-21` (null where the satellite has no days), `viirs_eq`, `p10`, `p90`, `modis_eq` (converted MODIS every month: the seam check against real VIIRS), baseline, score |
-| `monthly_grid.json` | version 5: `cells.west/south`, and per series (`modis`, `viirs_eq`) flat columns over the cells: `count` per cell, `gap` (month minus the previous month of that cell), `value` × `scale` as integers (about 40% smaller than pairs once compressed); 0.1°, coarsened (0.2°, 0.5°, 1°, 2°) for countries over 1.5M values |
-| `recent_hotspots.json` | the world's last 7 days of points, columnar (lon, lat, acquired_utc, platform, state, confidence, frp) |
+| `monthly_grid.json` | version 6: `cells.west/south`, and per series (`modis`, `viirs_eq`) flat columns over the cells: `count` per cell, `gap` (month minus the previous month of that cell), `value` × `scale` as integers (about 40% smaller than pairs once compressed). Mean brightness temperature (K) per cell and month: `modis_bt`, one value per `modis` value (0 = none), and `viirs_bt` with its own columns (every VIIRS satellite); 0.1°, coarsened (0.2°, 0.5°, 1°, 2°) for countries over 1.5M values |
+| `recent_hotspots.json` | the world's last 7 days of points, columnar (lon, lat, acquired_utc, platform, state, confidence, frp, bright in K) |
 
 Plus `exports/places.json` (id, label, ISO groups, bbox, states, first month, last day, and `version`: a hash of the five files, which the site sends as `?v=` so caches never serve old files). A `--country` run updates only its own entries.
 

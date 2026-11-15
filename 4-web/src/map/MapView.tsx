@@ -2,9 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Explorer } from "../state";
 import { AnimatePresence } from "motion/react";
 import { labelOf } from "../lib/series";
+import { cellTemps, sensorFor, type TempScale } from "../lib/temperature";
 import { MapEngine, type DrawMode, type MapLayer, type Padding } from "./engine";
 import { LoadingCard, MapCaption, stepsFrom } from "./MapStatus";
 import type { MapOptions } from "../hooks/useMapOptions";
+
+/** What the grid colours mean right now, for the legend. */
+export type GridScale = { kind: "count"; max: number } | ({ kind: "temperature" } & TempScale);
 
 interface Props {
   explorer: Explorer;
@@ -13,7 +17,7 @@ interface Props {
   padding: Padding;
   onDrawn: (polygon: GeoJSON.Polygon) => void;
   onIntroDone: () => void;
-  onGridScale: (max: number) => void;
+  onGridScale: (scale: GridScale) => void;
   options: MapOptions;
   onOnline: (online: boolean | null) => void;
 }
@@ -54,6 +58,10 @@ export function MapView({
     status,
     place,
     series,
+    metric,
+    unit,
+    temps,
+    recentTemps,
   } = explorer;
   const [intro, setIntro] = useState(false);
   const [afterIntro, setAfterIntro] = useState(false);
@@ -152,12 +160,20 @@ export function MapView({
   useEffect(() => {
     if (!engine || !scale || !counts) return;
     const month = hoverMonth !== null && hoverMonth >= from && hoverMonth <= to ? hoverMonth : null;
+    if (metric === "temperature" && gridData && temps) {
+      // One sensor per frame (its own scale): the month's, or the range's last month's for totals.
+      const sensor = sensorFor(gridData, kind, month ?? to);
+      const values = cellTemps(gridData, sensor, shown, month ?? from, month ?? to);
+      engine.setGridTemps(values, temps[sensor].lo, temps[sensor].hi);
+      onGridScale({ kind: "temperature", ...temps[sensor] });
+      return;
+    }
     const frame =
       month === null ? scale.totals : shown.map((i) => (series?.values[month] == null ? 0 : (counts[i][month] ?? 0)));
     const max = month === null ? scale.totalMax : scale.monthMax;
     engine.setGridValues(frame, max);
-    onGridScale(max);
-  }, [engine, scale, hoverMonth, series]);
+    onGridScale({ kind: "count", max });
+  }, [engine, scale, hoverMonth, series, metric, temps]);
 
   // Any exploring (hover, playback) ends the opening animation at once.
   useEffect(() => {
@@ -165,8 +181,16 @@ export function MapView({
   }, [engine, hoverMonth]);
 
   useEffect(() => {
-    if (engine) engine.setRecent(recent);
-  }, [engine, recent]);
+    if (engine) engine.setRecent(recent, recentTemps);
+  }, [engine, recent, recentTemps]);
+
+  useEffect(() => {
+    engine?.setRecentMetric(metric);
+  }, [engine, metric]);
+
+  useEffect(() => {
+    engine?.setUnit(unit);
+  }, [engine, unit]);
 
   useEffect(() => {
     if (engine) engine.setSelection(shape?.polygon ?? null);
@@ -243,8 +267,8 @@ export function MapView({
         {firstLoad && (
           <div
             key="loading"
-            className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
-            style={{ top: `calc(${padding.top}px + (100% - ${padding.top + padding.bottom}px) / 2)` }}
+            // Top middle, level with the toolbar; on phones the toolbar spans the top, so just below it.
+            className="pointer-events-none absolute left-1/2 top-[4.5rem] z-30 -translate-x-1/2 lg:top-4"
           >
             <LoadingCard
               title={place ? `Loading ${place.label}` : "Loading"}

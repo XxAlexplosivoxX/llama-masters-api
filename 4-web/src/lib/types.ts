@@ -42,20 +42,29 @@ export interface SparseColumns {
 
 /** exports/<id>/monthly_grid.json as served (decoded by data.ts into MonthlyGrid). */
 export interface MonthlyGridFile extends MonthAxis {
-  version: 5;
+  version: 5 | 6; // 6 adds brightness temperatures
   unit: string;
   cell_deg: number;
   series: ["modis", "viirs_eq"];
   cells: { west: number[]; south: number[] };
   modis: SparseColumns;
   viirs_eq: SparseColumns;
+  modis_bt?: number[]; // v6: mean MODIS brightness temperature (K) for each MODIS value above, 0 = none
+  viirs_bt?: SparseColumns; // v6: mean VIIRS I4 brightness temperature (K), its own months
 }
 
 /** The grid in memory: one entry per cell with its sparse [month, value, ...] pairs. */
 export interface MonthlyGrid extends MonthAxis {
   unit: string;
   cell_deg: number;
-  cells: [west: number, south: number, modis: SparseSeries, viirsEq: SparseSeries][];
+  cells: [
+    west: number,
+    south: number,
+    modis: SparseSeries,
+    viirsEq: SparseSeries,
+    modisBt: SparseSeries, // mean brightness temperature (K) per month: MODIS, pair for pair with `modis` (0 = none)
+    viirsBt: SparseSeries, // and VIIRS (I4); empty for exports before v6
+  ][];
 }
 
 export interface AreaScore {
@@ -152,6 +161,7 @@ export interface RecentColumns {
   state: number[]; // index into states, -1 outside every state
   confidence: string[]; // MODIS 0-100, VIIRS n/h (as FIRMS reports it)
   frp: (number | null)[];
+  bright?: (number | null)[]; // brightness temperature, K (MODIS or VIIRS I4)
 }
 
 export interface Hotspot {
@@ -161,6 +171,7 @@ export interface Hotspot {
   platform: string;
   confidence: string;
   frp: number;
+  bright: number | null; // brightness temperature, K
   state: string | null;
 }
 
