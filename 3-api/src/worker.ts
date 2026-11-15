@@ -5,12 +5,21 @@ import { type R2BucketLike, R2Store } from "./store";
 
 interface Env {
   BUCKET: R2BucketLike;
+  ASSETS: Fetcher;
 }
 
 const app = createApp((env) => new R2Store((env as Env).BUCKET));
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // Plain http goes to https (the zones' "Always Use HTTPS" is not on everywhere).
+    const url = new URL(request.url);
+    if (url.protocol === "http:") {
+      url.protocol = "https:";
+      return Response.redirect(url.toString(), 301);
+    }
+    // Everything but the API is the website's static files.
+    if (!url.pathname.startsWith("/v1/") && url.pathname !== "/healthz") return env.ASSETS.fetch(request);
     if (request.method !== "GET") return app.fetch(request, env, ctx);
     const cache = caches.default;
     const cached = await cache.match(request); // answers If-None-Match with 304 by itself
