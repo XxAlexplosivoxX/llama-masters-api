@@ -15,6 +15,7 @@ import { useDrawerViewport } from "./hooks/useDrawerViewport";
 import { MapOptions } from "./components/MapOptions";
 import { useMapOptions } from "./hooks/useMapOptions";
 import { GlobalPrompt } from "./components/GlobalPrompt";
+import { BrandLink, BrandName, TonalliMark } from "./components/Brand";
 import { Tour, TourButton } from "./tour/Tour";
 import { markTourSeen, tourSeen } from "./tour/seen";
 import { tourStepsFor, type TourStep } from "./tour/steps";
@@ -167,7 +168,8 @@ export function App() {
       className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto ${desktop ? "" : "[visibility:var(--map-controls-visibility)]"}`}
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
-      <div className="order-1">
+      <div className="order-1 flex gap-2">
+        <BrandLink />
         <PlaceSwitcher
           places={explorer.places}
           current={explorer.place}
@@ -427,7 +429,7 @@ export function App() {
                 }}
               />
             </div>
-            <Drawer.Title className="sr-only">Fire calendar for the selected area</Drawer.Title>
+            <Drawer.Title className="sr-only">Tonalli ATLAS: fire calendar for the selected area</Drawer.Title>
             <div
               className="drawer-scroll min-h-0 shrink-0 overflow-y-auto overscroll-contain"
               data-vaul-no-drag=""
@@ -446,14 +448,8 @@ function Brand({ onClose }: { onClose: () => void }) {
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border/70 bg-surface px-5 py-3">
       <div className="flex items-center gap-2.5">
-        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
-          <circle cx="12" cy="12" r="10.5" fill="none" stroke="#4C8DFF" strokeWidth="1.5" />
-          <path
-            d="M12 5.5c1.8 2.6 4.2 4.6 4.2 7.6a4.2 4.2 0 0 1-8.4 0c0-1.5.7-2.6 1.6-3.6.2 1.3.9 2.2 1.8 2.4-.4-2.3.1-4.4.8-6.4Z"
-            fill="#FC3D21"
-          />
-        </svg>
-        <span className="text-sm font-semibold">Fire calendar</span>
+        <TonalliMark className="h-[22px] w-[22px]" />
+        <BrandName />
       </div>
       <a
         className="text-xs text-muted hover:text-text"

@@ -1,4 +1,4 @@
-# Fire calendar website: context for agents
+# Tonalli ATLAS (fire calendar website): context for agents
 
 Read this before changing anything in `4-web_atlas/`. It explains what the app is for, where every number
 comes from, how the code is organised, and the traps already found. Keep it current when you change
@@ -6,6 +6,10 @@ behaviour.
 
 ## 1. Project and goal
 
+- Name: **Tonalli ATLAS**. Tonalli is a Nawat word of the Pipil people for the sun and its fire and
+  the count of days and nights (the calendar); ATLAS = Analytics, Tracking & Logging Archive for
+  Satellites, and an atlas of maps of the whole world. The landing page (`../5-web_landing`) is the
+  site root; this app lives at `/atlas/`.
 - NASA Space Apps 2026, challenge "MODIS and VIIRS Hot Spots" (team Los Llama Masters). Challenge
   text: `../CHALLENGE.md`; plans: `../0-plans/` (the harmonization plan is
   `../0-plans/HARMONIZATION_PLAN.md`).
@@ -191,7 +195,8 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
     data (else the latest year with data); an incomplete focus year shows "N hotspots so far", no rank. `computeStats` includes partial final
     years in its year list, but missing months exclude them from complete-year totals and baselines.
   - `Timeline.tsx`: the player bar (only while playing) and `PlayButton` (toolbar, history layer).
-  - `PlaceSwitcher` groups countries by continent (`lib/continents.ts`, by place id; unknown ids go
+  - `PlaceSwitcher` groups countries by continent (`lib/continents.ts`, by place id; "North & Central
+    America" and "Caribbean" are separate groups; unknown ids go
     to "Other"); continent chips filter, search looks in every continent. "Global" sits on top.
   - Global (`lib/global.ts`, `components/GlobalPrompt.tsx`): there is no world file. Clicking the map
     toggles the country under the click (bbox candidates, then the country's `outline`, a few KB,
@@ -237,7 +242,9 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
   sizing the scroll area and positioning mobile map overlays without changing map layers.
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,
   `.link`), MapLibre chrome and popup restyle, timeline scrubber.
-- `tour/`: own product tour (no library), text only.
+- `components/Brand.tsx`: `TonalliMark` (the landing's sun), `BrandName` and `BrandLink` (top-left of the
+  toolbar, links to `/`, the landing; name hidden on phones, sun only). The panel header uses the same mark.
+- `tour/`: own product tour (no library), text only. Opens with what Tonalli ATLAS is and why the name.
   - `steps.ts`: all copy and targets. `title` / `body` (`bodyMobile` replaces `body` on phones);
     `target` is a `data-tour` value (none = centred card), `side` the preferred card side, `only`
     limits a step to desktop or mobile, `view: "details"` opens the desktop panel and `view: "map"`
@@ -252,7 +259,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
     `detailsOpen`, `calendarOpen`, drawer `snap` and `layer`, forces History (when available) and
     pauses playback; on mobile the drawer stays at `0.55`. `<Tour key={desktop ? "d" : "m"}>` restarts
     it across the breakpoint.
-  - `data-tour` targets (13 steps on desktop, 12 on mobile): `place` (PlaceSwitcher), `area`
+  - `data-tour` targets (16 steps on desktop, 15 on mobile): `brand` (BrandLink), `place` (PlaceSwitcher), `area`
     (DrawTools), `record` (Legend card), `play`, `layers`, `map-options`, `calendar-card` and
     `details` (Summary, desktop), `drawer` (mobile handle row), `calendar`, `anomalies`, `download`
     (`Panel` `Section`'s `tour` prop) and `tour-button`. Global before any pick has no calendar, so

@@ -5,8 +5,10 @@ const GROUPS = {
   Asia: "afghanistan armenia azerbaijan bahrain bangladesh bhutan brunei-darussalam cambodia china cyprus dem-rep-korea georgia hong-kong india indonesia iran iraq israel japan jordan kazakhstan kuwait kyrgyzstan lao-pdr lebanon malaysia mongolia myanmar nepal oman pakistan palestine philippines qatar republic-of-korea saudi-arabia singapore sri-lanka syria taiwan tajikistan thailand timor-leste turkey turkmenistan united-arab-emirates uzbekistan vietnam yemen",
   Europe:
     "aland-islands albania andorra austria belarus belgium bosnia-and-herzegovina bulgaria croatia czech-republic denmark estonia faeroe-islands finland france germany greece guernsey hungary iceland ireland isle-of-man italy jersey kosovo latvia liechtenstein lithuania luxembourg macedonia-former-yugoslav-republic-of malta moldova monaco montenegro netherlands norway poland portugal romania russian-federation san-marino serbia slovakia slovenia spain svalbard-and-jan-mayen sweden switzerland ukraine united-kingdom",
-  "North America":
-    "anguilla antigua-and-barbuda aruba bahamas barbados belize bermuda british-virgin-islands canada cayman-islands costa-rica cuba curacao dominica dominican-republic el-salvador greenland grenada guadeloupe guatemala haiti honduras jamaica martinique mexico montserrat nicaragua panama puerto-rico saint-kitts-and-nevis saint-lucia saint-pierre-and-miquelon saint-vincent-and-the-grenadines saint-barthelemy saint-martin sint-maarten trinidad-and-tobago turks-and-caicos-islands united-states united-states-virgin-islands",
+  "North & Central America":
+    "belize bermuda canada costa-rica el-salvador greenland guatemala honduras mexico nicaragua panama saint-pierre-and-miquelon united-states",
+  Caribbean:
+    "anguilla antigua-and-barbuda aruba bahamas barbados british-virgin-islands cayman-islands cuba curacao dominica dominican-republic grenada guadeloupe haiti jamaica martinique montserrat puerto-rico saint-kitts-and-nevis saint-lucia saint-vincent-and-the-grenadines saint-barthelemy saint-martin sint-maarten trinidad-and-tobago turks-and-caicos-islands united-states-virgin-islands",
   "South America":
     "argentina bolivia brazil chile colombia ecuador falkland-islands french-guiana guyana paraguay peru suriname uruguay venezuela",
   Oceania:
