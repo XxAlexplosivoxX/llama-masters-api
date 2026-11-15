@@ -1,10 +1,12 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { ChartLine, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
 import { Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
+import { Charts } from "./components/charts/Charts";
 import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView } from "./map/MapView";
@@ -33,6 +35,7 @@ export function App() {
   const [introDone, setIntroDone] = useState(false);
   const [gridMax, setGridMax] = useState(0);
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
+  const [chartsOpen, setChartsOpen] = useState(false);
   const drawer = useDrawerViewport(desktop, snap);
   const changeLayer = (next: MapLayer) => { explorer.pause(); setLayer(next); };
 
@@ -96,7 +99,7 @@ export function App() {
   );
   const panel = (
     <ErrorBoundary label="panel">
-      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => changeLayer("recent")} onPlay={play} />
+      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => changeLayer("recent")} onPlay={play} showCharts={!desktop} />
     </ErrorBoundary>
   );
 
@@ -135,10 +138,36 @@ export function App() {
   if (desktop) {
     return (
       <div className="flex h-full overflow-hidden">
-        <main className="relative flex-1 overflow-hidden">
-          {map}
-          {overlay}
-          {legend}
+        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {map}
+            {overlay}
+            {legend}
+          </div>
+          {explorer.loaded && explorer.series && explorer.stats && explorer.range && (
+            <section className="shrink-0 border-t border-border bg-surface" aria-label="Charts">
+              <div className="flex h-10 items-center px-4">
+                <button className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-accent hover:bg-surface-2"
+                  aria-expanded={chartsOpen} aria-controls="desktop-charts" onClick={() => {
+                    if (layer !== "recent") explorer.setHoverMonth(null);
+                    setChartsOpen((open) => !open);
+                  }}>
+                  <ChartLine size={16} aria-hidden /> Charts
+                  {chartsOpen ? <ChevronDown size={14} aria-hidden /> : <ChevronUp size={14} aria-hidden />}
+                </button>
+              </div>
+              <div id="desktop-charts">
+                <AnimatePresence initial={false}>
+                  {chartsOpen && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 290, opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
+                    <div className="h-[290px] overflow-y-auto px-4 pb-3">
+                      <ErrorBoundary label="charts"><Charts explorer={explorer} showingRecent={layer === "recent"} /></ErrorBoundary>
+                    </div>
+                  </motion.div>}
+                </AnimatePresence>
+              </div>
+            </section>
+          )}
         </main>
         <motion.aside
           initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}

@@ -193,6 +193,8 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
   The drawer scroll viewport follows its visible height at every snap; only the accessible Vaul
   handle drags/snaps it. The legend and zoom controls remain above the folded and half-height drawer;
   at full height the panel supplies the calendar legend and map controls are hidden.
+  Desktop Charts starts collapsed in a bottom dock within the map column; opening it shrinks
+  the map (its existing ResizeObserver calls engine.resize). Legend/player stay in the map area.
 - `state.ts` → `useExplorer()`: the single app state. Places, current place, `loaded`, `status`
   (with byte progress), `shape` (selection), `kind` (`HARMONIZED` | `MODIS` | `VIIRS` |
   `MODIS_EQ`), `range`, `focus` year, `hoverMonth`, playback (`playing`, `speed`, `timelineOpen`,
@@ -213,6 +215,8 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
     `computeStats`, `rankOf`, `localCheck`, `annualComparison`, `weeklyToMonthly`.
   - `currentMonth.ts`: month-to-date comparison and source-cutoff explanations; consumes the shared
     series contract without changing its exports or data formats.
+  - `seasonal.ts`: focus-excluding seasonal percentiles, latest complete month versus earlier
+    complete baseline years, complete annual totals and compact chart ticks.
   - `color.ts`: `HEAT` (magma), `ANOM` (blue-red), `SENSOR` colours, `sensorOf`.
   - `validate.ts`: coordinate parsing (`-9.5`, `9,5 S`, `55.5°W`, U+2212), ranges, bbox overlap.
   - `geo.ts`, `format.ts`, `csv.ts` (monthly CSV includes harmonized, MODIS, VIIRS, VIIRS-on-MODIS
@@ -238,7 +242,7 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
   - `Panel.tsx`: order = header → `DateRange` → `KeyNumbers` → "When does it burn?" (`Calendar`)
     → "Which years burned more?" (`Anomalies`) → "What is burning now?" (`Recent`) → Download
     (`Export`) → "How MODIS and VIIRS are combined" (`Sensors.HowCombined`, with the single-sensor
-    switch) → About this data.
+    switch) → About this data. Mobile inserts Charts after Anomalies; desktop uses the map dock.
   - `Calendar.tsx`: SVG years x months; memoised `Cell`s; hover shows the month on the map, drag
     sets the range, click a year to focus it; tooltip anchors to its side at the edges. Pointer
     selection handles capture, cancellation and clamped endpoints. Touch keeps vertical scrolling
@@ -250,6 +254,10 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
   - `DateRange.tsx` (custom month picker + presets), `KeyNumbers.tsx`, `Anomalies.tsx`,
     `Recent.tsx`, `Export.tsx`, `Legend.tsx`, `Sensors.tsx`, `ErrorBoundary.tsx`.
 - `hooks/useDismiss.ts`: outside-click / Escape to close popovers.
+- `components/charts/`: shared accessible tabs with seasonal, latest-complete-month and sensor
+  SVG charts; weekly exports show the first two with approximate labels. Sensor monthly totals
+  are memoised by loaded place/values/cells; annual comparison uses complete years within dates.
+- `hooks/useWidth.ts`: ResizeObserver width for responsive chart axes.
 - `hooks/useDrawerViewport.ts`: measures the visible drawer during snap/drag/resize transitions,
   sizing the scroll area and positioning mobile map overlays without changing map layers.
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,

@@ -11,6 +11,7 @@ import { SERIES_LABEL } from "../lib/series";
 import { RecentBySatellite } from "./Recent";
 import { Export } from "./Export";
 import { KeyNumbers } from "./KeyNumbers";
+import { Charts } from "./charts/Charts";
 
 function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -34,8 +35,8 @@ function Skeleton() {
   );
 }
 
-export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
-  explorer: Explorer; showingRecent: boolean; onShowRecent: () => void; onPlay: () => void;
+export function Panel({ explorer, showingRecent, onShowRecent, onPlay, showCharts = false }: {
+  explorer: Explorer; showingRecent: boolean; onShowRecent: () => void; onPlay: () => void; showCharts?: boolean;
 }) {
   const { status, loaded, place, series, stats, range, shape, focus, setFocusYear, hoverMonth, setHoverMonth } = explorer;
   const waveKey = `${place?.id}-${shape?.label ?? "all"}-${explorer.areaId}-${explorer.platform}`;
@@ -147,6 +148,12 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
               onFocusYear={setFocusYear} onHover={showingRecent ? () => {} : setHoverMonth}
             />
           </Section>
+
+          {showCharts && loaded && (
+            <Section title="Charts">
+              <Charts explorer={explorer} showingRecent={showingRecent} />
+            </Section>
+          )}
 
           {loaded?.recent && (
             <Section title="What is burning now?" aside={<span className="text-xs text-muted">Last 7 days, by satellite</span>}>
