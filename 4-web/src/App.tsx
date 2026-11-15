@@ -6,7 +6,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
 import { PlayButton, Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
-import { Summary } from "./components/Summary";
+import { CalendarToggle, Summary } from "./components/Summary";
 // Area selection (DrawTools, SelectionChip) is switched off for now: the site works by country.
 import { LayerSwitch, PlaceSwitcher } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
@@ -39,6 +39,21 @@ export function App() {
   const [gridMax, setGridMax] = useState(0);
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(() => {
+    try {
+      return localStorage.getItem("calendar:open") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("calendar:open", calendarOpen ? "1" : "0");
+    } catch {
+      /* Keep the in-memory state. */
+    }
+  }, [calendarOpen]);
+  const calendarShown = desktop && !detailsOpen && calendarOpen;
   const [mapOptions, setMapOptions] = useMapOptions();
   const [mapOnline, setMapOnline] = useState<boolean | null>(null);
   const drawer = useDrawerViewport(desktop, snap);
@@ -67,7 +82,7 @@ export function App() {
   }, []);
 
   const padding: Padding = desktop
-    ? { top: 96, right: 48, bottom: 48, left: detailsOpen ? 48 : 352 }
+    ? { top: 96, right: calendarShown ? 352 : 48, bottom: 48, left: 48 }
     : { top: 128, right: 24, bottom: Math.round(window.innerHeight * 0.56), left: 24 };
 
   const chooseArea = (polygon: GeoJSON.Polygon, label?: string) => {
@@ -91,7 +106,7 @@ export function App() {
       className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start justify-between gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto"
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
-      <div className="order-2 flex flex-col items-start gap-2 max-sm:ms-auto sm:order-1">
+      <div className="order-2 max-sm:ms-auto sm:order-1">
         <PlaceSwitcher
           places={explorer.places}
           current={explorer.place}
@@ -100,13 +115,30 @@ export function App() {
             if (!desktop) setSnap(SNAPS[0]);
           }}
         />
-        <AnimatePresence>
+      </div>
+      <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
+        <div className="flex items-start justify-end gap-1.5 sm:gap-2">
           {desktop && !detailsOpen && (
+            <CalendarToggle open={calendarOpen} onToggle={() => setCalendarOpen(!calendarOpen)} />
+          )}
+          {historyAvailable && layer === "history" && <PlayButton explorer={explorer} onPlay={play} />}
+          <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
+          <MapOptions
+            options={mapOptions}
+            onChange={setMapOptions}
+            online={mapOnline}
+            onOpen={() => {
+              if (!desktop) setSnap(SNAPS[0]);
+            }}
+          />
+        </div>
+        <AnimatePresence>
+          {calendarShown && (
             <motion.div
               key="summary"
-              initial={{ opacity: 0, x: -16 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
+              exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
               <ErrorBoundary label="summary">
@@ -119,20 +151,6 @@ export function App() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-      <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
-        <div className="flex items-start justify-end gap-1.5 sm:gap-2">
-          {historyAvailable && layer === "history" && <PlayButton explorer={explorer} onPlay={play} />}
-          <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
-          <MapOptions
-            options={mapOptions}
-            onChange={setMapOptions}
-            online={mapOnline}
-            onOpen={() => {
-              if (!desktop) setSnap(SNAPS[0]);
-            }}
-          />
-        </div>
       </div>
     </motion.div>
   );
