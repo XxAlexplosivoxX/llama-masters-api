@@ -4,9 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: lazyPlugins(() => [react(), tailwindcss()]),
-  base: "/",
-  worker: { format: "es" }, // MapLibre 6 starts its worker as a module worker
-  preview: { allowedHosts: [".trycloudflare.com"] },
+  base: "/", // tonalli.earth; the atlas (4-web_atlas) is served next to it at /atlas/
   fmt: { printWidth: 120 },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],

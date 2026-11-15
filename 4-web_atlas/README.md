@@ -1,8 +1,8 @@
-# 4-web: fire calendar
+# 4-web_atlas: fire calendar
 
 Web app for the NASA Space Apps 2026 challenge _MODIS and VIIRS Hot Spots_. It shows when a country burns: a years × months calendar of FIRMS hotspots on one harmonized MODIS + VIIRS record (NOAA-20 scale), the fire season, anomalies against the 2003–2025 average, month-by-month playback on the map, the last 7 days of hotspots, and CSV downloads.
 
-All data comes from the API (`3-api`), which serves the files written by `2-process_data/src/export.py`. The site has no data of its own.
+All data comes from the API (`3-api_atlas`), which serves the files written by `2-process_data/src/export.py`. The site has no data of its own.
 
 ## Stack
 
@@ -38,4 +38,4 @@ Files that start after January (the record starts in November 2000) are padded o
 
 ## Deploy
 
-Served by the `3-api` Worker as static assets, on the same origin as the API.
+Served by the `3-api_atlas` Worker as static assets, on the same origin as the API.

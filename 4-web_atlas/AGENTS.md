@@ -1,6 +1,6 @@
 # Fire calendar website: context for agents
 
-Read this before changing anything in `4-web/`. It explains what the app is for, where every number
+Read this before changing anything in `4-web_atlas/`. It explains what the app is for, where every number
 comes from, how the code is organised, and the traps already found. Keep it current when you change
 behaviour.
 
@@ -16,7 +16,7 @@ behaviour.
 - Scope: every country with FIRMS data (235). Brazil opens by default.
 - The repo is a pipeline; this app is its last step:
   `1-extract_data` (FIRMS → R2, Railway) → `2-process_data` (clean, aggregate, export to
-  `exports/` in R2, Railway) → `3-api` (Hono on a Cloudflare Worker) → `4-web` (this app, served
+  `exports/` in R2, Railway) → `3-api_atlas` (Hono on a Cloudflare Worker) → `4-web_atlas` (this app, served
   by the same Worker). The site has **no data of its own**; everything comes from the API.
 
 ### User rules (from the team)
@@ -34,7 +34,7 @@ Bun is the package manager; the toolchain is [Vite+](https://viteplus.dev) (`vp`
 Oxfmt; MIT).
 
 ```sh
-cd 4-web
+cd 4-web_atlas
 bun install
 bun run dev          # vp dev, http://localhost:5173
 bun run check        # vp check: format, lint (type-aware) and type check
@@ -52,13 +52,13 @@ Chromium works for screenshots (`--use-angle=swiftshader --enable-unsafe-swiftsh
 animation takes several seconds, so wait before judging an empty map. In DEV the MapLibre map is
 exposed as `window.__map` for debugging.
 
-Deploy: from `3-api`, `bun run deploy` builds this app and deploys the Worker. Cloudflare serves
+Deploy: from `3-api_atlas`, `bun run deploy` builds this app and deploys the Worker. Cloudflare serves
 `dist/` as static assets at <https://llama-masters.esauflores.com> (any unknown path gets
 `index.html`); only `/v1/*` and `/healthz` run the Worker.
 
 ## 3. Data: the API
 
-Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `src/lib/types.ts`):
+Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes in `src/lib/types.ts`):
 
 | Route                     | File                   | Content                                                                                                                                                                                                                                                                                                                                             |
 | ------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

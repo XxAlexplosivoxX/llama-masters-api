@@ -19,52 +19,69 @@ run = "uv run python -c 'import sys; print(sys.version); assert sys.prefix != sy
 
 [tasks."api:install"]
 description = "Install the API dependencies (releases at least 1 day old)"
-dir = "3-api"
+dir = "3-api_atlas"
 run = "bun install --frozen-lockfile"
 
 [tasks."api:dev"]
 description = "Run the API locally on the synthetic fixture"
-dir = "3-api"
+dir = "3-api_atlas"
 depends = ["api:install"]
 run = "bun run dev"
 
 [tasks."api:test"]
 description = "Test the API"
-dir = "3-api"
+dir = "3-api_atlas"
 depends = ["api:install"]
 run = "bun test"
 
 [tasks."api:check"]
 description = "Type-check the API for Bun and Workers"
-dir = "3-api"
+dir = "3-api_atlas"
 depends = ["api:install"]
 run = "bun run check"
 
 [tasks."web:install"]
 description = "Install the website dependencies (releases at least 1 day old)"
-dir = "4-web"
+dir = "4-web_atlas"
 run = "bun install --frozen-lockfile"
 
 [tasks."web:dev"]
-description = "Run the website locally (set VITE_API_URL in 4-web/.env.local for the deployed API)"
-dir = "4-web"
+description = "Run the website locally (set VITE_API_URL in 4-web_atlas/.env.local for the deployed API)"
+dir = "4-web_atlas"
 depends = ["web:install"]
 run = "bun run dev"
 
 [tasks."web:check"]
 description = "Format, lint and type-check the website (Vite+)"
-dir = "4-web"
+dir = "4-web_atlas"
 depends = ["web:install"]
 run = "bun run check"
 
 [tasks."web:build"]
-description = "Build the website into 4-web/dist"
-dir = "4-web"
+description = "Build the website into 4-web_atlas/dist"
+dir = "4-web_atlas"
 depends = ["web:install"]
 run = "bun run build"
 
+[tasks."landing:install"]
+description = "Install the landing page dependencies (releases at least 1 day old)"
+dir = "5-web_landing"
+run = "bun install --frozen-lockfile"
+
+[tasks."landing:dev"]
+description = "Run the landing page locally"
+dir = "5-web_landing"
+depends = ["landing:install"]
+run = "bun run dev"
+
+[tasks."landing:check"]
+description = "Format, lint and type-check the landing page (Vite+)"
+dir = "5-web_landing"
+depends = ["landing:install"]
+run = "bun run check"
+
 [tasks.deploy]
-description = "Build the website and deploy the Worker (site + API)"
-dir = "3-api"
-depends = ["api:install", "web:install"]
+description = "Build the landing page and the atlas, and deploy the Worker (sites + API)"
+dir = "3-api_atlas"
+depends = ["api:install", "web:install", "landing:install"]
 run = "bun run deploy"

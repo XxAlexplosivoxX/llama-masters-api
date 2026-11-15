@@ -1,0 +1,30 @@
+name = "llama-masters-api"
+main = "src/worker.ts"
+compatibility_date = "2026-11-01"
+send_metrics = false
+
+# Addresses: llama-masters-api.<subdomain>.workers.dev and custom domains. tonalli.earth is the website
+# (landing at /, atlas at /atlas/); the other site addresses redirect there (src/site.ts). The API
+# answers on every host. DNS records and certificates are created by Cloudflare (esauflores.com and
+# tonalli.earth are zones in this account).
+workers_dev = true
+routes = [
+  { pattern = "tonalli.earth", custom_domain = true },
+  { pattern = "llama-masters.esauflores.com", custom_domain = true },
+  { pattern = "llama-masters-api.esauflores.com", custom_domain = true },
+  { pattern = "atlas.tonalli.earth", custom_domain = true },
+]
+
+# The website, assembled by `bun run build:site`: 5-web_landing at the root, 4-web_atlas under
+# atlas/. The Worker runs first on every request (redirects, http → https), then hands non-API paths
+# to these files (binding ASSETS); unknown /atlas/ paths get the atlas's index.html (src/site.ts).
+[assets]
+directory = "./site"
+binding = "ASSETS"
+not_found_handling = "none"
+run_worker_first = true
+
+# The bucket 2-process_data writes to; the API reads exports/ from it (no credentials in code).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "llama-masters-firms"

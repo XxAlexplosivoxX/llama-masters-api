@@ -45,14 +45,21 @@ From the repository root: `mise run api:dev`, `mise run api:test`, `mise run api
 
 ```sh
 bunx wrangler login
-bun run worker:dev          # local Workers runtime
-bun run deploy              # builds ../4-web, then wrangler deploy
+bun run build:site          # landing (../5-web_landing) at site/, atlas (../4-web_atlas) at site/atlas/
+bun run worker:dev -- --local-upstream localhost:8787   # local Workers runtime, keeps the localhost host
+bun run deploy              # build:site, then wrangler deploy
 ```
 
-The same Worker serves the website: `[assets]` points at `../4-web/dist`, and Cloudflare serves those
-files without running the Worker; only `/v1/*` and `/healthz` run it. Addresses: `workers.dev`,
-`llama-masters.esauflores.com` (site) and `llama-masters-api.esauflores.com` (API); Cloudflare creates
-their DNS records and certificates.
+The same Worker serves the websites from `site/` (binding `ASSETS`); it runs first on every request
+and [`src/site.ts`](src/site.ts) decides where it goes:
+
+- `tonalli.earth/` is the landing page, `tonalli.earth/atlas/` the atlas (unknown `/atlas/` paths get
+  the atlas page). Plain http is redirected to https.
+- `atlas.tonalli.earth` and `llama-masters.esauflores.com` redirect to `tonalli.earth/atlas/` + path.
+- `/v1/*` and `/healthz` are the API on every host; `llama-masters-api.esauflores.com` sends its other
+  paths to `tonalli.earth`.
+
+Cloudflare creates the custom domains' DNS records and certificates (both zones are in this account).
 
 Caching: `/v1/places` for 60 s; place files requested with `?v=<version>` (from `places.json`, a hash
 of the files) for a year, without it for 5 min. A new export is live within a minute.

@@ -1,6 +1,6 @@
 """Harmonized monthly record and the API files: aggregates/ -> exports/ (plan §4-§6).
 
-Run once, after every worker has run aggregate.py. Writes what 3-api serves:
+Run once, after every worker has run aggregate.py. Writes what 3-api_atlas serves:
 
     <root>/exports/places.json
     <root>/exports/<id>/meta.json            sensors, coefficients, scores, caveats
