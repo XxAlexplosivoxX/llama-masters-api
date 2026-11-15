@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AXIS, fmtTick, TICK, thinBy } from "../lib/chart";
 import { ALERT, ANOM, anomalyScale, BG, fireflyScale, GRID, MUTED, TEXT } from "../lib/color";
 import { fmt, fmtPercent } from "../lib/format";
@@ -102,16 +102,46 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   const [cursor, setCursor] = useState<number>(() => focusMonth ?? 0);
   const shown = active ?? focusMonth;
 
-  const describe = (m: number) => {
+  /** One month's readout, shared by the fixed line and the floating tooltip. */
+  const cellState = (m: number) => {
     const value = series.values[m];
     const head = `${MONTHS[m % 12]} ${series.startYear + Math.floor(m / 12)}`;
-    if (value === null) return `${head} · no source data`;
-    const tail = series.partial[m] ? "partial month" : isProvisional(m) ? "provisional" : (() => {
-      const a = anomalyOf(m);
-      return a !== null ? `${fmtPercent(a)} vs median` : "not compared";
-    })();
-    return `${head} · ${fmt(Math.round(value))} hotspots · ${tail}`;
+    const anom = anomalyOf(m);
+    const status = value === null ? "none" as const : series.partial[m] ? "partial" as const
+      : isProvisional(m) ? "provisional" as const : anom !== null ? "compared" as const : "not" as const;
+    return { head, value, anom, status, median: medians[m % 12] };
   };
+  const describe = (m: number) => {
+    const s = cellState(m);
+    if (s.value === null) return `${s.head} · no source data`;
+    const tail = { partial: "partial month", provisional: "provisional", compared: `${fmtPercent(s.anom ?? 0)} vs median`, not: "not compared" }[s.status as Exclude<typeof s.status, "none">];
+    return `${s.head} · ${fmt(Math.round(s.value))} hotspots · ${tail}`;
+  };
+
+  // Floating tooltip (fine pointers only); the aria-live line above stays the accessible readout.
+  const boxRef = useRef<HTMLDivElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const [tip, setTip] = useState<{ m: number; x: number; y: number } | null>(null);
+  const showTip = (m: number, clientX: number, clientY: number) => {
+    if (coarse || !boxRef.current) return;
+    const box = boxRef.current.getBoundingClientRect();
+    setTip({ m, x: clientX - box.left, y: clientY - box.top });
+  };
+  const tipAtCell = (m: number) => {
+    const cell = svgRef.current?.querySelector<SVGGElement>(`[data-cell="${m}"] rect`)?.getBoundingClientRect();
+    if (cell) showTip(m, cell.right, cell.top);
+  };
+  // Keep the tooltip inside the calendar box: flip left/up when it would overflow.
+  useLayoutEffect(() => {
+    const el = tipRef.current, box = boxRef.current;
+    if (!tip || !el || !box) return;
+    const w = el.offsetWidth, h = el.offsetHeight, bw = box.clientWidth, bh = box.clientHeight, off = 12;
+    let left = tip.x + off, top = tip.y + off;
+    if (left + w > bw) left = tip.x - off - w;
+    if (top + h > bh) top = tip.y - off - h;
+    el.style.left = `${Math.max(0, Math.min(left, bw - w))}px`;
+    el.style.top = `${Math.max(0, Math.min(top, bh - h))}px`;
+  }, [tip]);
 
   const ym = (m: number) => `${series.startYear + Math.floor(m / 12)}-${String((m % 12) + 1).padStart(2, "0")}`;
   const pick = (m: number) => onFocus(series.startYear + Math.floor(m / 12), m, ym(m));
@@ -122,6 +152,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   };
   const onKey = (e: React.KeyboardEvent, m: number) => {
     const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -12, ArrowDown: 12, Home: -(m % 12), End: 11 - (m % 12) }[e.key];
+    if (e.key === "Escape") { setTip(null); return; }
     if (step !== undefined) { e.preventDefault(); move(m + step); }
     else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(m); }
   };
@@ -152,10 +183,10 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
         {shown !== null ? describe(shown) : <span className="text-muted">Hover or focus a month to read its value.</span>}
       </p>
 
-      <div className={coarse ? "dark-scroll max-h-[36rem] overflow-auto" : ""}>
+      <div ref={boxRef} className={`relative ${coarse ? "dark-scroll max-h-[36rem] overflow-auto" : ""}`}>
       {width > 0 && (
         <svg ref={svgRef} viewBox={`0 0 ${svgW} ${height}`} width={svgW} height={height} className="block" role="grid"
-          {...{ [CALENDAR_EXPORT]: "" }} aria-label="Hotspots by year and month" onPointerLeave={() => setActive(null)}>
+          {...{ [CALENDAR_EXPORT]: "" }} aria-label="Hotspots by year and month" onPointerLeave={() => { setActive(null); setTip(null); }}>
           <defs>
             <pattern id="partial" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <line x1="0" y1="0" x2="0" y2="4" stroke={ALERT} strokeWidth="1.2" />
@@ -291,7 +322,10 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
             return (
               <g key={m} data-cell={m} className="cell" role="gridcell" tabIndex={m === cursor ? 0 : -1}
                 aria-label={`${MONTHS_LONG[c]} ${year}: ${status}${anomText}`}
-                onPointerEnter={() => setActive(m)} onFocus={() => { setActive(m); setCursor(m); }} onBlur={() => setActive(null)}
+                onPointerEnter={(e) => { setActive(m); showTip(m, e.clientX, e.clientY); }}
+                onPointerMove={(e) => showTip(m, e.clientX, e.clientY)}
+                onFocus={(e) => { setActive(m); setCursor(m); if (e.currentTarget.matches(":focus-visible")) tipAtCell(m); }}
+                onBlur={() => { setActive(null); setTip(null); }}
                 onClick={() => pick(m)} onKeyDown={(e) => onKey(e, m)}>
                 <rect x={gridX + c * COL} y={TOP + r * ROW} width={COL} height={ROW} fill="transparent" className="cursor-pointer" />
               </g>
@@ -299,6 +333,24 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
           }))}
         </svg>
       )}
+      {tip && !coarse && (() => {
+        const s = cellState(tip.m);
+        const line3 = {
+          none: "No source data",
+          partial: "Partial month, will still change",
+          provisional: "Provisional data",
+          compared: `${fmtPercent(s.anom ?? 0)} vs median (${s.median !== null ? fmtTick(Math.round(s.median)) : "–"})`,
+          not: "Not compared",
+        }[s.status];
+        return (
+          <div ref={tipRef} aria-hidden style={{ left: tip.x + 12, top: tip.y + 12 }}
+            className="pointer-events-none absolute z-20 whitespace-nowrap rounded-lg border border-grid bg-card px-3 py-2 text-xs leading-snug text-text shadow-xl shadow-black/50">
+            <div className="font-semibold">{s.head}</div>
+            {s.value !== null && <div className="num">{fmt(Math.round(s.value))} hotspots</div>}
+            <div className={`num ${s.status === "partial" || s.status === "provisional" ? "text-alert" : "text-muted"}`}>{line3}</div>
+          </div>
+        );
+      })()}
       </div>
 
       {era === 0 && ((preBaseRows > 0 && series.baselineNote) || showViirs) && (
