@@ -225,9 +225,10 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   - `App.tsx` opens it once after the intro (`introDone` and ready, 800 ms), saves and restores
     `detailsOpen`, `calendarOpen`, drawer `snap` and `layer`, forces History and pauses playback; on
     mobile the drawer stays at `0.55`. `<Tour key={desktop ? "d" : "m"}>` restarts it across the breakpoint.
-  - `data-tour` targets: `place` (PlaceSwitcher button), `legend`, `calendar-card` (Summary), `play`,
-    `layers`, `drawer` (mobile handle row), and in `Panel.tsx` `overview` (DateRange + KeyNumbers
-    wrapper), `calendar`, `anomalies`, `download`, `combined` (`Section`'s `tour` prop).
+  - `data-tour` targets (9 steps per layout): `place` (PlaceSwitcher button), `calendar-card` (Summary,
+    desktop), `drawer` (mobile handle row), `play`, `layers`, and in `Panel.tsx` `calendar`,
+    `anomalies` and `download` (`Section`'s `tour` prop). The tour teaches the controls, not the
+    data: one short sentence per step naming the gesture; method detail belongs in the panel.
   - Known limit: on mobile, Vaul leaves Radix Dialog modal, so focus stays trapped in the drawer and
     the tour card cannot take keyboard focus there (touch works).
 

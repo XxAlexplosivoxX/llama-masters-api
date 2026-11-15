@@ -8,6 +8,7 @@ type Box = { left: number; top: number; width: number; height: number };
 const PAD = 6;
 const MARGIN = 12;
 const GAP = 14;
+const CARD_WIDTH = 320;
 const MISSING_MS = 1500;
 const EASE = "cubic-bezier(.22,1,.36,1)";
 
@@ -254,9 +255,9 @@ export function Tour({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
-        className="fixed rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/40"
+        className="fixed rounded-xl border border-border bg-surface p-3.5 shadow-2xl shadow-black/40"
         style={{
-          width: desktop ? "22rem" : "min(22rem, calc(100vw - 24px))",
+          width: desktop ? CARD_WIDTH : `min(${CARD_WIDTH}px, calc(100vw - 24px))`,
           left: cardPos?.left ?? -9999,
           top: cardPos?.top ?? -9999,
           visibility: cardPos ? "visible" : "hidden",
