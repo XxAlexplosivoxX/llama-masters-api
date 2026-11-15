@@ -6,7 +6,7 @@ behaviour.
 
 ## 1. Project and goal
 
-- Name: **Tonalli ATLAS**. Tonalli is a Nawat word of the Pipil people for the sun and its fire and
+- Name: **Tonalli ATLAS**. Tonalli is a Nahuat word of the Pipil people for the sun and its fire and
   the count of days and nights (the calendar); ATLAS = Analytics, Tracking & Logging Archive for
   Satellites, and an atlas of maps of the whole world. The landing page (`../5-web_landing`) is the
   site root; this app lives at `/atlas/`.
@@ -151,9 +151,12 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
     complete baseline years, complete annual totals and compact chart ticks.
   - `color.ts`: `HEAT` (magma), `ANOM` (blue-red), `SENSOR` colours, `sensorOf`.
   - `validate.ts`: coordinate parsing (`-9.5`, `9,5 S`, `55.5°W`, U+2212), ranges, bbox overlap.
-  - `geo.ts`, `format.ts`, `csv.ts` (monthly CSV: `harmonized_noaa20_scale`, `modis_detections`,
-    `viirs_observed_noaa20_scale`, `record_source`, `record_satellite`, partial and provisional flags;
-    hotspot CSV with state).
+  - `geo.ts`, `format.ts`, `csv.ts`: UTF-8 with BOM (Excel), counts rounded to whole hotspots. Monthly CSV
+    (`<place>-<all|drawn-area>-<view>-monthly.csv`): `area`, `year`, `month`, `view`, `hotspots` (the shown view),
+    `status`, `month_average`, `vs_average_percent`, `provisional`, then `harmonized_noaa20_scale`, `modis_hotspots`,
+    `viirs_observed_noaa20_scale`, `record_source`, `record_satellite`. Hotspot CSV: `date_utc`, `time_utc`, lat/lon,
+    `instrument`, `satellite`, `modis_confidence_percent` / `viirs_confidence` (low/nominal/high), `fire_power_mw`,
+    `brightness_k`, `state`.
 - `map/`
   - `engine.ts` (`MapEngine`): MapLibre globe, OpenFreeMap dark style with offline fallback,
     thinned basemap labels with subdued state/city text and halos set once, `minZoom` 1.7. Sources/layers: `grid` (fill; colour from
@@ -241,7 +244,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
 - `hooks/useDrawerViewport.ts`: measures the visible drawer during snap/drag/resize transitions,
   sizing the scroll area and positioning mobile map overlays without changing map layers.
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,
-  `.link`), MapLibre chrome and popup restyle, timeline scrubber.
+  `.link`), MapLibre chrome and popup restyle, timeline scrubber, `details[open]` fade-in.
 - `components/Brand.tsx`: `TonalliMark` (the landing's sun), `BrandName` and `BrandLink` (top-left of the
   toolbar, links to `/`, the landing; name hidden on phones, sun only). The panel header uses the same mark.
 - `tour/`: own product tour (no library), text only. Opens with what Tonalli ATLAS is and why the name.
@@ -249,6 +252,11 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
     `target` is a `data-tour` value (none = centred card), `side` the preferred card side, `only`
     limits a step to desktop or mobile, `view: "details"` opens the desktop panel and `view: "map"`
     closes it and shows the calendar card. `tourStepsFor(desktop)` filters.
+  - `demo.ts`: `setTourDemo(id)` / `useTourDemo(id, setOpen)`. A step's `demo` opens that popover while
+    it is shown (`place`, `area`, `map-options`, `year` on desktop; `record`, the compact legend switch,
+    on phones too) and closes it when the step ends. Its `target` lists the trigger and the popover
+    (`place place-menu`, `area area-menu`, `map-options map-options-menu`, `calendar-card year-picker`);
+    the spotlight covers their union. Copy stays one short line per step.
   - `seen.ts`: `tourSeen` / `markTourSeen` (`tour:seen` in localStorage plus an in-memory flag).
   - `Tour.tsx`: portal overlay (`z-[100]`) with a box-shadow spotlight that follows the target every
     frame (clipped to its scroll container and the viewport; containers scroll via `scrollTop`, never
@@ -259,7 +267,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
     `detailsOpen`, `calendarOpen`, drawer `snap` and `layer`, forces History (when available) and
     pauses playback; on mobile the drawer stays at `0.55`. `<Tour key={desktop ? "d" : "m"}>` restarts
     it across the breakpoint.
-  - `data-tour` targets (16 steps on desktop, 15 on mobile): `brand` (BrandLink), `place` (PlaceSwitcher), `area`
+  - `data-tour` targets (15 steps on desktop, 14 on mobile): `brand` (BrandLink), `place` (PlaceSwitcher), `area`
     (DrawTools), `record` (Legend card), `play`, `layers`, `map-options`, `calendar-card` and
     `details` (Summary, desktop), `drawer` (mobile handle row), `calendar`, `anomalies`, `download`
     (`Panel` `Section`'s `tour` prop) and `tour-button`. Global before any pick has no calendar, so

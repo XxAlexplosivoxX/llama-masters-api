@@ -17,7 +17,7 @@ export function Export({ explorer }: { explorer: Explorer }) {
       cells = explorer.cells;
     return {
       harmonized_noaa20_scale: gridSeries(grid, v.HARMONIZED, cells, "HARMONIZED").values,
-      modis_detections: gridSeries(grid, v.MODIS, cells, "MODIS").values,
+      modis_hotspots: gridSeries(grid, v.MODIS, cells, "MODIS").values,
       viirs_observed_noaa20_scale: gridSeries(grid, v.VIIRS, cells, "VIIRS").values,
       record_source: grid.source,
       record_satellite: grid.satellite,
@@ -25,6 +25,7 @@ export function Export({ explorer }: { explorer: Explorer }) {
   };
 
   const name = slug(`${loaded?.place.label ?? "area"}-${shape ? "drawn-area" : "all"}`);
+  const view = slug(explorer.kind);
 
   function exportPoints() {
     if (!loaded) return;
@@ -39,7 +40,7 @@ export function Export({ explorer }: { explorer: Explorer }) {
           className="btn btn-primary"
           disabled={!series || !stats || !range}
           onClick={() => {
-            download(`${name}-monthly.csv`, monthlyRows(series!, stats!, range!, selectionLabel, columns()));
+            download(`${name}-${view}-monthly.csv`, monthlyRows(series!, stats!, range!, selectionLabel, columns()));
             setNote(`Downloaded ${range!.to - range!.from + 1} months for ${selectionLabel}.`);
           }}
         >
@@ -50,6 +51,10 @@ export function Export({ explorer }: { explorer: Explorer }) {
           Hotspots, last 7 days
         </button>
       </div>
+      <p className="mt-2 text-xs leading-snug text-muted">
+        Monthly: one row per month of the selected dates, with the average and each satellite. Last 7 days: every
+        hotspot with satellite, confidence, fire power and temperature.
+      </p>
       <AnimatePresence>
         {note && (
           <motion.p

@@ -116,7 +116,7 @@ export function RecentBySatellite({
               UTC.{" "}
             </>
           ) : null}
-          Provisional, not added to the monthly history.
+          Satellites overlap, so one fire can show once per satellite. Provisional, not added to the monthly history.
         </p>
         {!showingOnMap && (
           <button className="btn !min-h-9 shrink-0 !px-3 !text-xs" onClick={onShowOnMap}>

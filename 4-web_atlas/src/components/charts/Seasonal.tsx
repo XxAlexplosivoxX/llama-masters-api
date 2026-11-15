@@ -168,19 +168,20 @@ export function Seasonal({
           <>
             {detail(active)}
             {active.band &&
-              ` · Median ${fmt(active.band.median)} · p10–p90 ${fmt(active.band.p10)}–${fmt(active.band.p90)}`}
+              ` · Typical ${fmt(active.band.median)} · Usual range ${fmt(active.band.p10)}–${fmt(active.band.p90)}`}
           </>
         ) : (
           "Hover or use arrow keys to compare a month."
         )}
       </div>
       <div className="chart-legend">
+        <span>Hotspots per month</span>
         <Key color={FOCUS}>{focus ?? "Focused year"}</Key>
         {points[0].band && (
           <>
-            <Key color={MUTED}>Median</Key>
+            <Key color={MUTED}>Typical (median)</Key>
             <Key color={MUTED} band>
-              p10–p90 · {points[0].n} other complete years
+              Usual range: middle 80% of {points[0].n} other years
             </Key>
           </>
         )}

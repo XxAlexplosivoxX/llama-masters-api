@@ -63,8 +63,8 @@ export function LatestMonth({
       >
         <desc>
           Each small dot is the same calendar month in an earlier complete baseline year. The large hollow dot is the
-          latest complete month. The span is p10 to p90; the vertical tick is the median. Rank 1 is highest; ties share
-          a rank.
+          latest complete month. The band is the usual range (middle 80% of years); the vertical tick is the median.
+          Rank 1 is highest; ties share a rank.
         </desc>
         <motion.g key={animationKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition}>
           {band && (
@@ -102,9 +102,9 @@ export function LatestMonth({
         {band && (
           <>
             <Key color={MUTED} band>
-              p10–p90
+              Usual range (middle 80%)
             </Key>
-            <span>│ Median {fmt(band.median)}</span>
+            <span>│ Typical {fmt(band.median)}</span>
           </>
         )}
         {(year === focus || baseline.some((p) => p.year === focus)) && <Key color={FOCUS}>{focus}</Key>}

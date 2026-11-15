@@ -55,20 +55,21 @@ export function HowCombined({ explorer, loaded }: { explorer: Explorer; loaded: 
             range in the monthly data.
           </li>
         ) : (
-        <li>
-          <span className="font-semibold text-text">3. The years before VIIRS.</span>{" "}
-          {fellBack ? (
-            <>
-              MODIS is converted with {meta.label}'s own ratio and a factor per calendar month, fitted on {years}:
-              per-cell ratios did not do better here.
-            </>
-          ) : (
-            <>
-              MODIS is converted cell by cell (0.5°) and month by month, with ratios fitted on {years}, when both flew.
-            </>
-          )}{" "}
-          Converted months carry a p10–p90 range in the monthly data.
-        </li>
+          <li>
+            <span className="font-semibold text-text">3. The years before VIIRS.</span>{" "}
+            {fellBack ? (
+              <>
+                MODIS is converted with {meta.label}'s own ratio and a factor per calendar month, fitted on {years}:
+                per-cell ratios did not do better here.
+              </>
+            ) : (
+              <>
+                MODIS is converted cell by cell (0.5°) and month by month, with ratios fitted on {years}, when both
+                flew.
+              </>
+            )}{" "}
+            Converted months carry a p10–p90 range in the monthly data.
+          </li>
         )}
       </ol>
 
@@ -102,46 +103,49 @@ export function HowCombined({ explorer, loaded }: { explorer: Explorer; loaded: 
               );
             })}
           </dl>
-          <p className="mt-2 text-xs text-muted">The MODIS vs VIIRS chart is per country: open one country to see it.</p>
+          <p className="mt-2 text-xs text-muted">
+            The MODIS vs VIIRS chart is per country: open one country to see it.
+          </p>
         </div>
       )}
 
       {!parts && (
-      <p className="text-muted">
-        <span className="font-semibold text-text">Checked on years it never saw.</span>{" "}
-        {s.test_months > 0 && s.wape ? (
-          <>
-            Leaving out one year at a time, converted MODIS was off from real VIIRS by{" "}
-            <span className="num text-text">{pct(s.wape[s.model])}</span> month to month across {meta.label}
-            {s.bias != null && (
-              <>
-                {" "}
-                ({s.bias >= 0 ? "+" : ""}
-                {(s.bias * 100).toFixed(1)}% overall)
-              </>
-            )}
-            ; one fixed ratio would be off by <span className="num">{pct(s.wape.fixed)}</span>.
-            {s.band_coverage != null && (
-              <>
-                {" "}
-                The p10–p90 range held the real value in <span className="num">{pct(s.band_coverage)}</span> of those
-                months.
-              </>
-            )}
-            {states > 0 && h.states_on_fallback.length > 0 && (
-              <>
-                {" "}
-                {h.states_on_fallback.length} of {states} states use their own ratio instead of the per-cell one.
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            {meta.label} has too few years with both satellites to test the conversion: read the years before 2012 with
-            care.
-          </>
-        )}
-      </p>
+        <p className="text-muted">
+          <span className="font-semibold text-text">Checked on years it never saw.</span>{" "}
+          {s.test_months > 0 && s.wape ? (
+            <>
+              Leaving out one year at a time, converted MODIS was off from real VIIRS by{" "}
+              <span className="num text-text">{pct(s.wape[s.model])}</span> month to month across {meta.label}
+              {s.bias != null && (
+                <>
+                  {" "}
+                  {Math.abs(s.bias) < 0.0005
+                    ? "(no bias over the whole record)"
+                    : `(${s.bias > 0 ? "+" : ""}${(s.bias * 100).toFixed(1)}% over the whole record)`}
+                </>
+              )}
+              ; one fixed ratio would be off by <span className="num">{pct(s.wape.fixed)}</span>.
+              {s.band_coverage != null && (
+                <>
+                  {" "}
+                  The estimated range (p10–p90) held the real value in{" "}
+                  <span className="num">{pct(s.band_coverage)}</span> of those months.
+                </>
+              )}
+              {states > 0 && h.states_on_fallback.length > 0 && (
+                <>
+                  {" "}
+                  {h.states_on_fallback.length} of {states} states use their own ratio instead of the per-cell one.
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {meta.label} has too few years with both satellites to test the conversion: read the years before 2012
+              with care.
+            </>
+          )}
+        </p>
       )}
 
       <p className="text-muted">Switch between Harmonized, MODIS and VIIRS in the map legend.</p>

@@ -105,7 +105,11 @@ export function KeyNumbers({ series, stats, range, focusYear, recent, mapMonth, 
       {week && week.ratio !== null && (
         <Row
           label="Last 7 days"
-          value={week.ratio >= 0.95 && week.ratio <= 1.05 ? "About normal" : `${week.ratio.toFixed(1)}× a typical week`}
+          value={
+            week.ratio >= 0.95 && week.ratio <= 1.05
+              ? "About normal"
+              : `${fmtPercent(week.ratio - 1)} vs a typical week`
+          }
           color={anomaly(week.ratio - 1)}
           note={`${fmt(week.count)} ${week.sensor} hotspots; a typical ${MONTHS[week.month]} week has about ${fmt(Math.round(week.typical))}. Provisional data.`}
         />
