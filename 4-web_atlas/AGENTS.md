@@ -237,6 +237,28 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
   sizing the scroll area and positioning mobile map overlays without changing map layers.
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,
   `.link`), MapLibre chrome and popup restyle, timeline scrubber.
+- `tour/`: own product tour (no library), text only.
+  - `steps.ts`: all copy and targets. `title` / `body` (`bodyMobile` replaces `body` on phones);
+    `target` is a `data-tour` value (none = centred card), `side` the preferred card side, `only`
+    limits a step to desktop or mobile, `view: "details"` opens the desktop panel and `view: "map"`
+    closes it and shows the calendar card. `tourStepsFor(desktop)` filters.
+  - `seen.ts`: `tourSeen` / `markTourSeen` (`tour:seen` in localStorage plus an in-memory flag).
+  - `Tour.tsx`: portal overlay (`z-[100]`) with a box-shadow spotlight that follows the target every
+    frame (clipped to its scroll container and the viewport; containers scroll via `scrollTop`, never
+    `scrollIntoView`), a card that flips sides and stays 12 px inside the viewport, and `TourButton`
+    (toolbar `?`, next to Map options). Missing targets are skipped after 1.5 s. Esc is caught in the
+    capture phase so App's Esc handler does not close the panel.
+  - `App.tsx` opens it once after the intro (`introDone` and ready, 800 ms), saves and restores
+    `detailsOpen`, `calendarOpen`, drawer `snap` and `layer`, forces History (when available) and
+    pauses playback; on mobile the drawer stays at `0.55`. `<Tour key={desktop ? "d" : "m"}>` restarts
+    it across the breakpoint.
+  - `data-tour` targets (13 steps on desktop, 12 on mobile): `place` (PlaceSwitcher), `area`
+    (DrawTools), `record` (Legend card), `play`, `layers`, `map-options`, `calendar-card` and
+    `details` (Summary, desktop), `drawer` (mobile handle row), `calendar`, `anomalies`, `download`
+    (`Panel` `Section`'s `tour` prop) and `tour-button`. Global before any pick has no calendar, so
+    those steps are skipped. One short sentence per step naming the gesture.
+  - Known limit: on mobile, Vaul leaves Radix Dialog modal, so focus stays trapped in the drawer and
+    the tour card cannot take keyboard focus there (touch works).
 
 ## 7. Design system and anti-slop rules
 

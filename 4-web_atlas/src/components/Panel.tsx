@@ -15,9 +15,19 @@ import { KeyNumbers } from "./KeyNumbers";
 
 const Charts = lazy(() => import("./charts/Charts").then((m) => ({ default: m.Charts })));
 
-function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
+function Section({
+  title,
+  aside,
+  tour,
+  children,
+}: {
+  title: string;
+  aside?: React.ReactNode;
+  tour?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="border-t border-border/70 pt-5">
+    <section className="border-t border-border/70 pt-5" data-tour={tour}>
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="text-base font-semibold">{title}</h2>
         {aside}
@@ -143,6 +153,7 @@ export function Panel({
 
           <Section
             title="When does it burn?"
+            tour="calendar"
             aside={
               explorer.playing ? (
                 <button className="link text-xs" onClick={explorer.pause}>
@@ -236,7 +247,7 @@ export function Panel({
             </p>
           </Section>
 
-          <Section title="Which years burned more?">
+          <Section title="Which years burned more?" tour="anomalies">
             <Anomalies
               series={series}
               stats={stats}
@@ -256,7 +267,7 @@ export function Panel({
             </Section>
           )}
 
-          <Section title="Download">
+          <Section title="Download" tour="download">
             <Export key={`${explorer.place?.id}:${explorer.selectionLabel}`} explorer={explorer} />
           </Section>
 

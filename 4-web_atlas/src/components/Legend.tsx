@@ -122,6 +122,7 @@ export function Legend({
 
   return (
     <div
+      data-tour="record"
       className={`pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-4 backdrop-blur-md ${compact ? "py-3" : "py-5"}`}
     >
       {/* Plain text: playback changes the month up to 16 times a second, faster than any cross-fade. */}

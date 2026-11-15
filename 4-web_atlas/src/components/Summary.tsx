@@ -29,6 +29,7 @@ export function Summary({
   const ready = explorer.status.kind === "ready" && series && stats && range;
   const details = (
     <button
+      data-tour="details"
       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs text-muted hover:bg-surface-2 hover:text-text"
       onClick={onDetails}
     >
@@ -40,6 +41,7 @@ export function Summary({
   return (
     <div
       id="calendar-card"
+      data-tour="calendar-card"
       className="w-72 rounded-xl border border-border bg-bg/85 p-3.5 shadow-2xl shadow-black/40 backdrop-blur-md"
     >
       {explorer.status.kind === "loading" && (

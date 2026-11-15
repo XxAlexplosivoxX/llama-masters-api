@@ -75,7 +75,7 @@ export function MapOptions({
 
   return (
     <div ref={ref} className="relative">
-      <div className="seg">
+      <div className="seg" data-tour="map-options">
         <button
           ref={trigger}
           aria-label="Map options"
