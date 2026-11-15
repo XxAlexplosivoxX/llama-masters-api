@@ -45,7 +45,7 @@ export function MapOptions({
           <button
             key={item.value}
             aria-pressed={options[key] === item.value}
-            disabled={key === "basemap" && item.value !== "dark" && online !== true}
+            disabled={key === "basemap" && online !== true}
             onClick={() => set(key, item.value)}
           >
             {item.label}
@@ -111,7 +111,6 @@ export function MapOptions({
               </button>
             </div>
             {segment("basemap", "Basemap", [
-              { value: "dark", label: "Dark" },
               { value: "satellite", label: "Satellite" },
               { value: "night", label: "Night lights" },
             ])}

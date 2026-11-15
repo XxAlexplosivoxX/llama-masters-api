@@ -4,7 +4,7 @@ import { anomalyScale } from "../lib/color";
 import { fmtCompact, fmtPercent } from "../lib/format";
 import { labelOf, MONTHS } from "../lib/series";
 import type { Explorer } from "../state";
-import { Calendar } from "./Calendar";
+import { YearCalendar } from "./YearCalendar";
 
 const anomaly = anomalyScale(0.8);
 
@@ -77,21 +77,19 @@ export function Summary({
             />
             <Stat
               label={focus !== null ? `${focus} vs mean` : "Year vs mean"}
-              value={rel !== null ? fmtPercent(rel) : "n/a"}
+              value={rel !== null ? fmtPercent(rel) : total === null && focus !== null ? "In progress" : "n/a"}
               color={rel !== null ? anomaly(rel) : undefined}
             />
           </dl>
-          <div className="mt-2 max-h-[min(22rem,calc(100vh-22rem))] overflow-y-auto overscroll-contain">
-            <Calendar
+          <div className="mt-3">
+            <YearCalendar
               series={series}
               stats={stats}
               range={range}
-              focusYear={focus}
+              year={focus ?? stats.years.at(-1)!}
               hoverMonth={explorer.hoverMonth}
-              waveKey={`${explorer.place?.id}-${explorer.shape?.label ?? "all"}`}
+              onYear={explorer.setFocusYear}
               onHover={showingRecent ? () => {} : explorer.setHoverMonth}
-              onRange={explorer.setRange}
-              onFocusYear={explorer.setFocusYear}
             />
           </div>
         </>

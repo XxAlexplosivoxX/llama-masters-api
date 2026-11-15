@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 export type MapOptions = {
-  basemap: "dark" | "satellite" | "night";
+  basemap: "satellite" | "night";
   labels: boolean;
   borders: boolean;
   gridOpacity: number;
@@ -9,7 +9,7 @@ export type MapOptions = {
 };
 
 export const DEFAULT_MAP_OPTIONS: MapOptions = {
-  basemap: "dark",
+  basemap: "satellite",
   labels: true,
   borders: true,
   gridOpacity: 0.82,
@@ -19,9 +19,11 @@ export const DEFAULT_MAP_OPTIONS: MapOptions = {
 function readOptions(): MapOptions {
   try {
     const value = JSON.parse(localStorage.getItem("map:options") ?? "null");
+    // The Dark basemap was removed from the menu; saved choices move to Satellite.
+    if (value?.basemap === "dark") value.basemap = "satellite";
     if (
       value &&
-      ["dark", "satellite", "night"].includes(value.basemap) &&
+      ["satellite", "night"].includes(value.basemap) &&
       typeof value.labels === "boolean" &&
       typeof value.borders === "boolean" &&
       typeof value.gridOpacity === "number" &&

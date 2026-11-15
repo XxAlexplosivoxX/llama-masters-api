@@ -4,10 +4,11 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
-import { Timeline } from "./components/Timeline";
+import { PlayButton, Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
 import { Summary } from "./components/Summary";
-import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./components/Toolbar";
+// Area selection (DrawTools, SelectionChip) is switched off for now: the site works by country.
+import { LayerSwitch, PlaceSwitcher } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView } from "./map/MapView";
 import { shapeFromDrawing, useExplorer } from "./state";
@@ -121,16 +122,7 @@ export function App() {
       </div>
       <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
         <div className="flex items-start justify-end gap-1.5 sm:gap-2">
-          <DrawTools
-            drawMode={drawMode}
-            onDrawMode={setDrawMode}
-            onCoordinates={chooseArea}
-            bounds={explorer.place?.bbox ?? null}
-            placeLabel={explorer.place?.label ?? "this place"}
-            onOpen={() => {
-              if (!desktop) setSnap(SNAPS[0]);
-            }}
-          />
+          {historyAvailable && layer === "history" && <PlayButton explorer={explorer} onPlay={play} />}
           <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
           <MapOptions
             options={mapOptions}
@@ -141,12 +133,6 @@ export function App() {
             }}
           />
         </div>
-        <SelectionChip
-          label={explorer.shape?.label ?? null}
-          placeLabel={explorer.place?.label ?? ""}
-          hidden={!!drawMode}
-          onClear={() => explorer.setShape(null)}
-        />
       </div>
     </motion.div>
   );

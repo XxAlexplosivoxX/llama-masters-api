@@ -6,8 +6,8 @@ import type { Explorer } from "../state";
 const SPEEDS = [0.5, 1, 2, 4];
 
 /**
- * Month-by-month playback for the map, like a weather radar loop. Collapsed it is a single
- * "Play" button; once started it shows the month, a scrubber over the selected dates and the speed.
+ * Month-by-month playback for the map, like a weather radar loop. Started from the toolbar's Play
+ * button (`PlayButton`); shows the month, a scrubber over the selected dates and the speed.
  */
 export function Timeline({ explorer, onPlay }: { explorer: Explorer; onPlay: () => void }) {
   const { series, range, playbackMonth, playing, speed, setSpeed, pause, seek, stopPlayback } = explorer;
@@ -18,20 +18,7 @@ export function Timeline({ explorer, onPlay }: { explorer: Explorer; onPlay: () 
 
   return (
     <AnimatePresence mode="wait" initial={false}>
-      {!active ? (
-        <motion.button
-          key="closed"
-          onClick={onPlay}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 6 }}
-          transition={{ duration: 0.2 }}
-          className="pointer-events-auto inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-bg/85 px-3.5 text-sm font-semibold backdrop-blur-md hover:border-muted"
-          title="Play the map month by month"
-        >
-          <Play size={15} className="fill-current" aria-hidden /> Play month by month
-        </motion.button>
-      ) : (
+      {active && (
         <motion.div
           key="open"
           role="group"
@@ -105,5 +92,30 @@ export function Timeline({ explorer, onPlay }: { explorer: Explorer; onPlay: () 
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/** Toolbar button that starts (or pauses) the month-by-month playback. */
+export function PlayButton({ explorer, onPlay }: { explorer: Explorer; onPlay: () => void }) {
+  const { series, range, playing, pause } = explorer;
+  if (!series || !range || range.to <= range.from) return null;
+  return (
+    <div className="seg">
+      <button
+        onClick={playing ? pause : onPlay}
+        aria-pressed={playing}
+        title={playing ? "Pause" : "Play the map month by month"}
+        className="max-sm:w-10 max-sm:justify-center max-sm:!px-0"
+      >
+        <span className="relative inline-flex items-center gap-1.5">
+          {playing ? (
+            <Pause size={15} className="fill-current" aria-hidden />
+          ) : (
+            <Play size={15} className="fill-current" aria-hidden />
+          )}
+          <span className="max-sm:hidden">{playing ? "Pause" : "Play"}</span>
+        </span>
+      </button>
+    </div>
   );
 }

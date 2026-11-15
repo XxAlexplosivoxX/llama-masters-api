@@ -98,7 +98,7 @@ export class MapEngine {
   private introFrame = 0;
   private gridMax = -1;
   private gridOpacity = 0.82;
-  private basemap: MapOptions["basemap"] = "dark";
+  private basemap: MapOptions["basemap"] | "dark" = "dark"; // dark = the style itself, used offline
   private labels = true;
   private borders = true;
   private baseLayers: StyleSpecification["layers"];

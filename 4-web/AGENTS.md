@@ -168,7 +168,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   - `MapStatus.tsx`: `LoadingCard` (basemap / history / 7 days with real MB), `MapCaption`.
 - `components/`
   - `Toolbar.tsx`: `PlaceSwitcher` (search by name or ISO code; Enter picks the first match),
-    `DrawTools` (one "Select area" menu: Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
+    `DrawTools` (switched off for now, the site works by country; one "Select area" menu: Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
     Box tabs and per-field validation; on phones popovers become a sheet and the drawer folds),
     `SelectionChip` (area label + Clear), `LayerSwitch`.
   - `MapOptions.tsx`: toolbar popover / phone sheet, basemap, names, borders, opacity, projection,
@@ -180,7 +180,13 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
     (`Export`) → "How MODIS and VIIRS are combined" (`Sensors.HowCombined`, with the single-sensor
     switch) → About this data. Charts sit after Anomalies (desktop and mobile).
   - `Summary.tsx`: desktop map card: selection, three numbers (dates total, fire season, focus year
-    vs mean), the `Calendar`, and the "Details & stats" button.
+    vs mean), `YearCalendar` (one year as 12 month tiles, ‹ › change the focus year, hover shows the
+    month on the map) and the "Details & stats" button.
+  - `Timeline.tsx`: the player bar (only while playing) and `PlayButton` (toolbar, history layer).
+  - `PlaceSwitcher` groups countries by continent (`lib/continents.ts`, by place id; unknown ids go
+    to "Other"); continent chips filter, search looks in every continent.
+  - Basemap: Satellite (default) or Night lights; Dark is only the offline fallback. Saved "dark"
+    options migrate to Satellite (`hooks/useMapOptions.ts`). Scrollbars are themed in `styles.css`.
   - `Calendar.tsx`: SVG years x months; memoised `Cell`s; hover shows the month on the map, drag
     sets the range, click a year to focus it; tooltip anchors to its side at the edges. Pointer
     selection handles capture, cancellation and clamped endpoints. Touch keeps vertical scrolling

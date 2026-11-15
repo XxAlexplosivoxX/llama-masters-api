@@ -6,6 +6,7 @@ import type { DrawMode, MapLayer } from "../map/engine";
 import type { BBox, Place } from "../lib/types";
 import { areaKm2, bboxOf, bboxPolygon, squareAround } from "../lib/geo";
 import { fmt, fmtKm2 } from "../lib/format";
+import { CONTINENTS, continentOf, type Continent } from "../lib/continents";
 import { describeBBox, fmtPoint, overlaps, parseDegrees, parseNumber, type Parsed } from "../lib/validate";
 
 const pop = {
@@ -28,11 +29,13 @@ export function PlaceSwitcher({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [continent, setContinent] = useState<Continent | "All">("All");
   const ref = useDismiss(open, () => setOpen(false));
   useEffect(() => {
     if (open) {
       onOpen?.();
       setQuery("");
+      setContinent(current ? continentOf(current.id) : "All");
     }
   }, [open]);
   const pick = (id: string) => {
@@ -40,9 +43,16 @@ export function PlaceSwitcher({
     setOpen(false);
   };
   const needle = fold(query.trim());
+  // A search looks in every continent; otherwise the list shows the chosen continent (or all, grouped).
   const shown = needle
     ? places.filter((p) => fold(p.label).includes(needle) || p.iso.some((i) => i.toLowerCase() === needle))
-    : places;
+    : continent === "All"
+      ? places
+      : places.filter((p) => continentOf(p.id) === continent);
+  const groups = CONTINENTS.map((c) => ({ continent: c, places: shown.filter((p) => continentOf(p.id) === c) })).filter(
+    (g) => g.places.length,
+  );
+  const available = CONTINENTS.filter((c) => places.some((p) => continentOf(p.id) === c));
 
   return (
     <div ref={ref} className="relative">
@@ -60,11 +70,11 @@ export function PlaceSwitcher({
         {open && (
           <motion.div
             {...pop}
-            className="absolute left-0 top-full z-30 mt-2 flex max-h-[min(34rem,calc(100dvh-6rem))] w-80 origin-top-left flex-col rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:h-80 max-sm:w-64 max-sm:origin-top-right"
+            className="absolute left-0 top-full z-30 mt-2 flex max-h-[min(34rem,calc(100dvh-6rem))] w-[22rem] origin-top-left flex-col rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:h-80 max-sm:w-64 max-sm:origin-top-right"
           >
             <input
               autoFocus
-              className="field m-1.5"
+              className="field m-1.5 w-auto"
               type="search"
               placeholder={`Search ${places.length} countries`}
               value={query}
@@ -74,28 +84,55 @@ export function PlaceSwitcher({
                 if (e.key === "Enter" && shown.length) pick(shown[0].id);
               }}
             />
-            <div
-              role="listbox"
-              aria-label="Countries"
-              className="grid min-h-0 grid-cols-2 gap-0.5 overflow-y-auto max-sm:grid-cols-1"
-            >
-              {shown.map((p) => (
-                <button
-                  key={p.id}
-                  role="option"
-                  aria-selected={p.id === current?.id}
-                  onClick={() => pick(p.id)}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm hover:bg-surface-2"
-                >
-                  <span className="w-4 shrink-0 text-accent">
-                    {p.id === current?.id && <Check size={15} aria-hidden />}
-                  </span>
-                  {p.label}
-                </button>
+            {!needle && (
+              <div className="flex flex-wrap gap-1 px-1.5 pb-1.5" role="group" aria-label="Continent">
+                {(["All", ...available] as const).map((c) => (
+                  <button
+                    key={c}
+                    aria-pressed={continent === c}
+                    onClick={() => setContinent(c)}
+                    className={`rounded-full border px-2.5 py-1 text-xs ${
+                      continent === c
+                        ? "border-accent bg-accent/15 text-text"
+                        : "border-border text-muted hover:border-muted hover:text-text"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div role="listbox" aria-label="Countries" className="min-h-0 overflow-y-auto overscroll-contain pb-1">
+              {groups.map((g) => (
+                <div key={g.continent} role="group" aria-label={g.continent}>
+                  {(groups.length > 1 || needle) && (
+                    <p className="sticky top-0 z-10 bg-surface/95 px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted backdrop-blur">
+                      {g.continent}
+                      <span className="num ms-1.5 font-normal normal-case tracking-normal">{g.places.length}</span>
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-0.5 max-sm:grid-cols-1">
+                    {g.places.map((p) => (
+                      <button
+                        key={p.id}
+                        role="option"
+                        aria-selected={p.id === current?.id}
+                        onClick={() => pick(p.id)}
+                        className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-surface-2 ${
+                          p.id === current?.id ? "bg-surface-2 text-text" : ""
+                        }`}
+                        title={p.label}
+                      >
+                        <span className="w-4 shrink-0 text-accent">
+                          {p.id === current?.id && <Check size={15} aria-hidden />}
+                        </span>
+                        <span className="truncate">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
-              {!shown.length && (
-                <p className="col-span-full px-3 py-2.5 text-xs text-muted">No country matches "{query}".</p>
-              )}
+              {!shown.length && <p className="px-3 py-2.5 text-xs text-muted">No country matches "{query}".</p>}
             </div>
           </motion.div>
         )}
