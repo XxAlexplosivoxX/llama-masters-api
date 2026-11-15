@@ -7,6 +7,9 @@ import { PLATFORMS, type CsvPoint } from "../types";
 
 interface Props {
   points: CsvPoint[];
+  recentStatus?: "loading" | "ready" | "unavailable";
+  recentTruncated?: boolean;
+  canSelectArea?: boolean;
 }
 
 type Metric = "count" | "frp" | "day";
@@ -21,18 +24,24 @@ const PANELS: { sensor: Sensor; resolution: string; color: string }[] = [
   { sensor: "VIIRS", resolution: "375 m", color: VIIRS },
 ];
 
-const H = 96, L = 36, B = 20, T = 8;
+const H = 96, L = 40, B = 20, T = 8;
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Last 7 days of point data: MODIS and VIIRS in separate panels, each on its own scale. */
-export function Last7Days({ points }: Props) {
+export function Last7Days({ points, recentStatus = "ready", recentTruncated = false, canSelectArea = false }: Props) {
   const [metric, setMetric] = useState<Metric>("count");
   const { ref, width } = useWidth();
+  if (recentStatus === "loading") return <div className="animate-pulse rounded-lg border border-dashed border-grid p-4 text-sm text-muted" role="status">Loading the last 7 days…</div>;
+  if (recentStatus === "unavailable") return <p className="rounded-lg border border-dashed border-grid p-4 text-sm text-muted">Recent points are not available for this region</p>;
   if (!points.length) {
     return <p className="rounded-lg border border-dashed border-grid p-4 text-sm text-muted">No near-real-time points in this selection.</p>;
   }
 
-  const days = [...new Set(points.map((p) => p.date))].sort().slice(-7);
+  const observedDays = [...new Set(points.map((p) => p.date))].sort();
+  const days = recentTruncated && observedDays.length
+    ? Array.from({ length: 7 }, (_, i) => new Date(new Date(`${observedDays.at(-1)}T00:00:00Z`).getTime() - (6 - i) * 86400000).toISOString().slice(0, 10))
+    : observedDays.slice(-7);
+  const oldestPresentDay = observedDays[0];
   const value = (day: string, sensor: Sensor) => {
     const pts = points.filter((p) => p.date === day && sensorOf(p.platform) === sensor);
     if (!pts.length) return null;
@@ -58,7 +67,7 @@ export function Last7Days({ points }: Props) {
     <div ref={ref}>
       <div className="seg seg-40 mb-3" role="group" aria-label="Metric">
         {METRICS.map((m) => (
-          <button key={m.id} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)} className="!min-h-0 !px-3">
+          <button key={m.id} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)} className="!px-3">
             {metric === m.id && <span className="absolute inset-0 rounded-[9px] bg-grid ring-1 ring-grid" />}
             <span className="relative">{m.label}</span>
           </button>
@@ -75,8 +84,8 @@ export function Last7Days({ points }: Props) {
               <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
               <span className="font-semibold text-text">{sensor}</span> {resolution} pixels
             </figcaption>
-            <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img"
-              aria-label={`${sensor} last 7 days, own scale: ${days.map((d, i) => `${d} ${vals[i] === null ? "no data" : show(vals[i]!)}${i === days.length - 1 ? " (incomplete day)" : ""}`).join("; ")}`}>
+            <svg viewBox={`0 0 ${width} ${H}`} width="100%" height={H} className="block" role="img"
+              aria-label={`${sensor} last 7 days, own scale: ${days.map((d, i) => `${d} ${recentTruncated && d < oldestPresentDay ? "no data (capped)" : vals[i] === null ? "no data" : show(vals[i]!)}${(i === days.length - 1 || (recentTruncated && d === oldestPresentDay)) ? " (incomplete day)" : ""}`).join("; ")}`}>
               <defs>
                 <pattern id="l7-partial" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                   <line x1="0" y1="0" x2="0" y2="4" stroke={ALERT} strokeWidth="1.2" />
@@ -94,14 +103,17 @@ export function Last7Days({ points }: Props) {
                 const v = vals[i];
                 const x0 = L + i * slot + 4;
                 const last = i === days.length - 1; // the latest day is usually still being filled in
+                const cappedAbsent = recentTruncated && d < oldestPresentDay;
+                const incomplete = last || (recentTruncated && d === oldestPresentDay);
                 return (
                   <g key={d}>
+                    {cappedAbsent && <title>{`${d}: no data (capped)`}</title>}
                     {v !== null && (
-                      <rect x={x0} y={y(v)} width={barW} height={Math.max(1, H - B - y(v))} rx={2} fill={color}>
-                        <title>{`${d} ${sensor}: ${show(v)}${last ? " (incomplete day)" : ""}`}</title>
+                      <rect x={x0} y={y(v)} width={barW} height={Math.max(1, H - B - y(v))} rx={2} fill={color} aria-label={`${d} ${sensor}: ${show(v)}${incomplete ? " (incomplete day)" : ""}`}>
+                        <title>{`${d} ${sensor}: ${show(v)}${incomplete ? " (incomplete day)" : ""}`}</title>
                       </rect>
                     )}
-                    {v !== null && last && (
+                    {v !== null && incomplete && (
                       <rect x={x0} y={y(v)} width={barW} height={Math.max(1, H - B - y(v))} rx={2} fill="url(#l7-partial)" pointerEvents="none" />
                     )}
                     {i % step === 0 && (
@@ -114,19 +126,16 @@ export function Last7Days({ points }: Props) {
           </figure>
         );
       })}
-      <p className="mb-1 flex items-center gap-1.5 text-xs leading-snug text-muted">
-        <svg width="12" height="12" aria-hidden>
-          <rect width="12" height="12" rx="2" fill={GRID} />
-          <path d="M-2 4 L4 -2 M0 14 L14 0 M8 16 L16 8" stroke={ALERT} strokeWidth="1.5" />
-        </svg>
-        Last day is incomplete and will still change.
-      </p>
+      {(recentTruncated || days.length > 0) && <p className="mb-1 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-xs leading-snug text-muted" role="status">
+        {recentTruncated ? `The server capped the points; the oldest day in this window is incomplete.${canSelectArea ? " Pick an area to see every point." : ""} ` : ""}
+        {days.length > 0 ? "Last day is incomplete and will still change." : ""}
+      </p>}
       <p className="text-xs leading-snug text-muted">Counts are not comparable between instruments, so each panel has its own scale.</p>
 
-      <p className="mt-3 text-2xs text-muted">Detections per satellite (raw; MODIS and VIIRS are not comparable):</p>
+      {!recentTruncated && <><p className="mt-3 text-2xs text-muted">Detections per satellite (raw; MODIS and VIIRS are not comparable):</p>
       <ul className="mt-1.5 space-y-1.5">
         {bySat.map(({ p, n }) => (
-          <li key={p} className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-xs">
+          <li key={p} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 text-xs">
             <span className="text-muted">{p}</span>
             <span className="h-1.5 overflow-hidden rounded-full bg-grid">
               <span className="block h-full rounded-full" style={{ background: SENSOR[p], width: `${(n / satMax) * 100}%` }} />
@@ -134,7 +143,7 @@ export function Last7Days({ points }: Props) {
             <span className="num text-right text-text">{fmt(n)}</span>
           </li>
         ))}
-      </ul>
+      </ul></>}
       <p className="mt-2 text-2xs text-muted">Provisional near-real-time data, not added to the monthly history.</p>
     </div>
   );

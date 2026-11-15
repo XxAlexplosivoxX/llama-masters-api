@@ -1,0 +1,5 @@
+# DOMAIN comes from deploy/.env. Caddy gets and renews a Let's Encrypt certificate
+# for it, and redirects HTTP to HTTPS. The API already compresses its responses.
+{$DOMAIN} {
+	reverse_proxy api:8080
+}

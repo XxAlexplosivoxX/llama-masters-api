@@ -61,12 +61,13 @@ export function FocusMonth({ data, month }: Props) {
   const label = `${MONTHS_LONG[month % 12]} ${series.startYear + Math.floor(month / 12)}`;
 
   return (
-    <div>
-      {/* HTML rows so long labels and notes wrap inside their column instead of running under the bars. */}
-      <ul className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5" aria-label={`${label} by record`}>
-        {bars.map((b) => (
+    <div className="@container">
+      {/* HTML rows so long labels and notes wrap inside their column instead of running under the bars.
+          Narrow cards put the label above its bar so the bar keeps most of the width. */}
+      <ul className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 @[22rem]:grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] @[22rem]:gap-y-2.5" aria-label={`${label} by record`}>
+        {bars.map((b, i) => (
           <li key={b.key} className="contents">
-            <span className="min-w-0 leading-tight">
+            <span className={`col-span-2 min-w-0 leading-tight @[22rem]:col-span-1 @[22rem]:mt-0 ${i ? "mt-1.5" : ""}`}>
               <span className="block text-sm text-muted">{b.label}</span>
               {b.note && <span className="block text-2xs leading-snug text-muted/80">{b.note}</span>}
             </span>

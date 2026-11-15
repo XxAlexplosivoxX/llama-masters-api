@@ -2,6 +2,7 @@ import { Check, ChevronDown, Flame, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { COMING_SOON } from "../lib/shared";
 import type { Place } from "../types";
+import { useKeepInView } from "../hooks/useKeepInView";
 
 interface Props {
   places: Place[];
@@ -29,6 +30,7 @@ function useDismiss(open: boolean, close: () => void) {
 export function PlaceSwitcher({ places, current, csvName, csvSelected, onSelect, onUpload }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
+  const list = useKeepInView<HTMLUListElement>(open);
   const grids = places.filter((p) => p.kind === "grid");
   const region = grids.filter((p) => p.scope === "region");
   const countries = grids.filter((p) => p.scope !== "region").sort((a) => (a.id === "brazil" ? -1 : 1));
@@ -54,18 +56,18 @@ export function PlaceSwitcher({ places, current, csvName, csvSelected, onSelect,
   );
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative max-w-full">
       <button
-        className="seg seg-40 !px-3 items-center gap-2 text-sm font-semibold"
+        className="seg seg-40 !flex-nowrap !px-3 items-center gap-2 text-sm font-semibold"
         aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}
       >
-        <Flame size={14} className="text-firefly-3" aria-hidden />
-        {current?.label ?? (csvName ? `Uploaded: ${csvName}` : "Loading")}
-        <ChevronDown size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        <Flame size={14} className="shrink-0 text-firefly-3" aria-hidden />
+        <span className="min-w-0 truncate">{current?.label ?? (csvName ? `Uploaded: ${csvName}` : "Loading")}</span>
+        <ChevronDown size={16} className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       {open && (
-        <ul role="listbox" aria-label="Places"
-          className="absolute left-0 top-full z-30 mt-2 dark-scroll max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-grid bg-card p-1 shadow-2xl shadow-black/60">
+        <ul ref={list} role="listbox" aria-label="Places"
+          className="absolute left-0 top-full z-30 mt-2 dark-scroll max-h-[70vh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-grid bg-card p-1 shadow-2xl shadow-black/60">
           {csvName && (
             <>
               <li>

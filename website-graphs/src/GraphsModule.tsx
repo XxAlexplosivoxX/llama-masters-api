@@ -90,7 +90,7 @@ function Module({ data }: { data: PlaceData }) {
     ? `Source: uploaded CSV · ${data.csv.name}`
     : grid
       ? `Source: ${grid.sources[0] ?? "NASA FIRMS"}${generated ? ` · generated ${generated}` : ""}`
-      : `Source: ${usingApi() ? "live API" : "static export"}`;
+      : `Source: ${usingApi() ? "live API" : "static export"}${data.place?.kind === "weekly" ? ` · recent points: ${data.recentStatus === "loading" ? "loading" : data.recentTruncated ? "capped" : data.recentStatus === "unavailable" ? "unavailable" : "ready"}` : ""}`;
 
   return (
     <div className="graphs-root">
@@ -141,7 +141,8 @@ function Module({ data }: { data: PlaceData }) {
           </Card>
 
           <Card className="bento-recent" title="Last 7 days" subtitle="MODIS and VIIRS, each on its own scale">
-            <Last7Days points={data.recent} />
+            <Last7Days points={data.recent} recentStatus={data.recentStatus} recentTruncated={data.recentTruncated}
+              canSelectArea={data.areas.length > 0} />
           </Card>
 
           <Card className="bento-calendar" title="Calendar" subtitle="Each square is one month">

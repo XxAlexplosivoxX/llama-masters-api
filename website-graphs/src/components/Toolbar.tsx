@@ -70,7 +70,7 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
     <div className="rounded-2xl border border-slate-800 bg-[#0B1120] p-4">
       <div className="flex flex-wrap items-stretch gap-x-6 gap-y-4">
         {/* Left zone: data and region. */}
-        <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <div className="flex min-w-0 max-w-full flex-wrap items-start gap-x-4 gap-y-3">
         <div>
           <Label>Place</Label>
           <PlaceSwitcher
@@ -138,8 +138,9 @@ export function Toolbar({ data, onUpload, uploadState }: Props) {
         {/* Right zone: timeframe, separated by a subtle divider once side by side. */}
         {series && bounds && active && (
           <>
-            <div className="hidden w-px self-stretch bg-slate-800 lg:block" aria-hidden />
-            <div className="flex-1">
+            <div className="hidden w-px self-stretch bg-slate-800 @min-[1100px]/graphs:block" aria-hidden />
+            {/* Basis keeps the range on its own line rather than squeezed beside the left zone. */}
+            <div className="min-w-0 flex-1 basis-72">
               <DateRange
                 startYear={startYear} bounds={bounds} range={active}
                 baselineFrom={series.baselineFrom} focusYear={data.focus}
