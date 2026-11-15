@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { X } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
@@ -15,6 +15,9 @@ import { shapeFromDrawing, useExplorer } from "./state";
 import { useDrawerViewport } from "./hooks/useDrawerViewport";
 import { MapOptions } from "./components/MapOptions";
 import { useMapOptions } from "./hooks/useMapOptions";
+import { Tour, TourButton } from "./tour/Tour";
+import { markTourSeen, tourSeen } from "./tour/seen";
+import { tourStepsFor, type TourStep } from "./tour/steps";
 
 const DESKTOP = "(min-width: 1024px)";
 const SNAPS = ["168px", 0.55, 1] as const;
@@ -81,6 +84,61 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const [tourOpen, setTourOpen] = useState(false);
+  const tourSaved = useRef<{
+    detailsOpen: boolean;
+    calendarOpen: boolean;
+    snap: number | string | null;
+    layer: MapLayer;
+  } | null>(null);
+  const startTour = () => {
+    if (tourOpen) return;
+    tourSaved.current = { detailsOpen, calendarOpen, snap, layer };
+    explorer.pause();
+    setLayer("history");
+    setDrawMode(null);
+    if (!desktop) setSnap(SNAPS[1]);
+    setTourOpen(true);
+  };
+  const tourStep = useCallback(
+    (step: TourStep) => {
+      if (!desktop) setSnap(SNAPS[1]);
+      else if (step.view === "details") setDetailsOpen(true);
+      else if (step.view === "map") {
+        setDetailsOpen(false);
+        setCalendarOpen(true);
+      }
+    },
+    [desktop],
+  );
+  const closeTour = useCallback(() => {
+    markTourSeen();
+    setTourOpen(false);
+    const saved = tourSaved.current;
+    tourSaved.current = null;
+    if (!saved) return;
+    setDetailsOpen(saved.detailsOpen);
+    setCalendarOpen(saved.calendarOpen);
+    setSnap(saved.snap);
+    setLayer(saved.layer);
+  }, []);
+  const ready = introDone && explorer.status.kind === "ready";
+  useEffect(() => {
+    if (!ready || tourSeen()) return;
+    const timer = window.setTimeout(startTour, 800);
+    return () => window.clearTimeout(timer);
+  }, [ready]);
+  const tour = (
+    <Tour
+      key={desktop ? "d" : "m"}
+      open={tourOpen}
+      steps={tourStepsFor(desktop)}
+      desktop={desktop}
+      onStep={tourStep}
+      onClose={closeTour}
+    />
+  );
+
   const padding: Padding = desktop
     ? { top: 96, right: calendarShown ? 336 : 48, bottom: 48, left: 48 }
     : { top: 128, right: 24, bottom: Math.round(window.innerHeight * 0.56), left: 24 };
@@ -128,6 +186,7 @@ export function App() {
               if (!desktop) setSnap(SNAPS[0]);
             }}
           />
+          <TourButton onClick={startTour} />
           {desktop && !detailsOpen && (
             <CalendarToggle open={calendarOpen} onToggle={() => setCalendarOpen(!calendarOpen)} />
           )}
@@ -230,6 +289,7 @@ export function App() {
           {overlay}
           {legend}
         </main>
+        {tour}
         <AnimatePresence initial={false}>
           {detailsOpen && (
             <motion.aside
@@ -265,6 +325,7 @@ export function App() {
       {map}
       {overlay}
       {legend}
+      {tour}
       <Drawer.Root
         open
         modal={false}
@@ -307,7 +368,7 @@ export function App() {
             className="fixed inset-x-0 bottom-0 z-40 flex h-full max-h-[96%] flex-col rounded-t-2xl border-t border-border bg-surface outline-none"
             aria-describedby={undefined}
           >
-            <div className="flex h-11 shrink-0 items-center justify-center">
+            <div className="flex h-11 shrink-0 items-center justify-center" data-tour="drawer">
               <Drawer.Handle
                 className="!m-0 !bg-border"
                 role="button"

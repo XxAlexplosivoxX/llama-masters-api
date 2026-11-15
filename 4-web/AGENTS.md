@@ -211,6 +211,25 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   sizing the scroll area and positioning mobile map overlays without changing map layers.
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,
   `.link`), MapLibre chrome and popup restyle, timeline scrubber.
+- `tour/`: own product tour (no library), text only.
+  - `steps.ts`: all copy and targets. To edit text, change `title` / `body` (`bodyMobile` replaces
+    `body` on phones); `target` is a `data-tour` value (none = centred card), `side` the preferred
+    card side, `only` limits a step to desktop or mobile, `view: "details"` opens the desktop panel
+    and `view: "map"` closes it and shows the calendar card. `tourStepsFor(desktop)` filters.
+  - `seen.ts`: `tourSeen` / `markTourSeen` (`tour:seen` in localStorage plus an in-memory flag).
+  - `Tour.tsx`: portal overlay (`z-[100]`) with a box-shadow spotlight that follows the target every
+    frame (rect clipped to its scroll container and the viewport; containers scroll vertically via
+    `scrollTop`, never `scrollIntoView`), a card that flips sides and stays 12 px inside the viewport,
+    and `TourButton` (toolbar `?`). Missing targets are skipped after 1.5 s. Esc is caught in the capture
+    phase so App's Esc handler does not close the panel.
+  - `App.tsx` opens it once after the intro (`introDone` and ready, 800 ms), saves and restores
+    `detailsOpen`, `calendarOpen`, drawer `snap` and `layer`, forces History and pauses playback; on
+    mobile the drawer stays at `0.55`. `<Tour key={desktop ? "d" : "m"}>` restarts it across the breakpoint.
+  - `data-tour` targets: `place` (PlaceSwitcher button), `legend`, `calendar-card` (Summary), `play`,
+    `layers`, `drawer` (mobile handle row), and in `Panel.tsx` `overview` (DateRange + KeyNumbers
+    wrapper), `calendar`, `anomalies`, `download`, `combined` (`Section`'s `tour` prop).
+  - Known limit: on mobile, Vaul leaves Radix Dialog modal, so focus stays trapped in the drawer and
+    the tour card cannot take keyboard focus there (touch works).
 
 ## 7. Design system and anti-slop rules
 
