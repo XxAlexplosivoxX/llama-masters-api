@@ -100,7 +100,7 @@ export function PlayButton({ explorer, onPlay }: { explorer: Explorer; onPlay: (
   const { series, range, playing, pause } = explorer;
   if (!series || !range || range.to <= range.from) return null;
   return (
-    <div className="seg">
+    <div className="seg" data-tour="play">
       <button
         onClick={playing ? pause : onPlay}
         aria-pressed={playing}

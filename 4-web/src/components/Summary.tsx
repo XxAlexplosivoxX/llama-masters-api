@@ -40,6 +40,7 @@ export function Summary({
   return (
     <div
       id="calendar-card"
+      data-tour="calendar-card"
       className="w-72 rounded-xl border border-border bg-bg/85 p-3.5 shadow-2xl shadow-black/40 backdrop-blur-md"
     >
       {explorer.status.kind === "loading" && (

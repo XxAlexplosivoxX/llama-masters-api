@@ -57,6 +57,7 @@ export function PlaceSwitcher({
   return (
     <div ref={ref} className="relative">
       <button
+        data-tour="place"
         className="seg !px-3 min-h-[46px] items-center gap-2 text-sm font-semibold"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -538,7 +539,7 @@ export function LayerSwitch({
     { id: "recent", label: "Last 7 days", short: "7 days" },
   ];
   return (
-    <div className="seg" role="group" aria-label="Map layer">
+    <div className="seg" data-tour="layers" role="group" aria-label="Map layer">
       {options.map((o) => (
         <button
           key={o.id}
