@@ -39,3 +39,32 @@ description = "Type-check the API for Bun and Workers"
 dir = "3-api"
 depends = ["api:install"]
 run = "bun run check"
+
+[tasks."web:install"]
+description = "Install the website dependencies (releases at least 1 day old)"
+dir = "4-web"
+run = "bun install --frozen-lockfile"
+
+[tasks."web:dev"]
+description = "Run the website locally (set VITE_API_URL in 4-web/.env.local for the deployed API)"
+dir = "4-web"
+depends = ["web:install"]
+run = "bun run dev"
+
+[tasks."web:check"]
+description = "Format, lint and type-check the website (Vite+)"
+dir = "4-web"
+depends = ["web:install"]
+run = "bun run check"
+
+[tasks."web:build"]
+description = "Build the website into 4-web/dist"
+dir = "4-web"
+depends = ["web:install"]
+run = "bun run build"
+
+[tasks.deploy]
+description = "Build the website and deploy the Worker (site + API)"
+dir = "3-api"
+depends = ["api:install", "web:install"]
+run = "bun run deploy"

@@ -15,9 +15,12 @@ Project scope and team schedules are in [0-plans/](0-plans/README.md), including
 | [1-extract_data/](1-extract_data/README.md) | FIRMS archives + area API → `raw/` in R2 | Railway (group `1 · extract`) |
 | [2-process_data/](2-process_data/README.md) | `raw/` → `clean/` → aggregates and exports | Railway (group `2 · process`) |
 | [3-api/](3-api/README.md) | Hono API serving `exports/` | Cloudflare Workers (Bun locally) |
-| 4-web | Website (on hold; lives in llama-masters-api for now) | |
+| [4-web/](4-web/README.md) | Website: calendar, map, charts, CSV (React, Vite+) | Same Worker, static assets |
 
 Railway services are declared in [`.railway/railway.ts`](.railway/railway.ts).
+
+Live: site <https://llama-masters.esauflores.com>, API <https://llama-masters-api.esauflores.com/v1/places>.
+Deploy both with `mise run deploy`.
 
 ## Data
 
@@ -29,7 +32,8 @@ mise loads it, git ignores it.
 
 ## Environment
 
-mise pins Python 3.12.16, uv 0.13.7 and Bun 1.4.4 (the API; `mise run api:test`).
+mise pins Python 3.12.16, uv 0.13.7 and Bun 1.4.4 (the API and the website; `mise run api:test`,
+`mise run web:dev`).
 uv manages Python dependencies and the project-local `.venv`.
 
 ## Setup

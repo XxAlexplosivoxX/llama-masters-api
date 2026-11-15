@@ -33,8 +33,11 @@ describe("routes", () => {
   });
 
   test("cache headers: long for history, short for recent points", async () => {
-    expect((await get("/v1/places/venezuela/monthly")).headers.get("cache-control")).toBe("public, max-age=3600");
-    expect((await get("/v1/places/venezuela/recent")).headers.get("cache-control")).toBe("public, max-age=600");
+    expect((await get("/v1/places")).headers.get("cache-control")).toBe("public, max-age=60");
+    expect((await get("/v1/places/venezuela/monthly")).headers.get("cache-control")).toBe("public, max-age=300");
+    expect((await get("/v1/places/venezuela/monthly?v=abc123")).headers.get("cache-control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
   });
 
   test("CORS for any origin", async () => {

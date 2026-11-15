@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+.env.local
+# Copied from llama-masters-research by `npm run data:sync`
+public/data/regions/
+.cache/

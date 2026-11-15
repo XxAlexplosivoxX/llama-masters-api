@@ -8,7 +8,7 @@
     "test": "bun test",
     "check": "tsc -b",
     "worker:dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "bun run --cwd ../4-web build && wrangler deploy"
   },
   "dependencies": {
     "hono": "4.13.18"

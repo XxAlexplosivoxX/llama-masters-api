@@ -45,11 +45,18 @@ From the repository root: `mise run api:dev`, `mise run api:test`, `mise run api
 ```sh
 bunx wrangler login
 bun run worker:dev          # local Workers runtime
-bun run deploy              # wrangler deploy
+bun run deploy              # builds ../4-web, then wrangler deploy
 ```
 
-`wrangler.toml` serves both `workers.dev` and the custom domain `llama-masters-api.esauflores.com`
-(Cloudflare creates its DNS record and certificate), and binds `BUCKET` to `llama-masters-firms`; the Worker reads with the binding, so
+The same Worker serves the website: `[assets]` points at `../4-web/dist`, and Cloudflare serves those
+files without running the Worker; only `/v1/*` and `/healthz` run it. Addresses: `workers.dev`,
+`llama-masters.esauflores.com` (site) and `llama-masters-api.esauflores.com` (API); Cloudflare creates
+their DNS records and certificates.
+
+Caching: `/v1/places` for 60 s; place files requested with `?v=<version>` (from `places.json`, a hash
+of the files) for a year, without it for 5 min. A new export is live within a minute.
+
+`wrangler.toml` binds `BUCKET` to `llama-masters-firms`; the Worker reads with the binding, so
 there are no credentials in code or variables. Telemetry is off (`send_metrics = false`).
 
 ## Layout

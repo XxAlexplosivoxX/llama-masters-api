@@ -1,0 +1,5 @@
+[install]
+# Only install package versions published at least one day ago (seconds), so a freshly
+# published malicious release has time to be caught and pulled before it reaches us.
+minimumReleaseAge = 86400
+exact = true

@@ -30,6 +30,7 @@ Method (0-plans/HARMONIZATION_PLAN.md), on the NOAA-20 scale, per country:
 """
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -52,6 +53,7 @@ K_WORLD = 1000  # detections pulling a country's factors toward the world's
 FIT_STEP = 5  # fitting cells in 0.1° units: 0.5°
 GRID_STEPS = (1, 2, 5, 10, 20)  # display cells in 0.1° units: the finest one under GRID_BUDGET
 GRID_BUDGET = 1_500_000  # nonzero (cell, month) values per grid file, both series together
+GRID_EQ_SCALE = 10  # the record is kept to 0.1 detection: stored as integer tenths
 RECENT_DAYS = 7
 BASELINE_YEARS = (2003, 2025)
 MIN_BAND_MONTHS = 24  # held-out months an area needs for its own band (else the country's)
@@ -317,21 +319,33 @@ def grid_cells(c: Country, cal: Calendar, R: np.ndarray, modis_factor: np.ndarra
 
     # the finest step under the budget (lazy: coarser steps are only computed when needed), else the coarsest
     step, keys, mod, har, size = next((g for g in map(at, GRID_STEPS) if g[4] <= GRID_BUDGET), None) or at(GRID_STEPS[-1])
-    cells = []
-    for k, (cx, cy) in enumerate(keys.tolist()):
-        mt, ht = np.flatnonzero(mod[k]), np.flatnonzero(har[k])
-        if not len(mt) and not len(ht):
-            continue
-        m_pairs = np.stack([mt, mod[k, mt].astype(np.int64)], 1).ravel().tolist()
-        h_pairs = [v for t in ht.tolist() for v in (t, float(har[k, t]))]
-        cells.append([round(cx * step / 10, 1), round(cy * step / 10, 1), m_pairs, h_pairs])
-    return step / 10, cells, size
+    keep = (mod > 0).any(1) | (har > 0).any(1)
+    keys, mod, har = keys[keep], mod[keep], har[keep]
+    grid = {
+        "cells": {"west": np.round(keys[:, 0] * step / 10, 1).tolist(), "south": np.round(keys[:, 1] * step / 10, 1).tolist()},
+        "modis": sparse_columns(mod, 1),
+        "viirs_eq": sparse_columns(har, GRID_EQ_SCALE),
+    }
+    return step / 10, grid, size
+
+
+def sparse_columns(values: np.ndarray, scale: int) -> dict:
+    """Nonzero months of a cells x months matrix, as three flat columns (grid version 5):
+    count per cell; gap = month index minus the previous nonzero month of the same cell (the first
+    is the month itself); value x scale as an integer. Small integers compress far better than pairs."""
+    row, t = np.nonzero(values)  # row-major: grouped by cell, months ascending
+    gap = np.diff(t, prepend=0)
+    first = np.r_[True, row[1:] != row[:-1]] if len(row) else np.zeros(0, bool)
+    gap[first] = t[first]
+    return {"scale": scale, "count": np.bincount(row, minlength=len(values)).tolist(), "gap": gap.tolist(),
+            "value": np.round(values[row, t] * scale).astype(np.int64).tolist()}
 
 
 def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot: np.ndarray,
                    info: dict, states: dict, generated: str) -> dict:
     t0 = time.monotonic()
-    pid = slug(name)
+    pid, label = slug(name), name.replace("_", " ")  # FIRMS names use underscores
+    hashes: list[str] = []  # of the four files written, for the places.json version
     c = Country(con, root, name, cal)
     fac = Factors(tot, cal, world)
     M = c.counts[TERRA] + c.counts[AQUA]
@@ -355,7 +369,7 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
     is_recon = cal.source == "reconstructed"
     country_band = scores[0].get("band")
 
-    names = [name] + [states.get(s, s) for s in c.state_ids]
+    names = [label] + [states.get(s, s) for s in c.state_ids]
     ids = ["country"] + c.state_ids
     areas = []
     for a in range(len(ids)):
@@ -368,24 +382,26 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
         areas.append({
             "id": ids[a], "name": names[a], "model": scores[a]["model"],
             "series": {**{k: series(v, 0) for k, v in raw.items()}, "viirs_eq": series(record[a], 1),
-                       "p10": series(lo, 1), "p90": series(hi, 1)},
+                       "p10": series(lo, 1), "p90": series(hi, 1),
+                       # converted MODIS in every month MODIS covers: against viirs_eq from 2012, the seam check
+                       "modis_eq": series(np.where(raw["MODIS"] >= 0, recon[a], np.nan), 1)},
             "baseline": baseline(record[a], cal),
             "score": scores[a],
         })
-    common = {"id": pid, "label": name, "generated_at_utc": generated, "start_month": cal.label[0],
+    common = {"id": pid, "label": label, "generated_at_utc": generated, "start_month": cal.label[0],
               "months": cal.months}
     month_info = {"source": [s or None for s in cal.source.tolist()],
                   "satellite": [SATS[s] if s >= 0 else ("MODIS" if src else None)
                                 for s, src in zip(cal.viirs.tolist(), cal.source.tolist())],
                   "partial": cal.partial.tolist(), "provisional": cal.provisional.tolist()}
-    write_json(con, root, f"{pid}/monthly.json", {
+    hashes.append(write_json(con, root, f"{pid}/monthly.json", {
         **common, "unit": "detections", "reference": "NOAA-20", "sensors": ["MODIS", *(SATS[s] for s in (NPP, N20, N21))],
-        **month_info, "areas": areas})
+        **month_info, "areas": areas}))
 
-    cell_deg, cells, size = grid_cells(c, cal, R, modis_factor, viirs_factor)
-    write_json(con, root, f"{pid}/monthly_grid.json", {
-        **common, "version": 4, "unit": "detections", "cell_deg": cell_deg, "series": ["modis", "viirs_eq"],
-        **month_info, "cells": cells})
+    cell_deg, grid, size = grid_cells(c, cal, R, modis_factor, viirs_factor)
+    hashes.append(write_json(con, root, f"{pid}/monthly_grid.json", {
+        **common, "version": 5, "unit": "detections", "cell_deg": cell_deg, "series": ["modis", "viirs_eq"],
+        **month_info, **grid}))
 
     rec = con.execute(f"""
         SELECT longitude, latitude,
@@ -397,16 +413,16 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
                       [cal.last_day]).fetchall()
     platforms = sorted({r[3] for r in rec})
     rec_states = sorted({r[6] for r in rec if r[6] is not None})
-    write_json(con, root, f"{pid}/recent_hotspots.json", {
+    hashes.append(write_json(con, root, f"{pid}/recent_hotspots.json", {
         "id": pid, "generated_at_utc": generated, "last_day": cal.last_day.isoformat(), "days": RECENT_DAYS,
         "platforms": platforms, "states": [states.get(s, s) for s in rec_states],
         "lon": [round(r[0], 4) for r in rec], "lat": [round(r[1], 4) for r in rec],
         "acquired_utc": [r[2] for r in rec], "platform": [platforms.index(r[3]) for r in rec],
         "state": [rec_states.index(r[6]) if r[6] is not None else -1 for r in rec],
-        "confidence": [r[4] for r in rec], "frp": [num(r[5], 2) for r in rec]})
+        "confidence": [r[4] for r in rec], "frp": [num(r[5], 2) for r in rec]}))
 
     observed_from = next((cal.label[t] for t in range(cal.months) if cal.source[t] == "observed"), None)
-    write_json(con, root, f"{pid}/meta.json", {
+    hashes.append(write_json(con, root, f"{pid}/meta.json", {
         **common, "iso": info["iso"], "last_day": cal.last_day.isoformat(),
         "sensors": info["sensors"],
         "record": {"reference": "NOAA-20", "observed_from": observed_from, "method": METHOD},
@@ -421,16 +437,18 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
             "states_on_fallback": [ids[a] for a in range(1, len(ids)) if scores[a]["model"] == "ratio_fm"],
         },
         "grid": {"cell_deg": cell_deg, "values": size},
-        "sources": SOURCES, "limitations": LIMITATIONS})
+        "sources": SOURCES, "limitations": LIMITATIONS}))
 
     have = np.flatnonzero(c.n > 0)
     bbox = ([round(c.x[have].min() / 10, 1), round(c.y[have].min() / 10, 1),
              round((c.x[have].max() + 1) / 10, 1), round((c.y[have].max() + 1) / 10, 1)] if len(have) else None)
     print(f"{name}: {len(ids) - 1} states, {c.n.sum():,.0f} detections, model {scores[0]['model']} "
-          f"(held-out WAPE {scores[0].get('wape', {}).get('cell')}), grid {cell_deg}° ({len(cells):,} cells, "
+          f"(held-out WAPE {scores[0].get('wape', {}).get('cell')}), grid {cell_deg}° ({len(grid["cells"]["west"]):,} cells, "
           f"{size:,} values), {len(rec):,} recent points; {time.monotonic() - t0:.1f}s", flush=True)
-    return {"id": pid, "label": name, "kind": "country", "iso": info["iso"], "bbox": bbox, "states": len(ids) - 1,
-            "first_month": cal.label[0], "last_day": cal.last_day.isoformat()}
+    return {"id": pid, "label": label, "kind": "country", "iso": info["iso"], "bbox": bbox, "states": len(ids) - 1,
+            "first_month": cal.label[0], "last_day": cal.last_day.isoformat(),
+            # changes whenever any of the four files does: the site adds ?v=<version>, so edge caches never serve old files
+            "version": hashlib.sha256("".join(hashes).encode()).hexdigest()[:12]}
 
 
 # --- Output ---------------------------------------------------------------------------------------
@@ -440,18 +458,29 @@ def slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")
 
 
-def write_json(con: duckdb.DuckDBPyConnection, root: str, key: str, obj: dict) -> None:
-    """exports/<key>, compact. On R2 through DuckDB (a one-column CSV without quoting is the text as is)."""
+def write_json(con: duckdb.DuckDBPyConnection, root: str, key: str, obj: dict) -> str:
+    """exports/<key>, compact; returns the SHA-256 of the text. On R2 through DuckDB (a one-column CSV
+    without quoting is the text as is)."""
     text = json.dumps(obj, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
     target = f"{root}/exports/{key}"
     if is_remote(root):
         con.execute("CREATE OR REPLACE TEMP TABLE payload AS SELECT CAST(? AS VARCHAR) AS j", [text])
         con.execute(f"COPY payload TO '{target}' (FORMAT csv, HEADER false, QUOTE '', ESCAPE '', DELIMITER '\x01')")
-        return
-    os.makedirs(os.path.dirname(target), exist_ok=True)
-    with open(f"{target}.tmp", "w", encoding="utf-8") as f:
-        f.write(text)
-    os.replace(f"{target}.tmp", target)
+    else:
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(f"{target}.tmp", "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(f"{target}.tmp", target)
+    return hashlib.sha256(text.encode()).hexdigest()
+
+
+def read_places(con: duckdb.DuckDBPyConnection, root: str) -> list[dict]:
+    """The entries of the current exports/places.json, or [] when there is none."""
+    try:
+        row = con.execute("SELECT content FROM read_text(?)", [f"{root}/exports/places.json"]).fetchone()
+    except duckdb.Error:
+        return []
+    return json.loads(row[0])["places"] if row else []
 
 
 # --- Run ------------------------------------------------------------------------------------------
@@ -480,7 +509,7 @@ def load_reports(con, root: str) -> tuple[dict, dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--root", required=True, help="bucket root holding aggregates/, e.g. r2://llama-masters-firms")
-    parser.add_argument("--country", action="append", help="export only these countries (places.json is kept)")
+    parser.add_argument("--country", action="append", help="export only these countries (their places.json entries are updated)")
     parser.add_argument("--threads", type=int, default=8)
     parser.add_argument("--memory", default="6GB")
     parser.add_argument("--workers", type=int, default=8, help="countries exported at the same time")
@@ -536,10 +565,12 @@ def main() -> None:
             except (duckdb.Error, OSError, ValueError, RuntimeError, IndexError, KeyError) as error:
                 print(f"[{i}/{len(jobs)}] {country}: FAILED: {error}", flush=True)
                 failed.append(country)
-    if not args.country:
-        write_json(con, root, "places.json", {"version": 1, "generated_at_utc": generated,
-                                              "last_day": cal.last_day.isoformat(),
-                                              "places": sorted(places, key=lambda p: p["label"])})
+    if args.country:  # keep the other countries' entries, replace the ones just written
+        done = {p["id"] for p in places}
+        places += [p for p in read_places(con, root) if p["id"] not in done]
+    write_json(con, root, "places.json", {"version": 1, "generated_at_utc": generated,
+                                          "last_day": cal.last_day.isoformat(),
+                                          "places": sorted(places, key=lambda p: p["label"])})
     print(f"done: {len(places)} places exported, {len(failed)} failed"
           + (f" ({', '.join(failed)})" if failed else "") + f"; {time.monotonic() - t0:.0f}s", flush=True)
     if failed:

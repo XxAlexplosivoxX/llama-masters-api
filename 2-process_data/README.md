@@ -75,11 +75,11 @@ Files per country (`exports/<id>/`, id = slug of the FIRMS country name, e.g. `v
 | File | Content |
 |---|---|
 | `meta.json` | sensors (first/last/NRT days), coefficients (country and world), country score, states on fallback, sources, limitations |
-| `monthly.json` | per month `source` (observed/reconstructed), `satellite`, `partial`, `provisional`; per area raw `MODIS`, `S-NPP`, `NOAA-20`, `NOAA-21` (null where the satellite has no days), `viirs_eq`, `p10`, `p90`, baseline, score |
-| `monthly_grid.json` | per cell `[west, south, modis, viirs_eq]`, sparse `[month, value, ...]`; 0.1°, coarsened (0.2°, 0.5°, 1°, 2°) for countries over 1.5M values |
+| `monthly.json` | per month `source` (observed/reconstructed), `satellite`, `partial`, `provisional`; per area raw `MODIS`, `S-NPP`, `NOAA-20`, `NOAA-21` (null where the satellite has no days), `viirs_eq`, `p10`, `p90`, `modis_eq` (converted MODIS every month: the seam check against real VIIRS), baseline, score |
+| `monthly_grid.json` | version 5: `cells.west/south`, and per series (`modis`, `viirs_eq`) flat columns over the cells: `count` per cell, `gap` (month minus the previous month of that cell), `value` × `scale` as integers (about 40% smaller than pairs once compressed); 0.1°, coarsened (0.2°, 0.5°, 1°, 2°) for countries over 1.5M values |
 | `recent_hotspots.json` | the world's last 7 days of points, columnar (lon, lat, acquired_utc, platform, state, confidence, frp) |
 
-Plus `exports/places.json` (id, label, ISO groups, bbox, states, first month, last day).
+Plus `exports/places.json` (id, label, ISO groups, bbox, states, first month, last day, and `version`: a hash of the four files, which the site sends as `?v=` so caches never serve old files). A `--country` run updates only its own entries.
 
 ## Running on Railway
 
