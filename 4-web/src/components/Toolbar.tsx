@@ -152,15 +152,15 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
 
   return (
     <div ref={ref} className="relative">
-      {/* Mobile: one button that opens a vertical menu. */}
-      <div className="seg sm:hidden">
+      {/* One button that opens the area tools. */}
+      <div className="seg">
         <button
           aria-pressed={!!drawMode || open}
           aria-expanded={menu}
           aria-haspopup="menu"
           aria-label="Choose an area"
           title="Choose an area"
-          className="w-10 justify-center !px-0"
+          className="justify-center max-sm:w-10 max-sm:!px-0"
           onClick={() => setMenu(!menu)}
         >
           {(!!drawMode || open) && highlight}
@@ -172,44 +172,10 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
             ) : (
               <Shapes size={16} aria-hidden />
             )}
-            <ChevronDown size={12} aria-hidden />
-          </span>
-        </button>
-      </div>
-      {/* Desktop: the three tools as a segmented control. */}
-      <div className="seg max-sm:hidden" role="group" aria-label="Choose an area">
-        {tools.map((t) => (
-          <button
-            key={t.mode}
-            aria-pressed={drawMode === t.mode}
-            aria-label={t.label}
-            onClick={() => {
-              setOpen(false);
-              onDrawMode(drawMode === t.mode ? null : t.mode);
-            }}
-            title={`Draw a ${t.label.toLowerCase()} on the map`}
-          >
-            {drawMode === t.mode && highlight}
-            <span className="relative inline-flex items-center gap-1.5">
-              {t.icon}
-              {t.label}
+            <span className="ms-1 max-sm:hidden">
+              {drawMode ? tools.find((t) => t.mode === drawMode)!.label : open ? "Coordinates" : "Select area"}
             </span>
-          </button>
-        ))}
-        <button
-          aria-pressed={open}
-          aria-expanded={open}
-          aria-label="Coordinates"
-          onClick={() => {
-            onDrawMode(null);
-            setOpen(!open);
-          }}
-          title="Enter coordinates"
-        >
-          {open && highlight}
-          <span className="relative inline-flex items-center gap-1.5">
-            <Crosshair size={16} aria-hidden />
-            Coordinates
+            <ChevronDown size={12} aria-hidden />
           </span>
         </button>
       </div>
@@ -219,7 +185,7 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
             {...pop}
             role="menu"
             aria-label="Choose an area"
-            className="absolute left-0 top-full z-30 mt-2 w-48 origin-top-left rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 sm:hidden"
+            className="absolute left-0 top-full z-30 mt-2 w-48 origin-top-left rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60"
           >
             {tools.map((t) => (
               <button

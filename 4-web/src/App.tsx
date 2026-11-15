@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
-import { ChartLine, ChevronDown, ChevronUp } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Drawer } from "vaul";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Legend } from "./components/Legend";
 import { Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
-import { Charts } from "./components/charts/Charts";
+import { Summary } from "./components/Summary";
 import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView } from "./map/MapView";
@@ -37,7 +37,7 @@ export function App() {
   const [introDone, setIntroDone] = useState(false);
   const [gridMax, setGridMax] = useState(0);
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
-  const [chartsOpen, setChartsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [mapOptions, setMapOptions] = useMapOptions();
   const [mapOnline, setMapOnline] = useState<boolean | null>(null);
   const drawer = useDrawerViewport(desktop, snap);
@@ -54,14 +54,19 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setDrawMode(null);
+      if (e.key !== "Escape") return;
+      setDrawMode((mode) => {
+        // Esc first cancels drawing; with nothing to cancel it closes the details panel.
+        if (!mode) setDetailsOpen(false);
+        return null;
+      });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const padding: Padding = desktop
-    ? { top: 96, right: 48, bottom: 48, left: 48 }
+    ? { top: 96, right: 48, bottom: 48, left: detailsOpen ? 48 : 352 }
     : { top: 128, right: 24, bottom: Math.round(window.innerHeight * 0.56), left: 24 };
 
   const chooseArea = (polygon: GeoJSON.Polygon, label?: string) => {
@@ -85,7 +90,7 @@ export function App() {
       className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start justify-between gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto"
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
-      <div className="order-2 max-sm:ms-auto sm:order-1">
+      <div className="order-2 flex flex-col items-start gap-2 max-sm:ms-auto sm:order-1">
         <PlaceSwitcher
           places={explorer.places}
           current={explorer.place}
@@ -94,6 +99,25 @@ export function App() {
             if (!desktop) setSnap(SNAPS[0]);
           }}
         />
+        <AnimatePresence>
+          {desktop && !detailsOpen && (
+            <motion.div
+              key="summary"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ErrorBoundary label="summary">
+                <Summary
+                  explorer={explorer}
+                  showingRecent={layer === "recent"}
+                  onDetails={() => setDetailsOpen(true)}
+                />
+              </ErrorBoundary>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
       <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
         <div className="flex items-start justify-end gap-1.5 sm:gap-2">
@@ -149,7 +173,7 @@ export function App() {
         showingRecent={layer === "recent"}
         onShowRecent={() => changeLayer("recent")}
         onPlay={play}
-        showCharts={!desktop}
+        showCharts
       />
     </ErrorBoundary>
   );
@@ -196,59 +220,29 @@ export function App() {
   if (desktop) {
     return (
       <div className="flex h-full overflow-hidden">
-        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            {map}
-            {overlay}
-            {legend}
-          </div>
-          {explorer.loaded && explorer.series && explorer.stats && explorer.range && (
-            <section className="shrink-0 border-t border-border bg-surface" aria-label="Charts">
-              <div className="flex h-10 items-center px-4">
-                <button
-                  className="inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm text-accent hover:bg-surface-2"
-                  aria-expanded={chartsOpen}
-                  aria-controls="desktop-charts"
-                  onClick={() => {
-                    if (layer !== "recent") explorer.setHoverMonth(null);
-                    setChartsOpen((open) => !open);
-                  }}
-                >
-                  <ChartLine size={16} aria-hidden /> Charts
-                  {chartsOpen ? <ChevronDown size={14} aria-hidden /> : <ChevronUp size={14} aria-hidden />}
-                </button>
-              </div>
-              <div id="desktop-charts">
-                <AnimatePresence initial={false}>
-                  {chartsOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 290, opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="h-[290px] overflow-y-auto px-4 pb-3">
-                        <ErrorBoundary label="charts">
-                          <Charts explorer={explorer} showingRecent={layer === "recent"} />
-                        </ErrorBoundary>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </section>
-          )}
+        <main className="relative min-w-0 flex-1 overflow-hidden">
+          {map}
+          {overlay}
+          {legend}
         </main>
-        <motion.aside
-          initial={{ x: 40, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.15, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="w-[440px] shrink-0 overflow-y-auto border-l border-border bg-surface"
-        >
-          <Brand />
-          {panel}
-        </motion.aside>
+        <AnimatePresence initial={false}>
+          {detailsOpen && (
+            <motion.aside
+              key="details"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 440, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="shrink-0 overflow-hidden border-l border-border bg-surface"
+              aria-label="Details and stats"
+            >
+              <div className="h-full w-[440px] overflow-y-auto">
+                <Brand onClose={() => setDetailsOpen(false)} />
+                {panel}
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -347,9 +341,9 @@ export function App() {
   );
 }
 
-function Brand() {
+function Brand({ onClose }: { onClose: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-3.5">
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border/70 bg-surface px-5 py-3">
       <div className="flex items-center gap-2.5">
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
           <circle cx="12" cy="12" r="10.5" fill="none" stroke="#4C8DFF" strokeWidth="1.5" />
@@ -368,6 +362,14 @@ function Brand() {
       >
         Data: NASA FIRMS
       </a>
+      <button
+        className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-text"
+        onClick={onClose}
+        aria-label="Close details"
+        title="Close (Esc)"
+      >
+        <X size={18} aria-hidden />
+      </button>
     </div>
   );
 }

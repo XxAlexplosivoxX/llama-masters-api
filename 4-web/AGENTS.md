@@ -113,15 +113,16 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
 
 - `main.tsx`: imports MapLibre CSS **before** `styles.css` (otherwise MapLibre's popup CSS wins and
   popups turn white), fonts, `MotionConfig reducedMotion="user"`.
-- `App.tsx`: layout. Desktop (>= 1024 px): map + 440 px side panel. Mobile: full map + Vaul drawer
+- `App.tsx`: layout. Desktop (>= 1024 px): full-width map with the `Summary` card under the place
+  switcher; "Details & stats" slides in the 440 px panel (✕ or Esc closes it, Esc cancels drawing
+  first) and hides the card. Mobile: full map + Vaul drawer
   (snaps `168px`, `0.55`, `1`). Owns `layer` (history | recent), `drawMode`, drawer `snap`, the
   `play` action (switch to history, start playback, fold the drawer on mobile). Desktop bottom bar =
   legend + timeline (wraps on narrow maps); on mobile they float above the drawer's measured top.
   The drawer scroll viewport follows its visible height at every snap; only the accessible Vaul
   handle drags/snaps it. The legend and zoom controls remain above the folded and half-height drawer;
   at full height the panel supplies the calendar legend and map controls are hidden.
-  Desktop Charts starts collapsed in a bottom dock within the map column; opening it shrinks
-  the map (its existing ResizeObserver calls engine.resize). Legend/player stay in the map area.
+  Opening the panel shrinks the map (MapView's ResizeObserver calls engine.resize).
 - `state.ts` → `useExplorer()`: the single app state. Places, current place, `loaded`, `status`
   (with byte progress), `shape` (selection), `kind` (`HARMONIZED` | `MODIS` | `VIIRS`),
   `range`, `focus` year, `hoverMonth`, playback (`playing`, `speed`, `timelineOpen`,
@@ -167,7 +168,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   - `MapStatus.tsx`: `LoadingCard` (basemap / history / 7 days with real MB), `MapCaption`.
 - `components/`
   - `Toolbar.tsx`: `PlaceSwitcher` (search by name or ISO code; Enter picks the first match),
-    `DrawTools` (Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
+    `DrawTools` (one "Select area" menu: Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
     Box tabs and per-field validation; on phones popovers become a sheet and the drawer folds),
     `SelectionChip` (area label + Clear), `LayerSwitch`.
   - `MapOptions.tsx`: toolbar popover / phone sheet, basemap, names, borders, opacity, projection,
@@ -177,7 +178,9 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   - `Panel.tsx`: order = header → `DateRange` → `KeyNumbers` → "When does it burn?" (`Calendar`)
     → "Which years burned more?" (`Anomalies`) → "What is burning now?" (`Recent`) → Download
     (`Export`) → "How MODIS and VIIRS are combined" (`Sensors.HowCombined`, with the single-sensor
-    switch) → About this data. Mobile inserts Charts after Anomalies; desktop uses the map dock.
+    switch) → About this data. Charts sit after Anomalies (desktop and mobile).
+  - `Summary.tsx`: desktop map card: selection, three numbers (dates total, fire season, focus year
+    vs mean), the `Calendar`, and the "Details & stats" button.
   - `Calendar.tsx`: SVG years x months; memoised `Cell`s; hover shows the month on the map, drag
     sets the range, click a year to focus it; tooltip anchors to its side at the edges. Pointer
     selection handles capture, cancellation and clamped endpoints. Touch keeps vertical scrolling
