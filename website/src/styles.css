@@ -178,6 +178,22 @@ input.timeline::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%
 .cell:focus-visible { outline: none; }
 .cell:focus-visible rect { stroke: var(--color-text); stroke-width: 2; }
 
+.timeline-host { container-type: inline-size; }
+.timeline-player { grid-template-columns: 36px minmax(0, 1fr) 36px; }
+.timeline-track { grid-column: 1 / -1; grid-row: 2; }
+.timeline-speeds { grid-column: 1 / -1; grid-row: 3; }
+.timeline-close { grid-column: 3; grid-row: 1; }
+@container (min-width: 28rem) {
+  .timeline-player { grid-template-columns: 36px minmax(84px, 1fr) minmax(150px, 1fr) 36px; }
+  .timeline-speeds { grid-column: 3; grid-row: 1; }
+  .timeline-close { grid-column: 4; }
+}
+.mobile-explorer .maplibregl-ctrl-bottom-right {
+  bottom: calc(var(--drawer-height) + 12px);
+  visibility: var(--map-controls-visibility);
+}
+.mobile-explorer .maplibregl-ctrl-bottom-left { bottom: var(--drawer-height); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

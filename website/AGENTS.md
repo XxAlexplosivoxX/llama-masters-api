@@ -153,6 +153,14 @@ Suriname, Uruguay, Venezuela, and `south-america`.
 - Provisional = NRT data (after `provisional_from_day`); flagged in text and CSV.
 - Averages (climatology) use complete years >= `baselineFrom`, minimum 3 years
   (`MIN_BASELINE_YEARS`). Earlier complete years are shown faded and not ranked.
+- Current calendar month to date uses the selected area's sensor view and its actual source-day
+  cutoff (including the actual contributing sensor in the harmonized view). It is independent of
+  the selected date range and explicitly flags when outside it. Compare the available count with
+  the full-month arithmetic MEAN, not median, over at least 3 complete baseline years before the
+  current year. This is a share of a full-month mean, not a same-day anomaly or daily pace estimate:
+  daily historical totals are unavailable. Missing data, late-start coverage, insufficient baseline,
+  a zero mean and approximate weekly exports have explicit explanations. Keep this separate from
+  the complete-year versus annual-mean figure.
 - Fire season = the 3 consecutive months with the largest share of the average year.
 - "Last 7 days vs a typical week" uses MODIS points only (the record is on the MODIS scale):
   `climatology[month] / daysInMonth * 7`. Hidden for the VIIRS-only view.
@@ -167,27 +175,37 @@ Suriname, Uruguay, Venezuela, and `south-america`.
 - `App.tsx`: layout. Desktop (>= 1024 px): map + 440 px side panel. Mobile: full map + Vaul drawer
   (snaps `168px`, `0.55`, `1`). Owns `layer` (history | recent), `drawMode`, drawer `snap`, the
   `play` action (switch to history, start playback, fold the drawer on mobile). Desktop bottom bar =
-  legend + timeline (wraps on narrow maps); on mobile they float above the folded drawer.
+  legend + timeline (wraps on narrow maps); on mobile they float above the drawer's measured top.
+  The drawer scroll viewport follows its visible height at every snap; only the accessible Vaul
+  handle drags/snaps it. The legend and zoom controls remain above the folded and half-height drawer;
+  at full height the panel supplies the calendar legend and map controls are hidden.
 - `state.ts` → `useExplorer()`: the single app state. Places, current place, `loaded`, `status`
   (with byte progress), `shape` (selection), `kind` (`HARMONIZED` | `MODIS` | `VIIRS` |
   `MODIS_EQ`), `range`, `focus` year, `hoverMonth`, playback (`playing`, `speed`, `timelineOpen`,
   `play/pause/seek/stopPlayback`), 7-day sensor toggles. Derived: per-cell `values` for all kinds
   (computed once per place), `cells` in the selection, `series`, `stats`, `harmonization`
   (local check + annual comparison), `recentInArea`, `recent` (after toggles), `selectionLabel`.
-  `setHoverMonth` is ignored while playing; `seek` is not.
+  Playback has a separate clamped cursor; `hoverMonth` exposes the played month while running.
+  Pause, close, date-range changes and switching map layers clear hover and restore range totals
+  and the range color scale. Seeking previews the chosen month on the map and moves the resume
+  cursor; explicit pause/close still restore range totals. Switching to Last 7 days pauses playback
+  and disables calendar/chart map hovers. The panel's map-month row follows playback, seeking and
+  in-range hover with the map's null/zero semantics; the annual comparison remains distinct.
 - `lib/`
   - `types.ts`: all data shapes.
   - `data.ts`: `loadPlaces` (places.json + optional API/static weekly regions), `loadPlace`
     (streams with byte progress), `fetchHotspots` (API with bbox + `X-Truncated`), `COMING_SOON`.
   - `series.ts`: `cellsIn`, `cellValues`, `harmonizedSource`, `coverage`, `gridSeries`,
     `computeStats`, `rankOf`, `localCheck`, `annualComparison`, `weeklyToMonthly`.
+  - `currentMonth.ts`: month-to-date comparison and source-cutoff explanations; consumes the shared
+    series contract without changing its exports or data formats.
   - `color.ts`: `HEAT` (magma), `ANOM` (blue-red), `SENSOR` colours, `sensorOf`.
   - `validate.ts`: coordinate parsing (`-9.5`, `9,5 S`, `55.5°W`, U+2212), ranges, bbox overlap.
   - `geo.ts`, `format.ts`, `csv.ts` (monthly CSV includes harmonized, MODIS, VIIRS, VIIRS-on-MODIS
     columns and provisional flags; hotspot CSV).
 - `map/`
   - `engine.ts` (`MapEngine`): MapLibre globe, OpenFreeMap dark style with offline fallback,
-    thinned basemap labels, `minZoom` 1.7. Sources/layers: `grid` (fill; colour from
+    thinned basemap labels with subdued state/city text and halos set once, `minZoom` 1.7. Sources/layers: `grid` (fill; colour from
     **feature-state** `v`), `recent-heat` + `recent-dots` (circles; colour by sensor, size by FRP,
     MODIS ordered last to draw on top), `mask`, `areas`, `outline`. TerraDraw rectangle/polygon
     (polygon refuses self-intersection). `setGridCells` (geometry once per place/selection; grid
@@ -208,12 +226,18 @@ Suriname, Uruguay, Venezuela, and `south-america`.
     (`Export`) → "How MODIS and VIIRS are combined" (`Sensors.HowCombined`, with the single-sensor
     switch) → About this data.
   - `Calendar.tsx`: SVG years x months; memoised `Cell`s; hover shows the month on the map, drag
-    sets the range, click a year to focus it; tooltip anchors to its side at the edges.
-  - `Timeline.tsx`: radar-style playback (4 months/s at 1x; 1x/2x/4x), scrubber, loops with a
-    short hold at the end.
+    sets the range, click a year to focus it; tooltip anchors to its side at the edges. Pointer
+    selection handles capture, cancellation and clamped endpoints. Touch keeps vertical scrolling
+    by default; "Drag to select dates" enables dragging between rows. Arrow keys navigate,
+    Shift+arrows select, Enter focuses a year and Escape cancels. Partial-cell accessible names
+    include "partial month".
+  - `Timeline.tsx`: radar-style playback (4 months/s at 1×; 0.5×/1×/2×/4×, so 0.5× is 500 ms/month),
+    scrubber, loops with a short hold at the end. Responsive player rows keep all four speeds visible.
   - `DateRange.tsx` (custom month picker + presets), `KeyNumbers.tsx`, `Anomalies.tsx`,
     `Recent.tsx`, `Export.tsx`, `Legend.tsx`, `Sensors.tsx`, `ErrorBoundary.tsx`.
 - `hooks/useDismiss.ts`: outside-click / Escape to close popovers.
+- `hooks/useDrawerViewport.ts`: measures the visible drawer during snap/drag/resize transitions,
+  sizing the scroll area and positioning mobile map overlays without changing map layers.
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,
   `.link`), MapLibre chrome and popup restyle, timeline scrubber.
 

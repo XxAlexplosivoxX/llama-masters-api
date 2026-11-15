@@ -13,7 +13,8 @@ interface CellProps {
 const Cell = memo(function Cell({ row, col, y, label, value, fill, inRange, hovered, partial, dragging }: CellProps) {
   return (
     <g className="cell" tabIndex={col === 0 && row === 0 ? 0 : -1} role="gridcell"
-      aria-label={`${label}: ${value === null ? "no source data" : `${fmt(value)} hotspots`}`}>
+      data-month={row * 12 + col}
+      aria-label={`${label}: ${value === null ? "no source data" : `${fmt(value)} hotspots`}${partial ? ", partial month" : ""}`}>
       <motion.rect
         x={LABEL + col * COL} y={y} width={COL - GAP} height={ROW - GAP} rx={2}
         initial={{ fill: value === null ? fill : HEAT_ZERO, opacity: 0.25 }}
@@ -52,6 +53,9 @@ const ROW = 15;
 
 export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey, onHover, onRange, onFocusYear }: Props) {
   const svg = useRef<SVGSVGElement>(null);
+  const [touchSelect, setTouchSelect] = useState(false);
+  const pointer = useRef<number | null>(null);
+  const keyboardAnchor = useRef<number | null>(null);
   const [draft, setDraftState] = useState<{ anchor: number; to: number } | null>(null);
   // Pointer events can arrive several per frame; read the live value, not the last render's.
   const draftRef = useRef(draft);
@@ -72,12 +76,12 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
     ? { from: Math.min(draft.anchor, draft.to), to: Math.max(draft.anchor, draft.to) }
     : range;
 
-  function monthAt(event: React.PointerEvent): number | null {
+  function monthAt(event: React.PointerEvent, clamp = false): number | null {
     const box = svg.current!.getBoundingClientRect();
     const x = ((event.clientX - box.left) / box.width) * W - LABEL;
     const y = ((event.clientY - box.top) / box.width) * W - TOP;
-    const col = Math.floor(x / COL);
-    const row = Math.floor(y / ROW);
+    const col = clamp ? Math.max(0, Math.min(11, Math.floor(x / COL))) : Math.floor(x / COL);
+    const row = clamp ? Math.max(0, Math.min(years.length - 1, Math.floor(y / ROW))) : Math.floor(y / ROW);
     if (col < 0 || col > 11 || row < 0 || row >= years.length) return null;
     return row * 12 + col;
   }
@@ -92,27 +96,62 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
 
   return (
     <div className="relative select-none" style={{ containerType: "inline-size" }}>
+      <button type="button" className="btn mb-2 text-xs lg:hidden" aria-pressed={touchSelect}
+        onClick={() => { setTouchSelect(!touchSelect); setDraft(null); onHover(null); }}>
+        {touchSelect ? "Done selecting dates" : "Drag to select dates"}
+      </button>
+      <p className="sr-only">Arrow keys move between months. Shift and arrows select a range. Enter focuses a year. Escape cancels selection.</p>
       <svg
         ref={svg}
         viewBox={`0 0 ${W} ${height}`}
-        className="block w-full touch-pan-y"
+        className="block w-full"
+        style={{ touchAction: touchSelect ? "none" : "pan-y" }}
         role="grid"
-        aria-label="Detections by year and month. Drag across months to set the date range."
+        aria-label="Hotspots by year and month. Drag across months to set the date range."
         data-vaul-no-drag=""
+        onKeyDown={(e) => {
+          const cell = (e.target as Element).closest<SVGGElement>("[data-month]");
+          if (!cell) return;
+          const m = Number(cell.dataset.month);
+          const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -12, ArrowDown: 12 }[e.key];
+          if (delta !== undefined || e.key === "Home" || e.key === "End") {
+            e.preventDefault();
+            const next = Math.max(0, Math.min(series.values.length - 1, e.key === "Home" ? 0 : e.key === "End" ? series.values.length - 1 : m + delta!));
+            cell.tabIndex = -1;
+            const target = svg.current?.querySelector<SVGGElement>(`[data-month="${next}"]`);
+            if (target) { target.tabIndex = 0; target.focus(); }
+            if (e.shiftKey) {
+              keyboardAnchor.current ??= m;
+              onRange({ from: Math.min(keyboardAnchor.current, next), to: Math.max(keyboardAnchor.current, next) });
+            } else { keyboardAnchor.current = null; onHover(next); }
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onFocusYear(series.startYear + Math.floor(m / 12));
+            onHover(m);
+          } else if (e.key === "Escape") {
+            setDraft(null); keyboardAnchor.current = null; onHover(null);
+          }
+        }}
+        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) onHover(null); }}
         onPointerDown={(e) => {
-          if (e.pointerType !== "mouse") return;
+          if (!e.isPrimary || e.button !== 0) return;
           const m = monthAt(e);
           if (m === null) return;
-          (e.target as Element).setPointerCapture?.(e.pointerId);
+          pointer.current = e.pointerId;
+          e.currentTarget.setPointerCapture(e.pointerId);
           setDraft({ anchor: m, to: m });
         }}
         onPointerMove={(e) => {
-          const m = monthAt(e);
+          if (pointer.current !== null && pointer.current !== e.pointerId) return;
+          const m = monthAt(e, !!draftRef.current);
           const current = draftRef.current;
           if (current && m !== null && m !== current.to) setDraft({ ...current, to: m });
-          if (m !== hoverMonth) onHover(m);
+          if ((e.pointerType === "mouse" || current) && m !== hoverMonth) onHover(m);
         }}
         onPointerUp={(e) => {
+          if (pointer.current !== e.pointerId) return;
+          pointer.current = null;
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
           const draft = draftRef.current;
           if (!draft) {
             // Touch: a tap shows that month's detail.
@@ -120,11 +159,15 @@ export function Calendar({ series, stats, range, focusYear, hoverMonth, waveKey,
             if (m !== null) onHover(m);
             return;
           }
-          const next = { from: Math.min(draft.anchor, draft.to), to: Math.max(draft.anchor, draft.to) };
+          const end = monthAt(e, true) ?? draft.to;
+          const next = { from: Math.min(draft.anchor, end), to: Math.max(draft.anchor, end) };
           setDraft(null);
           if (next.from === next.to) onFocusYear(series.startYear + Math.floor(next.from / 12));
           else onRange(next);
+          onHover(null);
         }}
+        onPointerCancel={() => { pointer.current = null; setDraft(null); onHover(null); }}
+        onLostPointerCapture={() => { if (pointer.current !== null) { pointer.current = null; setDraft(null); onHover(null); } }}
         onPointerLeave={() => { if (!draftRef.current) onHover(null); }}
       >
         <defs>

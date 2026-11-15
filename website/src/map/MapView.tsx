@@ -83,11 +83,11 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
   useEffect(() => {
     if (!engine || !scale || !counts) return;
     const month = hoverMonth !== null && hoverMonth >= from && hoverMonth <= to ? hoverMonth : null;
-    const frame = month === null ? scale.totals : shown.map((i) => counts[i][month] ?? 0);
+    const frame = month === null ? scale.totals : shown.map((i) => series?.values[month] == null ? 0 : counts[i][month] ?? 0);
     const max = month === null ? scale.totalMax : scale.monthMax;
     engine.setGridValues(frame, max);
     onGridScale(max);
-  }, [engine, scale, hoverMonth]);
+  }, [engine, scale, hoverMonth, series]);
 
   // Any exploring (hover, playback) ends the opening animation at once.
   useEffect(() => {

@@ -131,6 +131,12 @@ export class MapEngine {
       map.setLayerZoomRange("place_state", 4, 24);
       map.setPaintProperty("place_state", "text-opacity", 0.6);
     }
+    for (const id of ["place_state", "place_city", "place_city_large", "place_capital"]) {
+      if (!map.getLayer(id)) continue;
+      map.setPaintProperty(id, "text-opacity", 0.45);
+      map.setPaintProperty(id, "text-color", "#9AA6C0");
+      map.setPaintProperty(id, "text-halo-width", 0.5);
+    }
     const firstLabel = map.getStyle().layers.find((l) =>
       "source-layer" in l && ["boundary", "place"].includes(String(l["source-layer"])))?.id;
 

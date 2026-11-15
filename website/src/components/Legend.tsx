@@ -10,6 +10,7 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
   const isGrid = loaded && "grid" in loaded;
   const first = loaded?.recent?.[0]?.acquired_utc.slice(0, 10);
   const last = loaded?.recent?.at(-1)?.acquired_utc.slice(0, 10);
+  const missingMonth = hoverMonth !== null && series?.values[hoverMonth] == null;
 
   let title = "";
   let detail = "";
@@ -18,6 +19,8 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
       ? `${MONTHS_LONG[hoverMonth % 12]} ${series.startYear + Math.floor(hoverMonth / 12)}`
       : `${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`;
     detail = `${SERIES_LABEL[kind]} hotspots per ${loaded.grid.cell_deg}° cell${shape ? ", this area only" : ""}`;
+    if (missingMonth) detail = "No source data for this month";
+    else if (hoverMonth !== null && series.partial[hoverMonth]) detail += "; partial month";
   } else if (layer === "recent") {
     title = first ? `${first} to ${last} (UTC)` : "Last 7 days";
     detail = loaded?.recent
@@ -27,14 +30,14 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
   if (!title) return null;
 
   return (
-    <div className="pointer-events-auto w-64 rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">
+    <div className="pointer-events-auto w-64 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">
       <AnimatePresence mode="popLayout" initial={false}>
         <motion.div key={title} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.2 }}>
           <div className="text-sm font-semibold num">{title}</div>
         </motion.div>
       </AnimatePresence>
       <div className="text-xs text-muted">{detail}</div>
-      {layer === "history" ? (
+      {layer === "history" ? (missingMonth ? null : (
         <>
           <div className="mt-2 h-2 rounded-sm" style={{ background: `linear-gradient(90deg, ${HEAT_ZERO}, ${HEAT.join(",")})` }} />
           <div className="mt-1 flex justify-between text-2xs text-muted num">
@@ -42,7 +45,7 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
             <span>{`${fmtCompact(gridMax)}+`}</span>
           </div>
         </>
-      ) : (
+      )) : (
         <div className="mt-2 flex items-center gap-4 text-xs">
           {(["VIIRS", "MODIS"] as const).map((s) => (
             <span key={s} className={`inline-flex items-center gap-1.5 ${explorer.recentSensors[s] ? "" : "opacity-40 line-through"}`}>

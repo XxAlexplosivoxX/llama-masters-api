@@ -5,7 +5,9 @@ Go API for the burning-activity exports produced by
 (`scripts/prepare_region.py` → `data/processed/<region>/`). Prepared regions are
 **uploaded** to the API, stored in SQLite, and served with filtering and caching.
 
-The [data contract](docs/data-contract.md) describes what the API accepts. The
+To read the data (curl, pandas, field meanings, the team's base URL), see the
+[usage guide](docs/usage.md). The [data contract](docs/data-contract.md) describes
+what the API accepts. The
 [challenge, plans and references](docs/README.md) are copied from the research repo.
 
 ## Quick start
@@ -61,6 +63,9 @@ the region keeps its previous version. The rules:
 keeps the last `KEEP_VERSIONS`. `DELETE /v1/regions/{name}` removes a region.
 
 ## Reading
+
+The [usage guide](docs/usage.md) has examples and the rules for interpreting the
+numbers.
 
 | Route | Returns |
 |---|---|

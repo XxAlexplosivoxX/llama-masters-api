@@ -27,6 +27,7 @@ export function useExplorer() {
   const [range, setRange] = useState<Range | null>(null);
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
+  const [playbackMonth, setPlaybackMonth] = useState<number | null>(null);
   const [kind, setKind] = useState<SeriesKind>("HARMONIZED");
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1); // 1× = 4 months per second
@@ -102,18 +103,21 @@ export function useExplorer() {
   }, [loaded, values, cells]);
 
   const seriesRange = useMemo(() => (series ? fullRange(series) : null), [series]);
-  const activeRange = range && seriesRange
+  const activeRange = range && seriesRange && range.to >= seriesRange.from && range.from <= seriesRange.to
     ? { from: Math.max(range.from, seriesRange.from), to: Math.min(range.to, seriesRange.to) }
     : seriesRange;
 
   // Playback: step the shown month through the selected dates and loop, like a weather radar.
   // A short hold on the last month marks the loop point.
   const playFrom = activeRange?.from ?? 0, playTo = activeRange?.to ?? 0;
+  const cursor = Math.max(playFrom, Math.min(playbackMonth ?? playFrom, playTo));
+  const shownMonth = playing ? cursor : hoverMonth;
+  const pause = () => { setPlaying(false); setHoverMonth(null); };
   useEffect(() => {
     if (!playing || !activeRange) return;
     let hold = 0;
     const id = setInterval(() => {
-      setHoverMonth((m) => {
+      setPlaybackMonth((m) => {
         if (m === null || m < playFrom || m > playTo) return playFrom;
         if (m === playTo) return hold++ < 3 ? m : (hold = 0, playFrom);
         return m + 1;
@@ -121,7 +125,7 @@ export function useExplorer() {
     }, 250 / speed);
     return () => clearInterval(id);
   }, [playing, speed, playFrom, playTo]);
-  useEffect(() => { setPlaying(false); setTimelineOpen(false); setHoverMonth(null); }, [place, shape]);
+  useEffect(() => { setPlaying(false); setTimelineOpen(false); setHoverMonth(null); setPlaybackMonth(null); }, [place, shape, kind, areaId, platform]);
 
   const stats = useMemo(
     () => (series && activeRange ? computeStats(series, activeRange) : null),
@@ -160,17 +164,21 @@ export function useExplorer() {
     areaId, setAreaId, platform, setPlatform,
     series, stats, cells, kind, setKind, values, harmonization,
     range: activeRange,
-    setRange: (next: Range) => setRange({ from: Math.min(next.from, next.to), to: Math.max(next.from, next.to) }),
-    resetRange: () => setRange(null),
+    setRange: (next: Range) => { pause(); setRange({ from: Math.min(next.from, next.to), to: Math.max(next.from, next.to) }); },
+    resetRange: () => { pause(); setRange(null); },
     seriesRange,
     focus, setFocusYear,
-    hoverMonth,
+    hoverMonth: shownMonth,
+    playbackMonth: cursor,
     // Pointer hovers are ignored while playing, so moving the mouse does not fight the timeline.
     setHoverMonth: (m: number | null) => { if (!playing) setHoverMonth(m); },
-    seek: (m: number) => setHoverMonth(m),
+    seek: (m: number) => {
+      const next = Math.max(playFrom, Math.min(m, playTo));
+      setPlaying(false); setPlaybackMonth(next); setHoverMonth(next);
+    },
     playing, speed, setSpeed, timelineOpen,
-    play: () => { setHoverMonth((m) => (m === null ? activeRange?.from ?? null : m)); setTimelineOpen(true); setPlaying(true); },
-    pause: () => setPlaying(false),
+    play: () => { setHoverMonth(null); setPlaybackMonth(cursor); setTimelineOpen(true); setPlaying(true); },
+    pause,
     stopPlayback: () => { setPlaying(false); setTimelineOpen(false); setHoverMonth(null); },
     recent, recentInArea, recentSensors,
     toggleRecentSensor: (s: Sensor) => setRecentSensors((old) => ({ ...old, [s]: !old[s] })),

@@ -57,7 +57,7 @@ export function DateRange({ startYear, bounds, range, baselineFrom, focusYear, o
           const active = same(p.range, range);
           return (
             <button key={p.label} onClick={() => onRange(p.range)} aria-pressed={active}
-              className={`num rounded-full border px-2.5 py-1 text-xs transition-colors ${active
+              className={`num min-h-11 min-w-11 rounded-full border px-2.5 py-1 text-xs transition-colors ${active
                 ? "border-accent bg-accent/15 text-text" : "border-border text-muted hover:border-muted hover:text-text"}`}>
               {p.label}
             </button>

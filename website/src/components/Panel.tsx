@@ -100,7 +100,9 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
               baselineFrom={series.baselineFrom} focusYear={focus} onRange={explorer.setRange} />
           )}
 
-          <KeyNumbers series={series} stats={stats} range={range} focusYear={focus} recent={loaded?.recent ? explorer.recentInArea : null} />
+          <KeyNumbers series={series} stats={stats} range={range} focusYear={focus} recent={loaded?.recent ? explorer.recentInArea : null}
+            mapMonth={!showingRecent && hoverMonth !== null && hoverMonth >= range.from && hoverMonth <= range.to ? hoverMonth : null}
+            playing={explorer.playing} grid={loaded && "grid" in loaded ? loaded.grid : null} />
 
           <Section
             title="When does it burn?"
@@ -112,7 +114,7 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
           >
             <Calendar
               series={series} stats={stats} range={range} focusYear={focus} hoverMonth={hoverMonth}
-              waveKey={waveKey} onHover={setHoverMonth} onRange={explorer.setRange} onFocusYear={setFocusYear}
+              waveKey={waveKey} onHover={showingRecent ? () => {} : setHoverMonth} onRange={explorer.setRange} onFocusYear={setFocusYear}
             />
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
               <span className="inline-flex items-center gap-2">
@@ -132,7 +134,7 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
               )}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-muted">
-              Each square is one month; each row one year. Hover a month to see it on the map, drag across months to pick dates. A hotspot is a satellite pixel where an active fire was detected, so one large fire can count many times.
+              Each square is one month; each row one year. Hover a month to see it on the map, drag across months to pick dates. On touch screens, use “Drag to select dates” to drag between rows; choose “Done” to scroll the calendar again. A hotspot is a satellite pixel where an active fire was detected, so one large fire can count many times.
             </p>
             {series.approximate && (
               <p className="mt-2 text-xs text-muted">Months are built from ISO weeks (each week counts in the month of its Thursday), so totals are approximate.</p>
@@ -142,7 +144,7 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
           <Section title="Which years burned more?">
             <Anomalies
               series={series} stats={stats} focusYear={focus} hoverMonth={hoverMonth} waveKey={waveKey}
-              onFocusYear={setFocusYear} onHover={setHoverMonth}
+              onFocusYear={setFocusYear} onHover={showingRecent ? () => {} : setHoverMonth}
             />
           </Section>
 
