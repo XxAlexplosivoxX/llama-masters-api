@@ -144,7 +144,7 @@ function CoefficientStrip({ grid, width }: { grid: MonthlyGrid; width: number })
   const top = 14; // k labels above the bars
   const baseline = top + barH;
   return (
-    <svg viewBox={`0 0 ${width} ${STRIP_H}`} width={width} height={STRIP_H} className="block" role="img"
+    <svg viewBox={`0 0 ${width} ${STRIP_H}`} width="100%" height={STRIP_H} className="block" role="img"
       aria-label="Harmonization coefficients per calendar month">
       {coef.map((c, i) => {
         const h = Math.max(2, (c.k / maxK) * barH);
@@ -193,7 +193,7 @@ function Chart({ rows, testYears, hover, setHover, width, showRaw }: {
           </span>
         ))}
       </div>
-      <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img"
+      <svg viewBox={`0 0 ${width} ${H}`} width="100%" height={H} className="block" role="img"
         aria-label={`Hotspots per year, ${rows[0].year} to ${rows.at(-1)!.year}: MODIS and VIIRS on the MODIS scale${showRaw ? ", plus raw VIIRS" : ""}`}
         onPointerLeave={() => setHover(null)}
         onPointerMove={(e) => {

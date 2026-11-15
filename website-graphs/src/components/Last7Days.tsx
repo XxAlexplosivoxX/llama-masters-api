@@ -75,7 +75,7 @@ export function Last7Days({ points }: Props) {
               <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
               <span className="font-semibold text-text">{sensor}</span> {resolution} pixels
             </figcaption>
-            <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img"
+            <svg viewBox={`0 0 ${width} ${H}`} width="100%" height={H} className="block" role="img"
               aria-label={`${sensor} last 7 days, own scale: ${days.map((d, i) => `${d} ${vals[i] === null ? "no data" : show(vals[i]!)}${i === days.length - 1 ? " (incomplete day)" : ""}`).join("; ")}`}>
               <defs>
                 <pattern id="l7-partial" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

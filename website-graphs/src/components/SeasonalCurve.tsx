@@ -100,7 +100,7 @@ export function SeasonalCurve({ series, stats, focusYear, focusMonth, minYear, m
       )}
       {width > 0 && (
         <svg
-          ref={svg} viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block cursor-crosshair" role="img" tabIndex={0}
+          ref={svg} viewBox={`0 0 ${width} ${H}`} width="100%" height={H} className="block cursor-crosshair" role="img" tabIndex={0}
           aria-label={`Monthly hotspots for ${focusYear ?? "—"} against the baseline p10 to p90 band`}
           onKeyDown={onKey}
           onPointerDown={(e) => { const m = monthAt(e); if (m !== null) pick(m); }}

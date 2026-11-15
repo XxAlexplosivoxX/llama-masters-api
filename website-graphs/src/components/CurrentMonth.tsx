@@ -146,7 +146,7 @@ function Strip({ now, width, label, monthName, incomplete, inProgress, title, st
   const cx = x(now.value);
 
   return (
-    <svg width={width} height={H} viewBox={`0 0 ${width} ${H}`} className="block" role="img"
+    <svg width="100%" height={H} viewBox={`0 0 ${width} ${H}`} className="block" role="img"
       aria-label={`${label}: ${fmt(Math.round(now.value))} hotspots (${state}). ${title}. Median ${monthName}: ${fmt(Math.round(p50))}; usual range ${fmt(Math.round(p10))} to ${fmt(Math.round(p90))} over ${now.n} years.`}>
       <defs>
         <marker id="cm-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="7" markerHeight="7" orient="auto">
