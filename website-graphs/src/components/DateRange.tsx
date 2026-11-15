@@ -1,6 +1,7 @@
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { labelOf, MONTHS, MONTHS_LONG, type Range } from "../lib/shared";
+import { useKeepInView } from "../hooks/useKeepInView";
 
 interface Props {
   startYear: number;
@@ -45,14 +46,14 @@ export function DateRange({ startYear, bounds, range, baselineFrom, focusYear, o
   const months = range.to - range.from + 1;
 
   return (
-    <div className="space-y-2">
+    <div className="@container space-y-2">
       <div className="flex items-end gap-2">
         <MonthField label="From" startYear={startYear} value={range.from} min={bounds.from} max={range.to}
           onChange={(m) => onRange({ from: m, to: range.to })} />
         <ArrowRight size={16} className="mb-3 shrink-0 text-muted" aria-hidden />
         <MonthField label="To" startYear={startYear} value={range.to} min={range.from} max={bounds.to} align="right"
           trailing={
-            <span className="num ml-2 rounded-full bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-normal normal-case tracking-normal text-slate-300">
+            <span className="num ml-2 inline-block whitespace-nowrap rounded-full bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-normal normal-case tracking-normal text-slate-300">
               {months} months
             </span>
           }
@@ -97,6 +98,7 @@ function MonthField({ label, startYear, value, min, max, align = "left", trailin
   const [view, setView] = useState<"months" | "years">("months");
   const [year, setYear] = useState(startYear + Math.floor(value / 12));
   const ref = useDismiss(open, () => setOpen(false));
+  const popover = useKeepInView(open);
   const minYear = startYear + Math.floor(min / 12);
   const maxYear = startYear + Math.floor(max / 12);
   const index = (y: number, m: number) => (y - startYear) * 12 + m;
@@ -115,12 +117,13 @@ function MonthField({ label, startYear, value, min, max, align = "left", trailin
       </span>
       <button type="button" onClick={toggle} aria-haspopup="dialog" aria-expanded={open} aria-labelledby={`${label}-label ${label}-value`}
         className={`field num flex w-full items-center justify-between gap-2 text-left ${open ? "!border-[#F97316]" : ""}`}>
-        <span id={`${label}-value`}>{labelOf(startYear, value)}</span>
-        <CalendarDays size={15} className="shrink-0 text-muted" aria-hidden />
+        <span id={`${label}-value`} className="min-w-0 truncate">{labelOf(startYear, value)}</span>
+        {/* Decorative; dropped on narrow toolbars so "Nov 2000" keeps one line. */}
+        <CalendarDays size={15} className="hidden shrink-0 text-muted @[18rem]:block" aria-hidden />
       </button>
       {open && (
-        <div role="dialog" aria-label={`${label} month`}
-          className={`absolute top-full z-30 mt-2 w-64 rounded-xl border border-grid bg-card p-3 shadow-2xl shadow-black/60 ${align === "right" ? "right-0" : "left-0"}`}>
+        <div ref={popover} role="dialog" aria-label={`${label} month`}
+          className={`absolute top-full z-30 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-grid bg-card p-3 shadow-2xl shadow-black/60 ${align === "right" ? "right-0" : "left-0"}`}>
           <div className="mb-2 flex items-center justify-between">
             <button type="button" className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-bg hover:text-text disabled:opacity-30"
               disabled={view === "years" || year <= minYear} onClick={() => setYear(year - 1)} aria-label="Previous year">

@@ -1,5 +1,7 @@
 import { Download } from "lucide-react";
+import { useState } from "react";
 import { useGraphsStore } from "../hooks/useGraphsStore";
+import { useKeepInView } from "../hooks/useKeepInView";
 import type { PlaceData } from "../hooks/usePlaceData";
 import { BG } from "../lib/color";
 import { COUNT_NOTE, downloadMonthlyCsv, downloadSvg, monthlyCsvRows } from "../lib/export";
@@ -10,6 +12,8 @@ export const CALENDAR_EXPORT = "data-export-calendar";
 
 export function ExportMenu({ data }: { data: PlaceData }) {
   const platform = useGraphsStore((s) => s.platform);
+  const [open, setOpen] = useState(false);
+  const menu = useKeepInView(open);
   const { series, range, bbox, loaded } = data;
   if (!series || !range) return null;
 
@@ -29,11 +33,11 @@ export function ExportMenu({ data }: { data: PlaceData }) {
   };
 
   return (
-    <details className="relative">
+    <details className="relative" onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="field inline-flex cursor-pointer list-none items-center gap-2 font-medium text-text hover:border-muted">
         <Download size={15} aria-hidden /> Download
       </summary>
-      <div className="absolute right-0 z-20 mt-1 w-64 rounded-xl border border-grid bg-card p-1.5 shadow-xl" role="menu">
+      <div ref={menu} className="absolute right-0 z-20 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-grid bg-card p-1.5 shadow-xl" role="menu">
         <button role="menuitem" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-800" onClick={csv}>
           Monthly CSV
           <span className="block text-xs text-muted">{rangeLabel}, with metadata header</span>
