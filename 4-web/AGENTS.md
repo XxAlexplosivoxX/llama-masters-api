@@ -171,7 +171,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
     `DrawTools` (switched off for now, the site works by country; one "Select area" menu: Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
     Box tabs and per-field validation; on phones popovers become a sheet and the drawer folds),
     `SelectionChip` (area label + Clear), `LayerSwitch`.
-  - `MapOptions.tsx`: toolbar popover / phone sheet, basemap, names, borders, opacity, projection,
+  - `MapOptions.tsx`: cog toolbar popover / phone sheet, basemap, names, borders, temperature toggle and units, opacity, projection,
     Reset; imagery disabled offline, dated composites explicitly not live. `hooks/useMapOptions.ts`
     validates and persists App-owned defaults to `map:options`; MapView applies each option separately
     (opacity coalesced to animation frames, immediate slider paint; other grid fades remain 700 ms).
@@ -182,6 +182,9 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
   - `Summary.tsx`: desktop map card: selection, three numbers (dates total, fire season, focus year
     vs mean), `YearCalendar` (one year as 12 month tiles, ‹ › change the focus year, hover shows the
     month on the map) and the "Details & stats" button.
+    The calendar defaults to the latest year in the selected range, including an incomplete final year;
+    annual statistics still default to the latest complete year. `computeStats` includes partial final
+    years in its year list, but missing months exclude them from complete-year totals and baselines.
   - `Timeline.tsx`: the player bar (only while playing) and `PlayButton` (toolbar, history layer).
   - `PlaceSwitcher` groups countries by continent (`lib/continents.ts`, by place id; unknown ids go
     to "Other"); continent chips filter, search looks in every continent.
@@ -197,12 +200,14 @@ Files written by `2-process_data/src/export.py`, served by `3-api` (shapes in `s
     scrubber, loops with a short hold at the end. Responsive player rows keep all four speeds visible.
   - `DateRange.tsx` (custom month picker + presets), `KeyNumbers.tsx`, `Anomalies.tsx`,
     `Recent.tsx`, `Export.tsx`, `Sensors.tsx`, `ErrorBoundary.tsx`.
-  - `Legend.tsx`: also holds the map switch Detections | Temperature and the unit (°C, °F, K;
+  - `Legend.tsx`: sensor record switch and map colour scales, with year-first abbreviated month labels.
+    Last 7 days has Both / MODIS / VIIRS buttons that filter the recent map points and sensor temperature bars;
+    dates in the same month share the year and month (e.g. `2026 Nov 9–15`). Temperature controls live in Map options (°C, °F, K;
     `map:metric`, `map:unit` in localStorage). Temperature = FIRMS brightness temperature (pixel, not
-    flame). `lib/temperature.ts`: each sensor has its own scale (2nd–98th percentile, fixed per place;
-    VIIRS I4 saturates near 367 K, MODIS reaches ~500 K), never one shared scale. A grid frame shows one
-    sensor: the view's, or for Harmonized VIIRS when it covers the month (range: its last month), else
-    MODIS; ranges are a detection-weighted mean. 7-day dots use `recentScales` per sensor.
+    flame). `lib/temperature.ts`: single-sensor views keep their own scales (2nd–98th percentile,
+    fixed per place). Harmonized history uses quantile mapping of MODIS onto the VIIRS scale,
+    cached per grid; ranges are detection-weighted means and cell opacity reflects hotspot counts.
+    VIIRS I4 saturates near 367 K, MODIS reaches ~500 K. 7-day dots still use `recentScales` per sensor.
 - `hooks/useDismiss.ts`: outside-click / Escape to close popovers.
 - `components/charts/`: shared accessible tabs: "Seasonal pattern", "This month vs past years" and
   "MODIS vs VIIRS" (the seam: `modis_eq` against real VIIRS, whole country only).

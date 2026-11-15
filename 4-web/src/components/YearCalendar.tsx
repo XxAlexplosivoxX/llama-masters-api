@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pin } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { anomalyScale, heatScale } from "../lib/color";
 
@@ -31,6 +31,8 @@ export function YearCalendar({
   hoverMonth,
   onYear,
   onHover,
+  pinned = null,
+  onPin,
   aside,
 }: {
   series: MonthlySeries;
@@ -40,6 +42,9 @@ export function YearCalendar({
   hoverMonth: number | null;
   onYear: (year: number) => void;
   onHover: (month: number | null) => void;
+  /** The month pinned on the map (click a month to pin it, click it again to unpin). */
+  pinned?: number | null;
+  onPin?: (month: number) => void;
   /** Shown at the right of the year row (the Details button). */
   aside?: ReactNode;
 }) {
@@ -104,13 +109,16 @@ export function YearCalendar({
               key={m}
               role="gridcell"
               aria-label={label}
+              aria-pressed={onPin ? pinned === index : undefined}
+              disabled={value === null}
+              onClick={() => onPin?.(index)}
               onMouseEnter={() => onHover(value === null ? null : index)}
               onMouseLeave={() => onHover(null)}
               onFocus={() => onHover(value === null ? null : index)}
               onBlur={() => onHover(null)}
               className={`h-10 rounded-lg text-xs font-medium transition-[opacity,box-shadow] duration-200 ${
                 value === null ? "border border-dashed border-border text-muted" : dark ? "text-bg" : "text-text/90"
-              } ${hoverMonth === index ? "ring-2 ring-text" : ""} ${partial ? "outline-dashed outline-1 -outline-offset-2 outline-[#9AA6C0]" : ""}`}
+              } ${pinned === index ? "ring-2 ring-accent" : hoverMonth === index ? "ring-2 ring-text" : ""} ${partial ? "outline-dashed outline-1 -outline-offset-2 outline-[#9AA6C0]" : ""}`}
               style={{ background: fill, opacity: inRange ? 1 : 0.35 }}
             >
               {name}
@@ -129,6 +137,9 @@ export function YearCalendar({
             const rel = v != null && !series.partial[base + m] && clim ? v / clim - 1 : null;
             return (
               <>
+                {pinned === base + m && (
+                  <Pin size={11} className="mr-1 inline -translate-y-px text-accent" aria-label="Pinned" />
+                )}
                 <span className="text-text">{MONTHS_LONG[m]}</span>{" "}
                 {v == null ? "no source data" : `${fmtCompact(Math.round(v))} hotspots`}
                 {rel !== null && <span style={{ color: anomaly(rel) }}> · {fmtPercent(rel)} vs typical</span>}

@@ -1,19 +1,26 @@
 import { HEAT, HEAT_ZERO, SENSOR } from "../lib/color";
 import { fmt, fmtCompact } from "../lib/format";
-import { labelOf, MONTHS_LONG, SERIES_LABEL } from "../lib/series";
-import { fmtTemp, TEMP, UNIT_LABEL, type Metric, type TempScale, type TempUnit } from "../lib/temperature";
+import { MONTHS } from "../lib/series";
+import type { SeriesKind } from "../lib/types";
+import { fmtTemp, TEMP, type TempScale, type TempUnit } from "../lib/temperature";
 import type { MapLayer } from "../map/engine";
 import type { GridScale } from "../map/MapView";
 import type { Explorer } from "../state";
 
-const SENSOR_BAND = { MODIS: "MODIS brightness, bands 21/22", VIIRS: "VIIRS I4 brightness" } as const;
+const SENSOR_BAND = {
+  MODIS: "MODIS brightness, bands 21/22",
+  VIIRS: "VIIRS I4 brightness",
+  HARMONIZED: "VIIRS I4 scale, MODIS mapped onto it before 2012",
+} as const;
 
 function Seg<T extends string>({
   label,
   value,
   options,
   onChange,
+  tall = false,
 }: {
+  tall?: boolean;
   label: string;
   value: T;
   options: { id: T; label: string }[];
@@ -27,7 +34,7 @@ function Seg<T extends string>({
           role="radio"
           aria-checked={value === o.id}
           onClick={() => onChange(o.id)}
-          className={`min-h-7 flex-1 rounded-md px-2 text-xs ${value === o.id ? "bg-surface-2 text-text" : "text-muted hover:text-text"}`}
+          className={`${tall ? "min-h-8" : "min-h-7"} flex-1 rounded-md px-2 text-xs ${value === o.id ? "bg-surface-2 text-text" : "text-muted hover:text-text"}`}
         >
           {o.label}
         </button>
@@ -39,9 +46,9 @@ function Seg<T extends string>({
 /** One sensor's temperature bar, labelled in the chosen unit. */
 function TempBar({ scale, unit, name }: { scale: TempScale; unit: TempUnit; name?: string }) {
   return (
-    <div className="mt-2">
+    <div className="mt-3">
       {name && <div className="mb-1 text-2xs text-muted">{name}</div>}
-      <div className="h-2 rounded-sm" style={{ background: `linear-gradient(90deg, ${TEMP.join(",")})` }} />
+      <div className="h-2.5 rounded-sm" style={{ background: `linear-gradient(90deg, ${TEMP.join(",")})` }} />
       <div className="num mt-1 flex justify-between text-2xs text-muted">
         <span>{fmtTemp(scale.lo, unit)}</span>
         <span>{fmtTemp(scale.hi, unit)}</span>
@@ -61,61 +68,92 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
   let title = "";
   let detail = "";
   if (layer === "history" && isGrid && series && range) {
-    title =
-      hoverMonth !== null
-        ? `${MONTHS_LONG[hoverMonth % 12]} ${series.startYear + Math.floor(hoverMonth / 12)}`
-        : `${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`;
+    const monthLabel = (index: number) => `${series.startYear + Math.floor(index / 12)} ${MONTHS[index % 12]}`;
+    title = hoverMonth !== null ? monthLabel(hoverMonth) : `${monthLabel(range.from)} to ${monthLabel(range.to)}`;
     detail =
       temperature && gridScale.kind === "temperature"
-        ? `Mean fire temperature per ${loaded.grid.cell_deg}° cell: ${SENSOR_BAND[gridScale.sensor]}`
-        : `${SERIES_LABEL[kind]} hotspots per ${loaded.grid.cell_deg}° cell${shape ? ", this area only" : ""}`;
+        ? "Fire temperature · faint cells had few fires"
+        : `Hotspots per ${loaded.grid.cell_deg}° cell${shape ? " · this area" : ""}`;
     if (missingMonth) detail = "No source data for this month";
-    else if (hoverMonth !== null && series.partial[hoverMonth]) detail += "; partial month";
+    else if (hoverMonth !== null && series.partial[hoverMonth]) detail += " · partial month";
   } else if (layer === "recent") {
-    title = first ? `${first} to ${last} (UTC)` : "Last 7 days";
+    const dateLabel = (date: string) =>
+      `${date.slice(0, 4)} ${MONTHS[Number(date.slice(5, 7)) - 1]} ${Number(date.slice(8, 10))}`;
+    title =
+      first && last
+        ? first.slice(0, 7) === last.slice(0, 7)
+          ? `${dateLabel(first)}–${Number(last.slice(8, 10))}`
+          : `${dateLabel(first)} to ${dateLabel(last)}`
+        : "Last 7 days";
     detail = loaded?.recent
-      ? `${fmt(recent.length)} fires${shape ? " in this area" : ""}${!explorer.recentSensors.MODIS ? ", VIIRS only" : !explorer.recentSensors.VIIRS ? ", MODIS only" : ""}${temperature ? ", coloured by temperature" : ""}`
-      : "This region has no recent hotspots export";
+      ? `${fmt(recent.length)} fires${shape ? " in this area" : ""}${temperature ? " · by temperature" : ""}`
+      : "No recent hotspots for this region";
   }
   if (!title) return null;
 
-  const hasTemps = !!(layer === "recent" ? explorer.recentTemps : explorer.temps);
+  const description =
+    temperature && gridScale.kind === "temperature" && layer === "history"
+      ? `Mean fire brightness temperature per ${loaded && "grid" in loaded ? loaded.grid.cell_deg : ""}° cell, ${SENSOR_BAND[gridScale.sensor]}`
+      : undefined;
 
   return (
-    <div className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">
-      {hasTemps && (
-        <div className="mb-2.5 flex gap-1.5">
-          <div className="flex-1">
-            <Seg<Metric>
-              label="Colour the map by"
-              value={metric}
-              onChange={explorer.setMetric}
-              options={[
-                { id: "count", label: "Detections" },
-                { id: "temperature", label: "Temperature" },
-              ]}
-            />
-          </div>
-          {temperature && (
-            <Seg<TempUnit>
-              label="Temperature unit"
-              value={unit}
-              onChange={explorer.setUnit}
-              options={(["C", "F", "K"] as const).map((u) => ({ id: u, label: UNIT_LABEL[u] }))}
-            />
-          )}
+    <div className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-4 py-5 backdrop-blur-md">
+      {/* Plain text: playback changes the month up to 16 times a second, faster than any cross-fade. */}
+      <div className="num text-sm font-semibold">
+        {temperature ? "Temperature" : "Hotspots"} · {title}
+      </div>
+      {layer === "history" ? (
+        <div className="mb-4 mt-3">
+          <Seg<SeriesKind>
+            tall
+            label="Satellite record"
+            value={kind}
+            onChange={explorer.setKind}
+            options={[
+              { id: "HARMONIZED", label: "Harmonized" },
+              { id: "MODIS", label: "MODIS" },
+              { id: "VIIRS", label: "VIIRS" },
+            ]}
+          />
+        </div>
+      ) : (
+        <div className="mb-4 mt-3">
+          <Seg
+            tall
+            label="Recent hotspot sensors"
+            value={
+              explorer.recentSensors.MODIS && explorer.recentSensors.VIIRS
+                ? "BOTH"
+                : explorer.recentSensors.MODIS
+                  ? "MODIS"
+                  : explorer.recentSensors.VIIRS
+                    ? "VIIRS"
+                    : ""
+            }
+            onChange={(sensor) => {
+              const modis = sensor === "BOTH" || sensor === "MODIS";
+              const viirs = sensor === "BOTH" || sensor === "VIIRS";
+              if (explorer.recentSensors.MODIS !== modis) explorer.toggleRecentSensor("MODIS");
+              if (explorer.recentSensors.VIIRS !== viirs) explorer.toggleRecentSensor("VIIRS");
+            }}
+            options={[
+              { id: "BOTH", label: "Both" },
+              { id: "MODIS", label: "MODIS" },
+              { id: "VIIRS", label: "VIIRS" },
+            ]}
+          />
         </div>
       )}
-      {/* Plain text: playback changes the month up to 16 times a second, faster than any cross-fade. */}
-      <div className="num text-sm font-semibold">{title}</div>
-      <div className="text-xs text-muted">{detail}</div>
+      <div className="mt-1.5 text-xs text-muted" title={description}>
+        {detail}
+      </div>
       {layer === "history" ? (
         missingMonth ? null : temperature && gridScale.kind === "temperature" ? (
           <TempBar scale={gridScale} unit={unit} />
         ) : gridScale.kind === "count" ? (
           <>
             <div
-              className="mt-2 h-2 rounded-sm"
+              className="mt-3 h-2.5 rounded-sm"
               style={{ background: `linear-gradient(90deg, ${HEAT_ZERO}, ${HEAT.join(",")})` }}
             />
             <div className="mt-1 flex justify-between text-2xs text-muted num">
@@ -126,15 +164,11 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
         ) : null
       ) : temperature && explorer.recentTemps ? (
         <>
-          {explorer.recentSensors.VIIRS && (
-            <TempBar scale={explorer.recentTemps.VIIRS} unit={unit} name={SENSOR_BAND.VIIRS} />
-          )}
-          {explorer.recentSensors.MODIS && (
-            <TempBar scale={explorer.recentTemps.MODIS} unit={unit} name={SENSOR_BAND.MODIS} />
-          )}
+          {explorer.recentSensors.VIIRS && <TempBar scale={explorer.recentTemps.VIIRS} unit={unit} name="VIIRS" />}
+          {explorer.recentSensors.MODIS && <TempBar scale={explorer.recentTemps.MODIS} unit={unit} name="MODIS" />}
         </>
       ) : (
-        <div className="mt-2 flex items-center gap-4 text-xs">
+        <div className="mt-3 flex items-center gap-4 text-xs">
           {(["VIIRS", "MODIS"] as const).map((s) => (
             <span
               key={s}

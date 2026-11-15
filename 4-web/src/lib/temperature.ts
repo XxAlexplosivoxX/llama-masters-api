@@ -1,5 +1,5 @@
 import { sensorOf } from "./color";
-import type { Hotspot, MonthlyGrid, SeriesKind } from "./types";
+import type { Hotspot, MonthlyGrid } from "./types";
 
 /**
  * Brightness temperature: how hot the satellite pixel looks (kelvin), not the flame itself.
@@ -24,7 +24,7 @@ export const fmtTemp = (kelvin: number, unit: TempUnit) => `${Math.round(convert
 export const TEMP = ["#FFF2AE", "#FECB52", "#FD8D3C", "#E8452C", "#B5172D", "#6B0A2E"];
 
 export interface TempScale {
-  sensor: TempSensor;
+  sensor: TempSensor | "HARMONIZED";
   lo: number; // K
   hi: number; // K
 }
@@ -62,16 +62,6 @@ function viirsMonths(grid: MonthlyGrid): boolean[] {
 }
 
 /**
- * The sensor whose temperatures a frame shows: the view's own sensor for MODIS or VIIRS; for the
- * harmonized view, VIIRS when it covers the month (or, for a date range, its last month), else MODIS.
- */
-export function sensorFor(grid: MonthlyGrid, kind: SeriesKind, month: number): TempSensor {
-  if (kind === "MODIS") return "MODIS";
-  if (kind === "VIIRS") return "VIIRS";
-  return viirsMonths(grid)[month] ? "VIIRS" : "MODIS";
-}
-
-/**
  * Mean temperature per shown cell (0 = no fires): one month, or the mean over `from..to`
  * weighted by each month's detections of that sensor.
  */
@@ -105,4 +95,162 @@ export function recentScales(points: Hotspot[]): Record<TempSensor, TempScale> |
     return { sensor, lo, hi: Math.max(hi, lo + 1) };
   };
   return { MODIS: scale("MODIS"), VIIRS: scale("VIIRS") };
+}
+
+/** What a grid temperature frame shows: one sensor's own readings, or the harmonized record. */
+export type GridTempKind = TempSensor | "HARMONIZED";
+
+/** Per cell: months with a temperature, the temperature (K, VIIRS scale) and its weight (detections). */
+interface HarmonizedTemps {
+  months: Int32Array[];
+  temps: Float32Array[];
+  weights: Float32Array[];
+  /** MODIS K → VIIRS-scale K. */
+  toViirs: (kelvin: number) => number;
+  /** Cell-months where both sensors have a temperature (the fit). */
+  pairs: number;
+  scale: TempScale;
+}
+
+const QUANTILES = 101;
+
+const quantile = (sorted: Float64Array, p: number) =>
+  sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : 0;
+
+/**
+ * Quantile mapping of MODIS onto the VIIRS scale: the p-th percentile of MODIS becomes the p-th
+ * percentile of VIIRS. Fitted on the cell-months where both have a temperature (2012 on); with
+ * fewer than 200 of those, on all readings of each sensor. Outside the fitted range it clamps,
+ * which also respects the VIIRS I4 ceiling near 367 K.
+ */
+function quantileMap(grid: MonthlyGrid): { toViirs: (k: number) => number; pairs: number } {
+  const modis: number[] = [];
+  const viirs: number[] = [];
+  for (const c of grid.cells) {
+    const a = c[4],
+      b = c[5];
+    // Both columns are sorted by month: walk them together.
+    for (let i = 0, j = 0; i < a.length && j < b.length;) {
+      if (a[i] < b[j]) i += 2;
+      else if (a[i] > b[j]) j += 2;
+      else {
+        if (a[i + 1] > 0 && b[j + 1] > 0) {
+          modis.push(a[i + 1]);
+          viirs.push(b[j + 1]);
+        }
+        i += 2;
+        j += 2;
+      }
+    }
+  }
+  const pairs = modis.length;
+  if (pairs < 200) {
+    modis.length = viirs.length = 0;
+    for (const c of grid.cells) {
+      for (let i = 1; i < c[4].length; i += 2) if (c[4][i] > 0) modis.push(c[4][i]);
+      for (let i = 1; i < c[5].length; i += 2) if (c[5][i] > 0) viirs.push(c[5][i]);
+    }
+    if (!modis.length || !viirs.length) return { toViirs: (k) => k, pairs };
+  }
+  const sm = Float64Array.from(modis).sort(),
+    sv = Float64Array.from(viirs).sort();
+  const qm = Array.from({ length: QUANTILES }, (_, i) => quantile(sm, i / (QUANTILES - 1)));
+  const qv = Array.from({ length: QUANTILES }, (_, i) => quantile(sv, i / (QUANTILES - 1)));
+  const toViirs = (k: number) => {
+    if (k <= qm[0]) return qv[0];
+    if (k >= qm[QUANTILES - 1]) return qv[QUANTILES - 1];
+    let lo = 0,
+      hi = QUANTILES - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (qm[mid] <= k) lo = mid;
+      else hi = mid;
+    }
+    // Ties (MODIS is whole kelvin): the last quantile at this value, then interpolate to the next.
+    const span = qm[hi] - qm[lo];
+    return span > 0 ? qv[lo] + ((qv[hi] - qv[lo]) * (k - qm[lo])) / span : qv[lo];
+  };
+  return { toViirs, pairs };
+}
+
+const harmonizedCache = new WeakMap<MonthlyGrid, HarmonizedTemps>();
+
+/**
+ * One temperature record on the VIIRS scale, like the detections: VIIRS where it covers the month,
+ * MODIS mapped onto VIIRS before (and in a cell VIIRS missed). Computed once per grid.
+ */
+export function harmonizedTemps(grid: MonthlyGrid): HarmonizedTemps {
+  const cached = harmonizedCache.get(grid);
+  if (cached) return cached;
+  const { toViirs, pairs } = quantileMap(grid);
+  const viirsMonth = viirsMonths(grid);
+  const months: Int32Array[] = [],
+    temps: Float32Array[] = [],
+    weights: Float32Array[] = [];
+  let total = 0;
+  for (const c of grid.cells) {
+    // Months of either sensor, in order: VIIRS where it covers the month, else MODIS mapped.
+    const a = c[4],
+      b = c[5],
+      n = c[3];
+    const ms: number[] = [],
+      ts: number[] = [],
+      ws: number[] = [];
+    let i = 0,
+      j = 0,
+      k = 0;
+    while (i < a.length || j < b.length) {
+      const m = Math.min(i < a.length ? a[i] : Infinity, j < b.length ? b[j] : Infinity);
+      const mt = i < a.length && a[i] === m ? a[i + 1] : 0;
+      const vt = j < b.length && b[j] === m ? b[j + 1] : 0;
+      if (i < a.length && a[i] === m) i += 2;
+      if (j < b.length && b[j] === m) j += 2;
+      const t = vt > 0 && viirsMonth[m] ? vt : mt > 0 ? toViirs(mt) : 0;
+      if (t <= 0) continue;
+      while (k < n.length && n[k] < m) k += 2;
+      ms.push(m);
+      ts.push(t);
+      ws.push(Math.max(k < n.length && n[k] === m ? n[k + 1] : 1, 1e-3));
+    }
+    months.push(Int32Array.from(ms));
+    temps.push(Float32Array.from(ts));
+    weights.push(Float32Array.from(ws));
+    total += ts.length;
+  }
+  const all = new Float64Array(total);
+  let at = 0;
+  for (const ts of temps) {
+    all.set(ts, at);
+    at += ts.length;
+  }
+  all.sort();
+  const lo = quantile(all, 0.02);
+  const result: HarmonizedTemps = {
+    months,
+    temps,
+    weights,
+    toViirs,
+    pairs,
+    scale: { sensor: "HARMONIZED", lo, hi: Math.max(quantile(all, 0.98), lo + 1) },
+  };
+  harmonizedCache.set(grid, result);
+  return result;
+}
+
+/** Harmonized mean temperature per shown cell over `from..to` (0 = no fires), weighted by detections. */
+export function harmonizedCellTemps(h: HarmonizedTemps, shown: number[], from: number, to: number): number[] {
+  return shown.map((i) => {
+    const ms = h.months[i],
+      ts = h.temps[i],
+      ws = h.weights[i];
+    let sum = 0,
+      weight = 0;
+    for (let j = 0; j < ms.length; j++) {
+      if (ms[j] < from) continue;
+      if (ms[j] > to) break;
+      sum += ts[j] * ws[j];
+      weight += ws[j];
+    }
+    return weight ? sum / weight : 0;
+  });
 }

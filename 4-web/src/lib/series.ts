@@ -148,12 +148,12 @@ export interface Stats {
   peak: { from: number; to: number; share: number } | null; // 3-month window of the average year
 }
 
-const usable = (s: MonthlySeries, m: number) => s.values[m] !== null && !s.partial[m];
+const usable = (s: MonthlySeries, m: number) => s.values[m] != null && !s.partial[m];
 
 export const MIN_BASELINE_YEARS = 3;
 
 export function computeStats(s: MonthlySeries, range: Range): Stats {
-  const nYears = s.values.length / 12;
+  const nYears = Math.ceil(s.values.length / 12);
   const years = Array.from({ length: nYears }, (_, i) => s.startYear + i);
   const complete = (y: number) => {
     const base = (y - s.startYear) * 12;

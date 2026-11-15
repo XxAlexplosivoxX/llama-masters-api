@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Explorer } from "../state";
 import { AnimatePresence } from "motion/react";
 import { labelOf } from "../lib/series";
-import { cellTemps, sensorFor, type TempScale } from "../lib/temperature";
+import { cellTemps, harmonizedCellTemps, harmonizedTemps, type TempScale } from "../lib/temperature";
 import { MapEngine, type DrawMode, type MapLayer, type Padding } from "./engine";
 import { LoadingCard, MapCaption, stepsFrom } from "./MapStatus";
 import type { MapOptions } from "../hooks/useMapOptions";
@@ -160,17 +160,25 @@ export function MapView({
   useEffect(() => {
     if (!engine || !scale || !counts) return;
     const month = hoverMonth !== null && hoverMonth >= from && hoverMonth <= to ? hoverMonth : null;
-    if (metric === "temperature" && gridData && temps) {
-      // One sensor per frame (its own scale): the month's, or the range's last month's for totals.
-      const sensor = sensorFor(gridData, kind, month ?? to);
-      const values = cellTemps(gridData, sensor, shown, month ?? from, month ?? to);
-      engine.setGridTemps(values, temps[sensor].lo, temps[sensor].hi);
-      onGridScale({ kind: "temperature", ...temps[sensor] });
-      return;
-    }
     const frame =
       month === null ? scale.totals : shown.map((i) => (series?.values[month] == null ? 0 : (counts[i][month] ?? 0)));
     const max = month === null ? scale.totalMax : scale.monthMax;
+    if (metric === "temperature" && gridData && temps) {
+      // Colour: the temperature (harmonized record, or one sensor's own scale in a sensor view).
+      // Solidity: the same frame's detections, so a cell with a few fires stays faint.
+      let values: number[], tempScale: TempScale;
+      if (kind === "HARMONIZED") {
+        const h = harmonizedTemps(gridData);
+        values = harmonizedCellTemps(h, shown, month ?? from, month ?? to);
+        tempScale = h.scale;
+      } else {
+        values = cellTemps(gridData, kind, shown, month ?? from, month ?? to);
+        tempScale = temps[kind];
+      }
+      engine.setGridTemps(values, tempScale.lo, tempScale.hi, frame, max);
+      onGridScale({ kind: "temperature", ...tempScale });
+      return;
+    }
     engine.setGridValues(frame, max);
     onGridScale({ kind: "count", max });
   }, [engine, scale, hoverMonth, series, metric, temps]);
@@ -286,15 +294,8 @@ export function MapView({
           </div>
         )}
       </AnimatePresence>
-      <div
-        className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2"
-        style={
-          padding.bottom > 200
-            ? { top: padding.top + 8, maxWidth: "calc(100% - 24px)" }
-            : { top: Math.max(68, padding.top - 52), maxWidth: "calc(100% - 24px)" }
-        }
-      >
-        <MapCaption text={caption} />
+      <div className="pointer-events-none absolute left-1/2 top-[4.5rem] z-30 max-w-[calc(100%-24px)] -translate-x-1/2 lg:top-4">
+        <MapCaption text={firstLoad ? null : caption} />
       </div>
       {failure && (
         <p className="absolute inset-x-4 top-24 rounded-lg border border-border bg-surface p-3 text-sm text-muted">

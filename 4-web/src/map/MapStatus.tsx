@@ -123,7 +123,7 @@ export function LoadingCard({ title, steps, onFinished }: { title: string; steps
   );
 }
 
-/** One line under the toolbar that says what the map is doing right now. */
+/** One line in the loading pill's top-centre position that says what the map is doing right now. */
 export function MapCaption({ text }: { text: string | null }) {
   return (
     <AnimatePresence mode="wait">
@@ -136,9 +136,9 @@ export function MapCaption({ text }: { text: string | null }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.3, ease }}
-          className="relative overflow-hidden rounded-lg border border-border bg-bg/85 px-3 py-1.5 text-center text-xs backdrop-blur-md"
+          className="flex h-8 items-center overflow-hidden rounded-full border border-white/10 bg-bg/80 px-3.5 text-center text-xs text-text/90 shadow-lg shadow-black/30 backdrop-blur-md"
         >
-          <span className="num">{text}</span>
+          <span className="num truncate">{text}</span>
         </motion.div>
       )}
     </AnimatePresence>
