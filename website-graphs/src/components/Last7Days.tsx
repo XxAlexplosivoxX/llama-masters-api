@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { fmtTick, TICK, thinBy } from "../lib/chart";
-import { GRID, MODIS, SENSOR, VIIRS, sensorOf } from "../lib/color";
+import { ALERT, GRID, MODIS, SENSOR, VIIRS, sensorOf } from "../lib/color";
 import { fmt } from "../lib/format";
 import { useWidth } from "../hooks/useWidth";
 import { PLATFORMS, type CsvPoint } from "../types";
@@ -76,7 +76,12 @@ export function Last7Days({ points }: Props) {
               <span className="font-semibold text-text">{sensor}</span> {resolution} pixels
             </figcaption>
             <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img"
-              aria-label={`${sensor} last 7 days, own scale: ${days.map((d, i) => `${d} ${vals[i] === null ? "no data" : show(vals[i]!)}`).join("; ")}`}>
+              aria-label={`${sensor} last 7 days, own scale: ${days.map((d, i) => `${d} ${vals[i] === null ? "no data" : show(vals[i]!)}${i === days.length - 1 ? " (incomplete day)" : ""}`).join("; ")}`}>
+              <defs>
+                <pattern id="l7-partial" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="4" stroke={ALERT} strokeWidth="1.2" />
+                </pattern>
+              </defs>
               {[0, 1].map((t) => (
                 <g key={t}>
                   <line x1={L} x2={width} y1={y(max * t)} y2={y(max * t)} stroke={GRID} />
@@ -88,12 +93,16 @@ export function Last7Days({ points }: Props) {
               {days.map((d, i) => {
                 const v = vals[i];
                 const x0 = L + i * slot + 4;
+                const last = i === days.length - 1; // the latest day is usually still being filled in
                 return (
                   <g key={d}>
                     {v !== null && (
                       <rect x={x0} y={y(v)} width={barW} height={Math.max(1, H - B - y(v))} rx={2} fill={color}>
-                        <title>{`${d} ${sensor}: ${show(v)}`}</title>
+                        <title>{`${d} ${sensor}: ${show(v)}${last ? " (incomplete day)" : ""}`}</title>
                       </rect>
+                    )}
+                    {v !== null && last && (
+                      <rect x={x0} y={y(v)} width={barW} height={Math.max(1, H - B - y(v))} rx={2} fill="url(#l7-partial)" pointerEvents="none" />
                     )}
                     {i % step === 0 && (
                       <text x={x0 + barW / 2} y={H - 5} textAnchor="middle" fontSize={TICK.size} fill={TICK.fill}>{label(d)}</text>
@@ -105,6 +114,13 @@ export function Last7Days({ points }: Props) {
           </figure>
         );
       })}
+      <p className="mb-1 flex items-center gap-1.5 text-xs leading-snug text-muted">
+        <svg width="12" height="12" aria-hidden>
+          <rect width="12" height="12" rx="2" fill={GRID} />
+          <path d="M-2 4 L4 -2 M0 14 L14 0 M8 16 L16 8" stroke={ALERT} strokeWidth="1.5" />
+        </svg>
+        Last day is incomplete and will still change.
+      </p>
       <p className="text-xs leading-snug text-muted">Counts are not comparable between instruments, so each panel has its own scale.</p>
 
       <p className="mt-3 text-2xs text-muted">Detections per satellite (raw; MODIS and VIIRS are not comparable):</p>

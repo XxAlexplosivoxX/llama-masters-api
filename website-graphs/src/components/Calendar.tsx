@@ -258,14 +258,27 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
             );
           })}
 
-          {/* Baseline median row (counts scale) */}
+          {/* Baseline median row: counts colour in counts mode, plain numbers in anomaly mode (no unlabelled ramp) */}
           <text x={gridX - 6} y={medianY + ROW / 2 + 4} textAnchor="end" fontSize={AXIS.size} fill={TEXT}>Median</text>
-          {medians.map((v, c) => (
-            <rect key={c} x={gridX + c * COL} y={medianY} width={Math.max(COL - GAP, 1)} height={ROW - GAP} rx={2}
-              fill={v === null ? "none" : color(v)} stroke={v === null ? GRID : TEXT} strokeOpacity={v === null ? 1 : 0.5} strokeWidth={0.8}>
-              <title>{`${MONTHS_LONG[c]} baseline median: ${v === null ? "not enough years" : fmt(Math.round(v))}`}</title>
-            </rect>
-          ))}
+          {medians.map((v, c) => {
+            const numbers = mode === "anomaly";
+            const text = v === null ? "–" : fmtTick(Math.round(v));
+            // Labels need ~7 px per character; on narrow columns every other month is labelled (all keep a tooltip).
+            const labelEvery = COL - GAP >= text.length * 7 + 2 ? 1 : 2;
+            return (
+              <g key={c}>
+                <rect x={gridX + c * COL} y={medianY} width={Math.max(COL - GAP, 1)} height={ROW - GAP} rx={2}
+                  fill={numbers || v === null ? "none" : color(v)} stroke={v === null || numbers ? GRID : TEXT}
+                  strokeOpacity={v === null || numbers ? 1 : 0.5} strokeWidth={0.8}>
+                  <title>{`${MONTHS_LONG[c]} baseline median: ${v === null ? "not enough years" : fmt(Math.round(v))}`}</title>
+                </rect>
+                {numbers && c % labelEvery === 0 && (
+                  <text x={gridX + c * COL + (COL - GAP) / 2} y={medianY + (ROW - GAP) / 2 + 4} textAnchor="middle"
+                    fontSize={TICK.size} fill={TEXT} className="num" pointerEvents="none">{text}</text>
+                )}
+              </g>
+            );
+          })}
 
           {/* Hit layer: one focusable zone per month, drawn last so it owns the pointer */}
           {years.map((year, r) => MONTHS.map((_, c) => {
@@ -288,6 +301,12 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
       )}
       </div>
 
+      {era === 0 && ((preBaseRows > 0 && series.baselineNote) || showViirs) && (
+        <p className="mt-2 text-xs leading-snug text-muted">
+          {[preBaseRows > 0 && series.baselineNote ? `Before ${base}: ${series.baselineNote}` : null, showViirs ? `VIIRS joins in ${VIIRS_YEAR}` : null]
+            .filter(Boolean).join(" · ")}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
         {mode === "counts" ? (
           <Ramp
@@ -333,9 +352,12 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
         </span>
       </div>
       <ul className="mt-2 space-y-0.5 text-xs leading-snug text-muted">
-        <li>Year total: complete {base ? `${base}+ ` : ""}years only, bar length to the same scale. Median row: baseline median of each month, on the counts colour scale.</li>
-        {preBaseRows > 0 && series.baselineNote && <li>¹ Before {base}: {series.baselineNote}</li>}
-        {showViirs && <li>From {VIIRS_YEAR} the record averages MODIS with VIIRS on the MODIS scale; earlier years are MODIS only.</li>}
+        <li>Year total: complete {base ? `${base}+ ` : ""}years only, bar length to the same scale.{" "}
+          {mode === "anomaly"
+            ? "Median row: baseline median of each month, in hotspots."
+            : "Median row: baseline median of each month, on the same colour scale."}</li>
+        {era > 0 && preBaseRows > 0 && series.baselineNote && <li>¹ Before {base}: {series.baselineNote}</li>}
+        {era > 0 && showViirs && <li>From {VIIRS_YEAR} the record averages MODIS with VIIRS on the MODIS scale; earlier years are MODIS only.</li>}
       </ul>
     </div>
   );
