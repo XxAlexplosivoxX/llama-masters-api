@@ -55,7 +55,7 @@ export function MapView({
     place,
     series,
   } = explorer;
-  const [intro, setIntro] = useState<{ k: number; minutes: number } | null>(null);
+  const [intro, setIntro] = useState(false);
   const [afterIntro, setAfterIntro] = useState(false);
 
   useEffect(() => {
@@ -187,16 +187,14 @@ export function MapView({
     if (!engine || !loaded || !placeBBox) return;
     if (!introPlayed.current) {
       introPlayed.current = true;
-      setIntro({ k: 0, minutes: -1 });
+      setIntro(true);
       // The intro ends on the engine's current layer; `layer` here would be the value from when it started.
-      engine
-        .intro(placeBBox, padding, (k, minutes) => setIntro({ k, minutes }))
-        .then(() => {
-          setIntro(null);
-          setAfterIntro(true);
-          setTimeout(() => setAfterIntro(false), 4500);
-          onIntroDone();
-        });
+      engine.intro(placeBBox, padding).then(() => {
+        setIntro(false);
+        setAfterIntro(true);
+        setTimeout(() => setAfterIntro(false), 4500);
+        onIntroDone();
+      });
     } else if (!shape) {
       engine.fit(placeBBox, padding);
     }
@@ -219,11 +217,9 @@ export function MapView({
   // What the map is doing, in words: first load, the opening animation, then any later reload.
   const firstLoad = !failure && (!engine || (status.kind === "loading" && !introPlayed.current));
   let caption: string | null = null;
-  if (intro && series && range) {
-    caption =
-      intro.minutes < 0
-        ? "Drawing the monthly history"
-        : `Monthly history ${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`;
+  // The opening fly-in has no caption: the data is already loaded, so nothing should look like loading.
+  if (intro) {
+    caption = null;
   } else if (afterIntro && series && range && layer === "history" && hoverMonth === null) {
     caption = `Monthly history ${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}: brighter cells had more fire`;
   } else if (status.kind === "loading" && introPlayed.current) {
@@ -266,7 +262,7 @@ export function MapView({
             : { top: Math.max(68, padding.top - 52), maxWidth: "calc(100% - 24px)" }
         }
       >
-        <MapCaption text={caption} progress={intro?.k} />
+        <MapCaption text={caption} />
       </div>
       {failure && (
         <p className="absolute inset-x-4 top-24 rounded-lg border border-border bg-surface p-3 text-sm text-muted">

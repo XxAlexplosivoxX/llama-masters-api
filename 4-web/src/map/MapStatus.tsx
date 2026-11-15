@@ -85,7 +85,7 @@ export function LoadingCard({ title, steps }: { title: string; steps: Step[] }) 
 }
 
 /** One line under the toolbar that says what the map is doing right now. */
-export function MapCaption({ text, progress }: { text: string | null; progress?: number }) {
+export function MapCaption({ text }: { text: string | null }) {
   return (
     <AnimatePresence mode="wait">
       {text && (
@@ -100,13 +100,6 @@ export function MapCaption({ text, progress }: { text: string | null; progress?:
           className="relative overflow-hidden rounded-lg border border-border bg-bg/85 px-3 py-1.5 text-center text-xs backdrop-blur-md"
         >
           <span className="num">{text}</span>
-          {progress !== undefined && (
-            <span
-              className="absolute inset-x-0 bottom-0 h-px bg-accent/80"
-              style={{ transform: `scaleX(${progress})`, transformOrigin: "left" }}
-              aria-hidden
-            />
-          )}
         </motion.div>
       )}
     </AnimatePresence>
