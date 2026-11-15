@@ -10,7 +10,7 @@ FIRMS fire detections from two generations of satellites, MODIS (Terra/Aqua, 200
 (S-NPP 2012→, NOAA-20, NOAA-21), turned into **one continuous monthly record per country on the
 VIIRS scale**, served by an API and explored on a map website.
 
-- Site: <https://llama-masters.esauflores.com>
+- Site: <https://llama-masters.esauflores.com>, also <https://atlas.tonalli.earth>
 - API: <https://llama-masters-api.esauflores.com/v1/places>
 - Code: branch `monorepo` of <https://github.com/XxAlexplosivoxX/llama-masters-api> (remote `origin`).
   The team's earlier Go API lives on that repo's `main`; `monorepo` has its own history (no common
@@ -96,19 +96,18 @@ Railway variables. Never print or commit them.
 ## Current state
 
 - Last full pipeline run: 2026-11-15. `prepare` and all 8 `process` workers finished (238 countries cleaned and aggregated, 0 failed). `export` finished: 235 places, 0 failed.
-- Deployed on 2026-11-16: Cloudflare version `142613ed-5b45-4932-ae84-2400d54d21ad`.
+- Deployed on 2026-11-16: Cloudflare version `142613ed-5b45-4932-ae84-2400d54d21ad`; the `atlas.tonalli.earth` domain was added in version `26dc9e45-62a5-4b3c-9e28-741cc430a691`.
   Includes harmonized history temperature, hotspots-as-solidity, click-to-pin calendar months,
   incomplete final-year navigation (2026), taller legends with year-first abbreviated dates,
   recent Both / MODIS / VIIRS buttons, temperature controls in Map options with a blue active cog,
   and a caption matching the loader's top-centre pill.
 - Verified in a real browser; web checks pass (0 errors, 8 existing floating-promise warnings),
   production build passes, and all 20 API tests plus API type checks pass.
-- The user authorized a local commit and Cloudflare deployment. **Do not push to GitHub until
-  the user explicitly asks.** The broader proposed layout redesign was declined and is not included.
+- Pushed to `origin/monorepo` on 2026-11-16.
 
 ## Open items
 
-1. GitHub push remains pending explicit user authorization.
+1. (done) Code is pushed to `origin/monorepo`.
 2. Last 7 days temperature still uses one scale per sensor; harmonize with the same mapping
    (`harmonizedTemps(grid).toViirs`) for MODIS points.
 3. Temperature over the full 26-year range looks uniformly hot (every cell has many fires); consider

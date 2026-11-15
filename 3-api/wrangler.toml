@@ -3,12 +3,13 @@ main = "src/worker.ts"
 compatibility_date = "2026-11-01"
 send_metrics = false
 
-# Addresses: llama-masters-api.<subdomain>.workers.dev and two custom domains, the site and the API
-# (DNS records and certificates are created by Cloudflare; esauflores.com is a zone in this account).
+# Addresses: llama-masters-api.<subdomain>.workers.dev and custom domains: the site (twice) and the API
+# (DNS records and certificates are created by Cloudflare; esauflores.com and tonalli.earth are zones in this account).
 workers_dev = true
 routes = [
   { pattern = "llama-masters.esauflores.com", custom_domain = true },
   { pattern = "llama-masters-api.esauflores.com", custom_domain = true },
+  { pattern = "atlas.tonalli.earth", custom_domain = true },
 ]
 
 # The website (4-web, built first by `bun run deploy`). Cloudflare serves these files itself, without
