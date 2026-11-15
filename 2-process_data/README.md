@@ -79,7 +79,7 @@ Files per country (`exports/<id>/`, id = slug of the FIRMS country name, e.g. `v
 | `monthly_grid.json` | version 5: `cells.west/south`, and per series (`modis`, `viirs_eq`) flat columns over the cells: `count` per cell, `gap` (month minus the previous month of that cell), `value` × `scale` as integers (about 40% smaller than pairs once compressed); 0.1°, coarsened (0.2°, 0.5°, 1°, 2°) for countries over 1.5M values |
 | `recent_hotspots.json` | the world's last 7 days of points, columnar (lon, lat, acquired_utc, platform, state, confidence, frp) |
 
-Plus `exports/places.json` (id, label, ISO groups, bbox, states, first month, last day, and `version`: a hash of the four files, which the site sends as `?v=` so caches never serve old files). A `--country` run updates only its own entries.
+Plus `exports/places.json` (id, label, ISO groups, bbox, states, first month, last day, and `version`: a hash of the five files, which the site sends as `?v=` so caches never serve old files). A `--country` run updates only its own entries.
 
 ## Running on Railway
 

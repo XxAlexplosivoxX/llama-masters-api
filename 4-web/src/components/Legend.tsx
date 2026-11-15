@@ -1,4 +1,3 @@
-import { AnimatePresence, motion } from "motion/react";
 import { HEAT, HEAT_ZERO, SENSOR } from "../lib/color";
 import { fmt, fmtCompact } from "../lib/format";
 import { labelOf, MONTHS_LONG, SERIES_LABEL } from "../lib/series";
@@ -32,17 +31,8 @@ export function Legend({ explorer, layer, gridMax }: { explorer: Explorer; layer
 
   return (
     <div className="pointer-events-auto w-64 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
-          key={title}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.2 }}
-        >
-          <div className="text-sm font-semibold num">{title}</div>
-        </motion.div>
-      </AnimatePresence>
+      {/* Plain text: playback changes the month up to 16 times a second, faster than any cross-fade. */}
+      <div className="num text-sm font-semibold">{title}</div>
       <div className="text-xs text-muted">{detail}</div>
       {layer === "history" ? (
         missingMonth ? null : (

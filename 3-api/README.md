@@ -20,6 +20,7 @@ query filters: the website slices months, states and drawn areas in the browser.
 | `GET /v1/places/:id/monthly` | `exports/<id>/monthly.json`: per sensor and harmonized (NOAA-20 scale, p10–p90), country and states | 1 h |
 | `GET /v1/places/:id/grid` | `exports/<id>/monthly_grid.json`: raw MODIS and the harmonized record per cell, 0.1° (coarser for the largest countries) | 1 h |
 | `GET /v1/places/:id/recent` | `exports/<id>/recent_hotspots.json`: last 7 days of points | 10 min |
+| `GET /v1/places/:id/outline` | `exports/<id>/outline.json`: the country outline (GeoJSON MultiPolygon) | 1 h |
 | `GET /healthz` | | |
 
 - **Ids** match `[a-z0-9]+(-[a-z0-9]+)*`; anything else is `404`, so a request can never name

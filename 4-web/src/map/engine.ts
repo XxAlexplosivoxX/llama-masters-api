@@ -209,6 +209,7 @@ export class MapEngine {
     map.addSource("mask", { type: "geojson", data: EMPTY });
     map.addSource("areas", { type: "geojson", data: EMPTY });
     map.addSource("outline", { type: "geojson", data: EMPTY });
+    map.addSource("country", { type: "geojson", data: EMPTY });
 
     map.addLayer(
       {
@@ -314,6 +315,21 @@ export class MapEngine {
       type: "line",
       source: "areas",
       paint: { "line-color": "#9AA6C0", "line-width": 1, "line-opacity": 0.6 },
+    });
+    // The selected country's border: a dark halo under a light line reads on imagery and on the grid.
+    map.addLayer({
+      id: "country-halo",
+      type: "line",
+      source: "country",
+      layout: { "line-join": "round" },
+      paint: { "line-color": "#0B0F1A", "line-width": 5, "line-opacity": 0.55, "line-blur": 2 },
+    });
+    map.addLayer({
+      id: "country",
+      type: "line",
+      source: "country",
+      layout: { "line-join": "round" },
+      paint: { "line-color": "#E8ECF5", "line-width": 1.6, "line-opacity": 0.95 },
     });
     map.addLayer({
       id: "outline",
@@ -555,6 +571,13 @@ export class MapEngine {
   setAreas(areas: GeoJSON.FeatureCollection | null) {
     if (this.destroyed) return;
     (this.map.getSource("areas") as GeoJSONSource).setData(areas ?? EMPTY);
+  }
+
+  /** The selected country's border (null clears it). */
+  setCountry(geometry: GeoJSON.MultiPolygon | null) {
+    if (this.destroyed) return;
+    const source = this.map.getSource("country") as GeoJSONSource | undefined;
+    void source?.setData(geometry ? { type: "Feature", properties: {}, geometry } : EMPTY);
   }
 
   /** Dashed outline around the selection, with everything outside it dimmed. */

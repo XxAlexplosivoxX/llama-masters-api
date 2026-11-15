@@ -170,11 +170,13 @@ export async function loadPlace(
     steps[i] = { ...steps[i], loaded, total };
     onProgress?.([...steps]);
   };
-  const [grid, monthly, meta, columns] = await Promise.all([
+  const [grid, monthly, meta, columns, outline] = await Promise.all([
     getJSONWithProgress<MonthlyGridFile>(`${base}/grid${v}`, signal, track(0)),
     getJSON<MonthlyFile>(`${base}/monthly${v}`, signal),
     getJSON<Meta>(`${base}/meta${v}`, signal),
     getJSONWithProgress<RecentColumns>(`${base}/recent${v}`, signal, track(1)).catch(() => null),
+    // Optional: exports before outline.json have none, and the map works without it.
+    getJSON<{ geometry: GeoJSON.MultiPolygon | null }>(`${base}/outline${v}`, signal).catch(() => null),
   ]);
   return {
     place,
@@ -182,5 +184,6 @@ export async function loadPlace(
     monthly: alignMonthly(monthly),
     meta,
     recent: columns ? fromColumns(columns) : [],
+    outline: outline?.geometry ?? null,
   };
 }

@@ -173,6 +173,10 @@ export function MapView({
   }, [engine, shape]);
 
   useEffect(() => {
+    engine?.setCountry(loaded?.outline ?? null);
+  }, [engine, loaded]);
+
+  useEffect(() => {
     if (engine && introPlayed.current) engine.setLayer(layer);
   }, [engine, layer]);
 

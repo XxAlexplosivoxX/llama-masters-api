@@ -8,6 +8,7 @@ Run once, after every worker has run aggregate.py. Writes what 3-api serves:
                                              harmonized record with p10-p90, baseline, scores
     <root>/exports/<id>/monthly_grid.json    raw MODIS and the harmonized record per grid cell
     <root>/exports/<id>/recent_hotspots.json the world's last 7 days of points in the country
+    <root>/exports/<id>/outline.json         the country outline (its states merged), for the map
 
 Method (0-plans/HARMONIZATION_PLAN.md), on the NOAA-20 scale, per country:
 
@@ -41,6 +42,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import duckdb
 import numpy as np
+import shapely
 
 sys.path.insert(0, os.path.dirname(__file__))
 from common import BOUNDARIES, connect, is_remote
@@ -55,6 +57,7 @@ GRID_STEPS = (1, 2, 5, 10, 20)  # display cells in 0.1° units: the finest one u
 GRID_BUDGET = 1_500_000  # nonzero (cell, month) values per grid file, both series together
 GRID_EQ_SCALE = 10  # the record is kept to 0.1 detection: stored as integer tenths
 RECENT_DAYS = 7
+OUTLINE_SNAP = 0.01  # degrees: states snap to one grid first, so shared borders vanish in the union
 BASELINE_YEARS = (2003, 2025)
 MIN_BAND_MONTHS = 24  # held-out months an area needs for its own band (else the country's)
 METHOD = ("Real VIIRS on the NOAA-20 scale wherever a VIIRS satellite covers the month (NOAA-20, else "
@@ -341,11 +344,27 @@ def sparse_columns(values: np.ndarray, scale: int) -> dict:
             "value": np.round(values[row, t] * scale).astype(np.int64).tolist()}
 
 
+def country_outline(state_ids: list[str], shapes: dict) -> dict | None:
+    """The country's outline for the map: its states snapped to one grid (so the borders between
+    them cancel out), merged, and simplified in proportion to the country's size."""
+    parts = [shapes[s] for s in state_ids if s in shapes]
+    if not parts:
+        return None
+    merged = shapely.union_all(shapely.set_precision(np.array(parts, dtype=object), OUTLINE_SNAP))
+    x0, y0, x1, y1 = merged.bounds
+    tol = float(np.clip(np.hypot(x1 - x0, y1 - y0) / 800, OUTLINE_SNAP, 0.05))
+    merged = merged.simplify(tol, preserve_topology=True)
+    polys = [g for g in shapely.get_parts(merged) if g.area >= (2 * tol) ** 2]  # drop specks of islands
+    if not polys:
+        return None
+    return json.loads(shapely.to_geojson(shapely.set_precision(shapely.MultiPolygon(polys), 0.001)))
+
+
 def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot: np.ndarray,
-                   info: dict, states: dict, generated: str) -> dict:
+                   info: dict, states: dict, shapes: dict, generated: str) -> dict:
     t0 = time.monotonic()
     pid, label = slug(name), name.replace("_", " ")  # FIRMS names use underscores
-    hashes: list[str] = []  # of the four files written, for the places.json version
+    hashes: list[str] = []  # of the five files written, for the places.json version
     c = Country(con, root, name, cal)
     fac = Factors(tot, cal, world)
     M = c.counts[TERRA] + c.counts[AQUA]
@@ -439,6 +458,9 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
         "grid": {"cell_deg": cell_deg, "values": size},
         "sources": SOURCES, "limitations": LIMITATIONS}))
 
+    outline = country_outline(c.state_ids, shapes)
+    hashes.append(write_json(con, root, f"{pid}/outline.json", {"id": pid, "geometry": outline}))
+
     have = np.flatnonzero(c.n > 0)
     bbox = ([round(c.x[have].min() / 10, 1), round(c.y[have].min() / 10, 1),
              round((c.x[have].max() + 1) / 10, 1), round((c.y[have].max() + 1) / 10, 1)] if len(have) else None)
@@ -447,7 +469,7 @@ def export_country(con, root: str, name: str, cal: Calendar, world: Factors, tot
           f"{size:,} values), {len(rec):,} recent points; {time.monotonic() - t0:.1f}s", flush=True)
     return {"id": pid, "label": label, "kind": "country", "iso": info["iso"], "bbox": bbox, "states": len(ids) - 1,
             "first_month": cal.label[0], "last_day": cal.last_day.isoformat(),
-            # changes whenever any of the four files does: the site adds ?v=<version>, so edge caches never serve old files
+            # changes whenever any of the five files does: the site adds ?v=<version>, so edge caches never serve old files
             "version": hashlib.sha256("".join(hashes).encode()).hexdigest()[:12]}
 
 
@@ -538,7 +560,10 @@ def main() -> None:
     print(f"world: MODIS -> S-NPP {world.r0:.3f}, fNPP {world.f_npp:.4f} ({world.pairs['f_npp']} months), "
           f"f21 {world.f21:.4f} ({world.pairs['f21']} months), Terra factor "
           f"{np.round(world.terra, 2).tolist()}", flush=True)
-    states = dict(con.execute(f"SELECT state_id, state FROM read_parquet('{root}/{BOUNDARIES}')").fetchall())
+    states, shapes = {}, {}
+    for state_id, state, wkb in con.execute(
+            f"SELECT state_id, state, ST_AsWKB(geom) FROM read_parquet('{root}/{BOUNDARIES}')").fetchall():
+        states[state_id], shapes[state_id] = state, shapely.from_wkb(bytes(wkb))
     generated = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     # largest first, so a big country never starts last; each thread has its own DuckDB cursor
     todo = sorted(args.country or totals, key=lambda c: -totals[c].sum() if c in totals else 0)
@@ -550,7 +575,7 @@ def main() -> None:
         cur = con.cursor()
         try:
             return export_country(cur, root, country, cal, world, totals[country],
-                                  info.get(country, {"iso": [], "sensors": {}}), states, generated)
+                                  info.get(country, {"iso": [], "sensors": {}}), states, shapes, generated)
         finally:
             cur.close()
 

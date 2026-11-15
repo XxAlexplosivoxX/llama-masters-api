@@ -11,6 +11,7 @@ const FILES = {
   monthly: "monthly.json",
   grid: "monthly_grid.json",
   recent: "recent_hotspots.json",
+  outline: "outline.json",
 } as const;
 // places.json is the pointer: short-lived, and each entry carries the version (a hash of the files)
 // that the site sends as ?v=. A versioned URL never changes content, so it is kept for a year; a new

@@ -183,6 +183,7 @@ export interface Loaded {
   monthly: MonthlyFile;
   meta: Meta;
   recent: Hotspot[];
+  outline: GeoJSON.MultiPolygon | null; // the country's border, drawn over the map
 }
 
 /** A user-drawn or typed area; null means the whole place. */

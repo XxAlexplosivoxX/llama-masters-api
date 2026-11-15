@@ -26,6 +26,7 @@ describe("routes", () => {
     ["/v1/places/venezuela/monthly", "start_month", "2026-01"],
     ["/v1/places/venezuela/grid", "cell_deg", 0.1],
     ["/v1/places/venezuela/recent", "synthetic", true],
+    ["/v1/places/venezuela/outline", "id", "venezuela"],
   ])("%s", async (path, field, value) => {
     const res = await get(path);
     expect(res.status).toBe(200);
