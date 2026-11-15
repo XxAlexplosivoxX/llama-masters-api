@@ -80,7 +80,8 @@ export function App() {
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
       <div className="order-2 max-sm:ms-auto sm:order-1">
-        <PlaceSwitcher places={explorer.places} current={explorer.place} onSelect={explorer.selectPlace} />
+        <PlaceSwitcher places={explorer.places} current={explorer.place} onSelect={explorer.selectPlace}
+          onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
       </div>
       <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
         <div className="flex items-start justify-end gap-1.5 sm:gap-2">
@@ -204,6 +205,25 @@ export function App() {
         <Drawer.Portal>
           <Drawer.Content
             ref={drawer.ref}
+            onPointerUp={() => {
+              // Vaul 1.1.2 can bail out of its release handling before snapping when the
+              // finger lands on a non-draggable child, leaving the drawer frozen mid-way.
+              // After the snap animation settle onto the closest snap point instead.
+              window.setTimeout(() => {
+                const el = drawer.ref.current;
+                if (!el) return;
+                const top = el.getBoundingClientRect().top;
+                const vh = window.innerHeight;
+                const offsets = SNAPS.map((s) => (typeof s === "string" ? vh - parseInt(s, 10) : vh * (1 - s)));
+                const closest = offsets.reduce((best, off, i) => (Math.abs(off - top) < Math.abs(offsets[best] - top) ? i : best), 0);
+                if (Math.abs(offsets[closest] - top) > 4) {
+                  if (SNAPS[closest] === snap) {
+                    el.style.transition = "transform 0.3s ease-out";
+                    el.style.transform = `translate3d(0, ${offsets[closest]}px, 0)`;
+                  } else setSnap(SNAPS[closest]);
+                }
+              }, 600);
+            }}
             onTransitionEnd={drawer.track}
             onAnimationStart={drawer.track} onAnimationEnd={drawer.track}
             className="fixed inset-x-0 bottom-0 z-40 flex h-full max-h-[96%] flex-col rounded-t-2xl border-t border-border bg-surface outline-none"

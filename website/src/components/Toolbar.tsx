@@ -16,9 +16,10 @@ const pop = {
   transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const },
 };
 
-export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; current: Place | null; onSelect: (id: string) => void }) {
+export function PlaceSwitcher({ places, current, onSelect, onOpen }: { places: Place[]; current: Place | null; onSelect: (id: string) => void; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
+  useEffect(() => { if (open) onOpen?.(); }, [open]);
   const pick = (id: string) => { onSelect(id); setOpen(false); };
   const regions = places.filter((p) => p.kind === "grid" && p.scope === "region");
   const countries = places.filter((p) => p.kind === "grid" && p.scope !== "region");
@@ -48,13 +49,13 @@ export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; 
       <AnimatePresence>
         {open && (
           <motion.div {...pop} role="listbox" aria-label="Places"
-            className="absolute left-0 top-full z-30 mt-2 max-h-[min(34rem,calc(100dvh-6rem))] w-80 origin-top-left overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:origin-top-right">
+            className="absolute left-0 top-full z-30 mt-2 max-h-[min(34rem,calc(100dvh-6rem))] w-80 origin-top-left overflow-y-auto rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:h-72 max-sm:w-64 max-sm:origin-top-right">
             {regions.length > 0 && <>{heading("Region")}{regions.map(row)}</>}
             {countries.length > 0 && (
               <>
                 {heading("Countries")}
                 {countries.filter((p) => p.id === "brazil").map(row)}
-                <div className="grid grid-cols-2 gap-0.5">
+                <div className="grid grid-cols-2 gap-0.5 max-sm:grid-cols-1">
                   {countries.filter((p) => p.id !== "brazil").map((p) => (
                     <button key={p.id} role="option" aria-selected={p.id === current?.id} onClick={() => pick(p.id)}
                       className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm hover:bg-surface-2">
