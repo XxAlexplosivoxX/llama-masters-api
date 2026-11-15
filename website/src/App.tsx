@@ -9,6 +9,7 @@ import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./componen
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView } from "./map/MapView";
 import { shapeFromDrawing, useExplorer } from "./state";
+import { useDrawerViewport } from "./hooks/useDrawerViewport";
 
 const DESKTOP = "(min-width: 1024px)";
 const SNAPS = ["168px", 0.55, 1] as const;
@@ -32,11 +33,13 @@ export function App() {
   const [introDone, setIntroDone] = useState(false);
   const [gridMax, setGridMax] = useState(0);
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
+  const drawer = useDrawerViewport(desktop, snap);
+  const changeLayer = (next: MapLayer) => { explorer.pause(); setLayer(next); };
 
   const historyAvailable = !!explorer.loaded && "grid" in explorer.loaded;
   // Keep the layer the user picked across places; only fall back when a place has no history.
   useEffect(() => {
-    if (explorer.loaded && !historyAvailable) setLayer("recent");
+    if (explorer.loaded && !historyAvailable) changeLayer("recent");
   }, [explorer.loaded]);
 
   useEffect(() => {
@@ -75,7 +78,7 @@ export function App() {
           <DrawTools drawMode={drawMode} onDrawMode={setDrawMode} onCoordinates={chooseArea}
             bounds={explorer.place?.bbox ?? null} placeLabel={explorer.place?.label ?? "this place"}
             onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
-          <LayerSwitch layer={layer} onLayer={setLayer} historyAvailable={historyAvailable} />
+          <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
         </div>
         <SelectionChip label={explorer.shape?.label ?? null} placeLabel={explorer.place?.label ?? ""}
           hidden={!!drawMode} onClear={() => explorer.setShape(null)} />
@@ -93,24 +96,24 @@ export function App() {
   );
   const panel = (
     <ErrorBoundary label="panel">
-      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => setLayer("recent")} onPlay={play} />
+      <Panel explorer={explorer} showingRecent={layer === "recent"} onShowRecent={() => changeLayer("recent")} onPlay={play} />
     </ErrorBoundary>
   );
 
   // On mobile the open drawer carries its own legend, so the map one only shows above the collapsed sheet.
-  const legendVisible = introDone && (desktop || (snap === SNAPS[0] && !explorer.timelineOpen));
+  const legendVisible = introDone && (desktop || snap !== 1);
   // Desktop: between the legend and the zoom buttons. Mobile: above the collapsed sheet.
   const timelineVisible = introDone && historyAvailable && layer === "history" && (desktop || snap === SNAPS[0]);
   const timelineInner = (
     <motion.div animate={{ opacity: timelineVisible ? 1 : 0 }} transition={{ duration: 0.3 }}
-      className={`flex ${desktop ? "min-w-[19rem] flex-1 justify-center" : "pointer-events-none absolute bottom-[180px] left-3 right-3 z-10 justify-end"} ${timelineVisible ? "" : "invisible"}`}>
+      className={`timeline-host flex min-w-0 ${desktop ? "basis-[19rem] flex-1 justify-center" : "w-full justify-end"} ${timelineVisible ? "" : "hidden"}`}>
       <Timeline explorer={explorer} onPlay={play} />
     </motion.div>
   );
   const legendInner = (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: legendVisible ? 1 : 0, y: legendVisible ? 0 : 8 }} transition={{ duration: 0.4 }}
-      className={desktop ? "" : "pointer-events-none absolute bottom-[180px] left-3 z-10"}
+      className={legendVisible ? "max-w-full" : "hidden"}
     >
       <Legend explorer={explorer} layer={layer} gridMax={gridMax} />
     </motion.div>
@@ -121,8 +124,13 @@ export function App() {
       {legendInner}
       {timelineInner}
     </div>
-  ) : legendInner;
-  const timeline = desktop ? null : timelineInner;
+  ) : (
+    <div className="pointer-events-none absolute left-3 right-16 z-10 flex flex-col items-start gap-2"
+      style={{ bottom: drawer.height + 12 }}>
+      {timelineInner}
+      {legendInner}
+    </div>
+  );
 
   if (desktop) {
     return (
@@ -131,7 +139,6 @@ export function App() {
           {map}
           {overlay}
           {legend}
-          {timeline}
         </main>
         <motion.aside
           initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
@@ -146,25 +153,37 @@ export function App() {
   }
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="mobile-explorer relative h-full overflow-hidden"
+      style={{ "--drawer-height": `${drawer.height}px`, "--map-controls-visibility": snap === 1 ? "hidden" : "visible" } as React.CSSProperties}>
       {map}
       {overlay}
       {legend}
-          {timeline}
       <Drawer.Root
-        open modal={false} dismissible={false}
+        open modal={false} dismissible={false} handleOnly
+        onDrag={drawer.track} onRelease={drawer.track}
         snapPoints={[...SNAPS]} activeSnapPoint={snap} setActiveSnapPoint={setSnap}
       >
         <Drawer.Portal>
           <Drawer.Content
+            ref={drawer.ref}
+            onTransitionEnd={drawer.track}
+            onAnimationStart={drawer.track} onAnimationEnd={drawer.track}
             className="fixed inset-x-0 bottom-0 z-40 flex h-full max-h-[96%] flex-col rounded-t-2xl border-t border-border bg-surface outline-none"
             aria-describedby={undefined}
           >
-            <div className="flex justify-center py-2.5" aria-hidden>
-              <div className="h-1.5 w-10 rounded-full bg-border" />
+            <div className="flex h-11 shrink-0 items-center justify-center">
+              <Drawer.Handle className="!m-0 !bg-border" role="button" tabIndex={0} aria-hidden={false}
+                aria-label="Resize details panel" onKeyDown={(e) => {
+                  const index = SNAPS.findIndex((point) => point === snap);
+                  if (["Enter", " ", "ArrowUp", "ArrowDown"].includes(e.key)) {
+                    e.preventDefault();
+                    setSnap(SNAPS[e.key === "ArrowDown" ? Math.max(0, index - 1) : e.key === "ArrowUp" ? Math.min(2, index + 1) : (index + 1) % SNAPS.length]);
+                  }
+                }} />
             </div>
             <Drawer.Title className="sr-only">Fire calendar for the selected area</Drawer.Title>
-            <div className={`flex-1 ${snap === 1 ? "overflow-y-auto" : "overflow-hidden"}`}>
+            <div className="drawer-scroll min-h-0 shrink-0 overflow-y-auto overscroll-contain" data-vaul-no-drag=""
+              style={{ height: Math.max(0, drawer.height - 45), paddingBottom: "env(safe-area-inset-bottom)" }}>
               {panel}
             </div>
           </Drawer.Content>

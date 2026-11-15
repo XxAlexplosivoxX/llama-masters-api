@@ -6,4 +6,5 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "./",
   worker: { format: "es" }, // MapLibre 6 starts its worker as a module worker
+  preview: { allowedHosts: [".trycloudflare.com"] },
 });
