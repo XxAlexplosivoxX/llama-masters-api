@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { LoadProgress } from "../lib/data";
 
@@ -38,18 +39,38 @@ export function stepsFrom(
   return steps;
 }
 
+const MESSAGE_MS = 700; // each loading message stays at least this long, so it can be read
+
 /** First-load pill at the top middle: one line naming the current step, a thin progress line under it. */
-export function LoadingCard({ title, steps }: { title: string; steps: Step[] }) {
+export function LoadingCard({ title, steps, onFinished }: { title: string; steps: Step[]; onFinished?: () => void }) {
   const known = steps.filter((s) => s.fraction !== undefined || s.state === "done");
   const overall = known.length
     ? known.reduce((sum, s) => sum + (s.state === "done" ? 1 : (s.fraction ?? 0)), 0) / steps.length
     : 0;
-  // A download in progress (it has MB to show) says more than the basemap, which loads alongside.
-  const current =
-    steps.find((s) => s.state === "active" && s.detail) ??
-    steps.find((s) => s.state === "active") ??
-    steps.find((s) => s.state === "waiting");
-  const label = current ? `Loading ${current.label.charAt(0).toLowerCase()}${current.label.slice(1)}` : title;
+  // The steps are named one after another, each for at least MESSAGE_MS, even when the cache makes
+  // them finish at once; the pill reports `onFinished` after the last one has been shown.
+  const [index, setIndex] = useState(0);
+  const since = useRef(performance.now());
+  const doneNow = index < steps.length && steps[index].state === "done";
+  useEffect(() => {
+    if (index >= steps.length) {
+      onFinished?.();
+      return;
+    }
+    if (!doneNow) return;
+    const id = window.setTimeout(
+      () => {
+        since.current = performance.now();
+        setIndex((i) => i + 1);
+      },
+      Math.max(0, since.current + MESSAGE_MS - performance.now()),
+    );
+    return () => window.clearTimeout(id);
+  }, [index, doneNow, steps.length]);
+  const step = steps[Math.min(index, steps.length - 1)];
+  const label = step ? `Loading ${step.label.charAt(0).toLowerCase()}${step.label.slice(1)}` : title;
+  const detail = step?.state === "active" ? step.detail : undefined;
+  const shownProgress = Math.max(overall, Math.min(1, index / steps.length));
   return (
     <motion.div
       role="status"
@@ -73,10 +94,10 @@ export function LoadingCard({ title, steps }: { title: string; steps: Step[] }) 
           {label}
         </motion.span>
       </AnimatePresence>
-      {current?.detail && <span className="num shrink-0 text-muted">{current.detail}</span>}
+      {detail && <span className="num shrink-0 text-muted">{detail}</span>}
       <motion.span
         className="absolute bottom-0 left-0 h-0.5 bg-accent"
-        animate={{ width: `${Math.max(4, overall * 100)}%` }}
+        animate={{ width: `${Math.max(4, shownProgress * 100)}%` }}
         transition={{ duration: 0.3 }}
         aria-hidden
       />

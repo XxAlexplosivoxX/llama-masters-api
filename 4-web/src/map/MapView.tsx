@@ -243,7 +243,10 @@ export function MapView({
   }, [engine, shape]);
 
   // What the map is doing, in words: first load, the opening animation, then any later reload.
-  const firstLoad = !failure && (!engine || (status.kind === "loading" && !introPlayed.current));
+  const loadingNow = !failure && (!engine || (status.kind === "loading" && !introPlayed.current));
+  // The pill stays until it has named every step (see LoadingCard), even when the cache is instant.
+  const [pillDone, setPillDone] = useState(false);
+  const firstLoad = loadingNow || (!pillDone && !failure);
   let caption: string | null = null;
   // The opening fly-in has no caption: the data is already loaded, so nothing should look like loading.
   if (intro) {
@@ -278,6 +281,7 @@ export function MapView({
                 status.kind === "loading" ? status.progress : undefined,
                 place?.label ?? "",
               )}
+              onFinished={() => setPillDone(true)}
             />
           </div>
         )}
