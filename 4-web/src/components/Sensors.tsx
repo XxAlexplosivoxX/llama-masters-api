@@ -12,7 +12,7 @@ const VIEWS: { kind: SeriesKind; label: string }[] = [
 export function SeriesView({ explorer }: { explorer: Explorer }) {
   const { kind, setKind } = explorer;
   return (
-    <div className="seg w-full" role="radiogroup" aria-label="Record shown in the calendar and map">
+    <div className="seg w-full" data-tour="views" role="radiogroup" aria-label="Record shown in the calendar and map">
       {VIEWS.map((v) => (
         <button
           key={v.kind}

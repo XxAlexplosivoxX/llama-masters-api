@@ -84,7 +84,7 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
   return (
     <div className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">
       {hasTemps && (
-        <div className="mb-2.5 flex gap-1.5">
+        <div className="mb-2.5 flex gap-1.5" data-tour="metric">
           <div className="flex-1">
             <Seg<Metric>
               label="Colour the map by"

@@ -29,6 +29,7 @@ export function Summary({
   const ready = explorer.status.kind === "ready" && series && stats && range;
   const details = (
     <button
+      data-tour="details"
       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs text-muted hover:bg-surface-2 hover:text-text"
       onClick={onDetails}
     >

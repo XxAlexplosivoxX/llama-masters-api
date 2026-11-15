@@ -299,7 +299,7 @@ export function Tour({
 
 export function TourButton({ onClick }: { onClick: () => void }) {
   return (
-    <div className="seg">
+    <div className="seg" data-tour="tour-button">
       <button onClick={onClick} aria-label="Take the tour" title="Take the tour" className="w-10 justify-center !px-0">
         <CircleQuestionMark size={16} aria-hidden />
       </button>
