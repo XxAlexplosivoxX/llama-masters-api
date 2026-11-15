@@ -5,6 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: lazyPlugins(() => [react(), tailwindcss()]),
   base: "/", // tonalli.earth; the atlas (4-web_atlas) is served next to it at /atlas/
+  test: {
+    setupFiles: ["./src/test/setup.ts"],
+    // Pin the build-time URLs so a developer's .env.local does not change what the tests see.
+    env: { VITE_API_URL: "", VITE_ATLAS_URL: "/atlas/" },
+  },
   fmt: { printWidth: 120 },
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
