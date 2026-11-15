@@ -155,7 +155,7 @@ Everything the app shows is loaded through three pathways managed by `usePlaceDa
     year overlay, and interactive scrubbing.
   - `FocusMonth.tsx`: Deep-dive card for a focused month (satellite breakdown, historical rank, anomaly).
   - `Harmonization.tsx`: Diagnostic card showing monthly coefficients, train/test WAPE, and local check.
-  - `Last7Days.tsx`: Daily breakdown of recent hotspots (MODIS vs VIIRS on MODIS scale).
+  - `Last7Days.tsx`: Daily breakdown of recent hotspots: MODIS and VIIRS in separate panels, each on its own scale (raw daily counts are never converted or compared).
   - `Calendar.tsx`: Year $\times$ month heatmap matrix using Firefly square-root color ramp. Click to focus
     a year or month.
   - `YearsRanked.tsx`: Bar chart ranking complete years by total hotspot count against the average year.

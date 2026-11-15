@@ -158,8 +158,15 @@ export function usePlaceData() {
   /** Point records for the "last 7 days" card, normalized to date/platform/frp/daynight. */
   const recent: CsvPoint[] = useMemo(() => {
     if (isCsv) return csvData ? csvLast7(csvData.result) : [];
-    const inBox = (p: { lon: number; lat: number }) =>
-      !bbox || (p.lon >= bbox[0] && p.lon <= bbox[2] && p.lat >= bbox[1] && p.lat <= bbox[3]);
+    // Same rule as the monthly cells: a point counts when the centre of its grid cell is in the box.
+    const picked = loaded && "grid" in loaded && bbox ? loaded.grid : null;
+    const keep = picked ? new Set(cells.map((i) => `${picked.cells[i][0]}:${picked.cells[i][1]}`)) : null;
+    const inBox = (p: { lon: number; lat: number }) => {
+      if (!keep || !picked) return true;
+      const d = picked.cell_deg, [w0, s0] = picked.cells[0];
+      const w = w0 + Math.floor((p.lon - w0) / d) * d, s = s0 + Math.floor((p.lat - s0) / d) * d;
+      return keep.has(`${w}:${s}`);
+    };
     return (loaded?.recent ?? []).filter((p) => SATELLITE_ORDER.includes(p.platform) && inBox(p)).map((p) => ({
       date: p.acquired_utc.slice(0, 10),
       platform: p.platform as CsvPoint["platform"],
@@ -167,7 +174,7 @@ export function usePlaceData() {
       daynight: p.daynight === "D" || p.daynight === "N" ? p.daynight : null,
       lon: p.lon, lat: p.lat,
     }));
-  }, [isCsv, csvData, loaded, bbox]);
+  }, [isCsv, csvData, loaded, bbox, cells]);
 
   const areas = useMemo(() => {
     if (isCsv) return csv ? [{ id: "upload", name: csv.name }] : [];

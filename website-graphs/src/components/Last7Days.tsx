@@ -1,44 +1,31 @@
-import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { fmtTick, TICK, thinBy } from "../lib/chart";
 import { GRID, MODIS, SENSOR, VIIRS, sensorOf } from "../lib/color";
 import { fmt } from "../lib/format";
 import { useWidth } from "../hooks/useWidth";
-import { modisEquivalent } from "../lib/shared";
-import { PLATFORMS, type CsvPoint, type MonthlyGrid } from "../types";
+import { PLATFORMS, type CsvPoint } from "../types";
 
 interface Props {
   points: CsvPoint[];
-  grid: MonthlyGrid | null; // with a grid, VIIRS counts are converted to the MODIS scale per cell
-}
-
-/** VIIRS points of one day on the MODIS scale: counted per grid cell, then the cell-month model applied. */
-function viirsOnModisScale(grid: MonthlyGrid, pts: CsvPoint[], day: string): number {
-  const [w0, s0] = grid.cells[0] ?? [0, 0];
-  const perCell = new Map<string, number>();
-  for (const p of pts) {
-    if (p.lon === undefined || p.lat === undefined) continue;
-    const key = `${Math.floor((p.lon - w0) / grid.cell_deg)}:${Math.floor((p.lat - s0) / grid.cell_deg)}`;
-    perCell.set(key, (perCell.get(key) ?? 0) + 1);
-  }
-  const month = Number(day.slice(5, 7)) - 1;
-  let total = 0;
-  for (const n of perCell.values()) total += modisEquivalent(grid, n, month);
-  return total;
 }
 
 type Metric = "count" | "frp" | "day";
+type Sensor = "MODIS" | "VIIRS";
 const METRICS: { id: Metric; label: string }[] = [
   { id: "count", label: "Hotspots" },
   { id: "frp", label: "Mean FRP (MW)" },
   { id: "day", label: "Day share (%)" },
 ];
+const PANELS: { sensor: Sensor; resolution: string; color: string }[] = [
+  { sensor: "MODIS", resolution: "1 km", color: MODIS },
+  { sensor: "VIIRS", resolution: "375 m", color: VIIRS },
+];
 
-const H = 130, L = 36, B = 20, T = 8;
+const H = 96, L = 36, B = 20, T = 8;
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** Last 7 days of point data: MODIS and VIIRS side by side per day, never stacked. */
-export function Last7Days({ points, grid }: Props) {
+/** Last 7 days of point data: MODIS and VIIRS in separate panels, each on its own scale. */
+export function Last7Days({ points }: Props) {
   const [metric, setMetric] = useState<Metric>("count");
   const { ref, width } = useWidth();
   if (!points.length) {
@@ -46,10 +33,10 @@ export function Last7Days({ points, grid }: Props) {
   }
 
   const days = [...new Set(points.map((p) => p.date))].sort().slice(-7);
-  const value = (day: string, sensor: "MODIS" | "VIIRS") => {
+  const value = (day: string, sensor: Sensor) => {
     const pts = points.filter((p) => p.date === day && sensorOf(p.platform) === sensor);
     if (!pts.length) return null;
-    if (metric === "count") return sensor === "VIIRS" && grid ? viirsOnModisScale(grid, pts, day) : pts.length;
+    if (metric === "count") return pts.length;
     if (metric === "frp") {
       const v = pts.filter((p) => p.frp !== null);
       return v.length ? v.reduce((a, p) => a + p.frp!, 0) / v.length : null;
@@ -57,17 +44,14 @@ export function Last7Days({ points, grid }: Props) {
     const v = pts.filter((p) => p.daynight !== null);
     return v.length ? (v.filter((p) => p.daynight === "D").length / v.length) * 100 : null;
   };
+  const show = (v: number) => (metric === "day" ? `${v.toFixed(0)}%` : metric === "frp" ? `${v.toFixed(1)} MW` : fmt(v));
 
-  const converted = metric === "count" && !!grid;
-  const max = Math.max(1, ...days.flatMap((d) => [value(d, "MODIS") ?? 0, value(d, "VIIRS") ?? 0]));
   const slot = Math.max((width - L) / days.length, 1);
-  const barW = (slot - 8) / 2;
-  const y = (v: number) => T + (1 - v / max) * (H - T - B);
+  const barW = Math.max(slot - 8, 1);
   const label = (d: string) => slot >= 56 ? `${DOW[new Date(`${d}T00:00:00Z`).getUTCDay()]} ${d.slice(8)}` : d.slice(8);
   const step = thinBy(slot, 44);
 
-  const bySat = PLATFORMS.map((p) => ({ p, n: points.filter((x) => x.platform === p).length }))
-    .filter((e) => e.n > 0);
+  const bySat = PLATFORMS.map((p) => ({ p, n: points.filter((x) => x.platform === p).length })).filter((e) => e.n > 0);
   const satMax = Math.max(1, ...bySat.map((e) => e.n));
 
   return (
@@ -81,53 +65,49 @@ export function Last7Days({ points, grid }: Props) {
         ))}
       </div>
 
-      {width > 0 && (
-        <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img" aria-label="Last 7 days, MODIS and VIIRS side by side">
-          {[0, 1].map((t) => (
-            <g key={t}>
-              <line x1={L} x2={width} y1={y(max * t)} y2={y(max * t)} stroke={GRID} />
-              <text x={L - 5} y={y(max * t) + 3.5} fontSize={TICK.size} fill={TICK.fill} textAnchor="end" className="num">
-                {metric === "day" ? `${Math.round(max * t)}%` : fmtTick(Math.round(max * t))}
-              </text>
-            </g>
-          ))}
-          {days.map((d, i) => {
-            const x0 = L + i * slot + 4;
-            return (
-              <g key={d}>
-                {(["MODIS", "VIIRS"] as const).map((s, k) => {
-                  const v = value(d, s);
-                  return v === null ? null : (
-                    <rect key={s} x={x0 + k * barW} y={y(v)} width={Math.max(barW - 1, 1)} height={Math.max(1, H - B - y(v))}
-                      rx={2} fill={s === "MODIS" ? MODIS : VIIRS}>
-                      <title>{`${d} ${s === "VIIRS" && converted ? "VIIRS on the MODIS scale" : s}: ${metric === "day" ? `${v.toFixed(0)}%` : metric === "frp" ? `${v.toFixed(1)} MW` : fmt(Math.round(v))}`}</title>
-                    </rect>
-                  );
-                })}
-                {i % step === 0 && (
-                  <text x={x0 + barW - 0.5} y={H - 6} textAnchor="middle" fontSize={TICK.size} fill={TICK.fill}>{label(d)}</text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      )}
-      <div className="mt-1 flex gap-4 text-2xs text-muted">
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: MODIS }} /> MODIS</span>
-        <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm" style={{ background: VIIRS }} /> {converted ? "VIIRS on the MODIS scale" : "VIIRS"}</span>
-      </div>
-      {metric === "count" && (grid ? (
-        <p className="mt-1 text-2xs leading-snug text-muted">
-          VIIRS converted per 0.5° cell with the monthly model; the per-satellite list below stays raw.
-        </p>
-      ) : (
-        <p className="mt-1 flex items-start gap-1.5 text-xs leading-snug text-alert">
-          <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
-          Raw counts are not comparable between instruments (VIIRS detects about 3.8× more).
-        </p>
-      ))}
+      {width > 0 && PANELS.map(({ sensor, resolution, color }) => {
+        const vals = days.map((d) => value(d, sensor));
+        const max = Math.max(1, ...vals.map((v) => v ?? 0));
+        const y = (v: number) => T + (1 - v / max) * (H - T - B);
+        return (
+          <figure key={sensor} className="mb-3">
+            <figcaption className="mb-1 flex items-center gap-1.5 text-xs text-muted">
+              <span className="h-2 w-2 rounded-sm" style={{ background: color }} />
+              <span className="font-semibold text-text">{sensor}</span> {resolution} pixels
+            </figcaption>
+            <svg viewBox={`0 0 ${width} ${H}`} width={width} height={H} className="block" role="img"
+              aria-label={`${sensor} last 7 days, own scale: ${days.map((d, i) => `${d} ${vals[i] === null ? "no data" : show(vals[i]!)}`).join("; ")}`}>
+              {[0, 1].map((t) => (
+                <g key={t}>
+                  <line x1={L} x2={width} y1={y(max * t)} y2={y(max * t)} stroke={GRID} />
+                  <text x={L - 5} y={y(max * t) + 4} fontSize={TICK.size} fill={TICK.fill} textAnchor="end" className="num">
+                    {metric === "day" ? `${Math.round(max * t)}%` : fmtTick(Math.round(max * t))}
+                  </text>
+                </g>
+              ))}
+              {days.map((d, i) => {
+                const v = vals[i];
+                const x0 = L + i * slot + 4;
+                return (
+                  <g key={d}>
+                    {v !== null && (
+                      <rect x={x0} y={y(v)} width={barW} height={Math.max(1, H - B - y(v))} rx={2} fill={color}>
+                        <title>{`${d} ${sensor}: ${show(v)}`}</title>
+                      </rect>
+                    )}
+                    {i % step === 0 && (
+                      <text x={x0 + barW / 2} y={H - 5} textAnchor="middle" fontSize={TICK.size} fill={TICK.fill}>{label(d)}</text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </figure>
+        );
+      })}
+      <p className="text-xs leading-snug text-muted">Counts are not comparable between instruments, so each panel has its own scale.</p>
 
-      <p className="mt-3 text-2xs text-muted">Raw detections per satellite (not comparable across instruments):</p>
+      <p className="mt-3 text-2xs text-muted">Detections per satellite (raw; MODIS and VIIRS are not comparable):</p>
       <ul className="mt-1.5 space-y-1.5">
         {bySat.map(({ p, n }) => (
           <li key={p} className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-xs">

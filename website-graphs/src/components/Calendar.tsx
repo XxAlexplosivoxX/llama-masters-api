@@ -4,7 +4,7 @@ import { ALERT, ANOM, anomalyScale, BG, fireflyScale, GRID, MUTED, TEXT } from "
 import { fmt, fmtCompact, fmtPercent } from "../lib/format";
 import { percentile } from "../lib/seasonal";
 import { Ramp } from "./Ramp";
-import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/shared";
+import { MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/shared";
 import { useWidth } from "../hooks/useWidth";
 import { CALENDAR_EXPORT } from "./ExportMenu";
 import type { MonthlySeries } from "../types";
@@ -45,16 +45,25 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   const viirsRow = years.includes(2011) && years.includes(2012) ? years.indexOf(2012) : null;
   const base = series.baselineFrom;
 
-  /** value / baseline mean of that calendar month − 1; null whenever the month must not be compared. */
+  // Baseline median per calendar month, the same reference as the KPIs and the current-month card.
+  const medians = useMemo(() => Array.from({ length: 12 }, (_, c) => {
+    const vals = stats.baselineYears
+      .map((y) => series.values[(y - series.startYear) * 12 + c])
+      .filter((v): v is number => v !== null)
+      .sort((a, b) => a - b);
+    return vals.length >= MIN_BASELINE_YEARS ? percentile(vals, 0.5) : null;
+  }), [series, stats]);
+
+  /** value / baseline median of that calendar month − 1; null whenever the month must not be compared. */
   const anomalyOf = (m: number, year: number): number | null => {
     const value = series.values[m];
-    const clim = stats.climatology[m % 12];
+    const clim = medians[m % 12];
     const provisional = series.provisionalFrom !== undefined && m >= series.provisionalFrom;
     if (value === null || series.partial[m] || provisional || clim === null || clim <= 0) return null;
     if (base !== undefined && year < base) return null;
     return value / clim - 1;
   };
-  const hasClimatology = stats.climatology.some((c) => c !== null);
+  const hasClimatology = medians.some((c) => c !== null);
 
   return (
     <div ref={ref}>
@@ -69,7 +78,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
           ))}
         </div>
         {mode === "anomaly" && (
-          <p className="text-xs text-muted">vs the {base ? `${base}+ ` : ""}baseline mean of each calendar month · + / − marks ±25 % or more</p>
+          <p className="text-xs text-muted">vs the {base ? `${base}+ ` : ""}baseline median of each calendar month · + / − marks ±25 % or more</p>
         )}
       </div>
       <div className="max-h-[32rem] overflow-y-auto">
@@ -110,7 +119,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
                   const fill = value === null ? "none" : mode === "counts" ? color(value) : anom === null ? GRID : anomalyColor(anom);
                   const status = value === null ? "no source data" : `${fmt(Math.round(value))} hotspots${series.partial[m] ? ", partial month" : ""}${provisional ? ", provisional" : ""}`;
                   const anomText = mode !== "anomaly" || value === null ? ""
-                    : anom !== null ? `, ${fmtPercent(anom)} vs baseline mean` : ", not compared";
+                    : anom !== null ? `, ${fmtPercent(anom)} vs baseline median` : ", not compared";
                   return (
                     <g key={c} className="cell" tabIndex={0} role="gridcell"
                       aria-label={`${MONTHS_LONG[c]} ${year}: ${status}${anomText}`}
@@ -173,7 +182,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
         ) : (
           <>
             <Ramp
-              label="Anomaly vs baseline mean"
+              label="Anomaly vs baseline median"
               stops={ANOM}
               ticks={[
                 { at: 0, text: `${fmtPercent(-LIMIT)} or less` },

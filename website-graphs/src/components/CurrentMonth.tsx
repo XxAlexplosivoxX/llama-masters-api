@@ -4,9 +4,9 @@ import { fmtTick, TICK, VALUE } from "../lib/chart";
 import { anomalyScale, CARD, GRID, MODIS, MODIS_EQ, MUTED, TEXT } from "../lib/color";
 import { fmt, fmtPercent } from "../lib/format";
 import { currentMonth, type CurrentMonth as Current } from "../lib/seasonal";
-import { labelOf, MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, type Stats } from "../lib/shared";
+import { harmonizedSource, labelOf, MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, type Stats } from "../lib/shared";
 import { useWidth } from "../hooks/useWidth";
-import type { MonthlyGrid, MonthlySeries } from "../types";
+import type { MonthlyGrid, MonthlySeries, SensorId } from "../types";
 
 const anomaly = anomalyScale(0.8);
 
@@ -32,11 +32,10 @@ const clampCentre = (x: number, text: string, lo: number, hi: number) => {
 
 const shortDay = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}`;
 
-/** Plain-language position against the usual range (p10–p90), with "near the end" inside the outer quarters. */
-function headline(now: Current, inProgress: boolean): string {
+/** Plain-language position of a complete month against the usual range (p10–p90), with "near the end" inside the outer quarters. */
+function headline(now: Current): string {
   const { value, p10, p50, p90 } = now;
   if (p10 === null || p50 === null || p90 === null) return "";
-  if (inProgress) return value < p10 ? "Low so far" : value > p90 ? "High so far" : "Within the usual range so far";
   if (value < p10) return "Below the usual range";
   if (value > p90) return "Above the usual range";
   if (value >= p50 + (p90 - p50) * 0.75) return "Near the high end of the usual range";
@@ -55,7 +54,19 @@ export function CurrentMonth({ series, stats, grid }: { series: MonthlySeries; s
   const inProgress = now.partial;
   const incomplete = now.partial || now.provisional;
   const hasBand = now.p10 !== null && now.p50 !== null && now.p90 !== null;
-  const title = hasBand ? headline(now, inProgress) : `Needs ${MIN_BASELINE_YEARS} complete years to compare`;
+  // A month in progress gets facts, not a verdict: share of the median so far and how much of the month is in.
+  const shareOfMedian = hasBand && now.p50! > 0 ? `${Math.round((now.value / now.p50!) * 100)} % of the median ${monthName}` : null;
+  const title = !hasBand ? `Needs ${MIN_BASELINE_YEARS} complete years to compare`
+    : inProgress ? shareOfMedian ?? "Median is zero for this month" : headline(now);
+  const kindOf = series.kind ?? "HARMONIZED";
+  const monthSensor: SensorId = kindOf === "MODIS" ? "MODIS" : kindOf === "HARMONIZED"
+    ? (grid && harmonizedSource(grid)[now.index] === "VIIRS" ? "VIIRS" : "MODIS")
+    : "VIIRS";
+  const lastDay = grid?.sensors[monthSensor]?.last_source_day;
+  const monthKey = `${series.startYear + Math.floor(now.index / 12)}-${String((now.index % 12) + 1).padStart(2, "0")}`;
+  const progress = inProgress && lastDay?.startsWith(monthKey)
+    ? `data through ${shortDay(lastDay)} (${Number(lastDay.slice(8, 10))} of ${new Date(Date.UTC(Number(monthKey.slice(0, 4)), (now.index % 12) + 1, 0)).getUTCDate()} days)`
+    : null;
 
   const kind = series.kind ?? "HARMONIZED";
   const through = grid
@@ -79,6 +90,7 @@ export function CurrentMonth({ series, stats, grid }: { series: MonthlySeries; s
             {fmt(Math.round(now.value))} <span className="text-sm font-normal text-muted">hotspots</span>
           </div>
           <p className="mt-1 text-sm font-semibold text-text">{title}</p>
+          {progress && <p className="mt-0.5 text-sm text-text">{progress[0].toUpperCase() + progress.slice(1)}</p>}
           {now.anomaly !== null && hasBand && (
             <p className="num mt-0.5 flex items-center gap-1.5 text-sm text-text">
               <svg width="10" height="10" aria-hidden><circle cx="5" cy="5" r="5" fill={anomaly(now.anomaly)} /></svg>
@@ -96,7 +108,7 @@ export function CurrentMonth({ series, stats, grid }: { series: MonthlySeries; s
               Provisional data — may still be revised.
             </p>
           )}
-          {through.length > 0 && <p className="mt-1 text-xs text-muted">Data through {through.join(" · ")}</p>}
+          {!progress && through.length > 0 && <p className="mt-1 text-xs text-muted">Data through {through.join(" · ")}</p>}
         </div>
 
         {hasBand && (
