@@ -118,9 +118,6 @@ export function App() {
       </div>
       <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
         <div className="flex items-start justify-end gap-1.5 sm:gap-2">
-          {desktop && !detailsOpen && (
-            <CalendarToggle open={calendarOpen} onToggle={() => setCalendarOpen(!calendarOpen)} />
-          )}
           {historyAvailable && layer === "history" && <PlayButton explorer={explorer} onPlay={play} />}
           <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
           <MapOptions
@@ -131,13 +128,16 @@ export function App() {
               if (!desktop) setSnap(SNAPS[0]);
             }}
           />
+          {desktop && !detailsOpen && (
+            <CalendarToggle open={calendarOpen} onToggle={() => setCalendarOpen(!calendarOpen)} />
+          )}
         </div>
         <AnimatePresence>
           {calendarShown && (
             <motion.div
               key="summary"
               initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, x: 0 }}
+              animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             >
