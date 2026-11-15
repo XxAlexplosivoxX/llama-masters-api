@@ -4,7 +4,8 @@ import {
   annualComparison, cellValues, cellsIn, computeStats, fullRange, gridSeries, latestCompleteYear, localCheck,
   bboxPolygon, loadPlace, loadPlaces, weeklyToMonthly, type LoadProgress, type Range,
 } from "../lib/shared";
-import { SATELLITE_ORDER, type CsvPoint, type Loaded, type MonthlySeries, type Place, type SeriesKind } from "../types";
+import { loadWeeklyCore, loadWeeklyRecent } from "../lib/weeklyLoader";
+import { SATELLITE_ORDER, type CsvPoint, type Hotspot, type Loaded, type MonthlySeries, type Place, type SeriesKind } from "../types";
 import { CSV_PLACE_ID } from "../state";
 import { useGraphsStore, useStore } from "./useGraphsStore";
 
@@ -37,6 +38,8 @@ export function usePlaceData() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [csvData, setCsvData] = useState<CsvPlaceData | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "loading", message: "Loading places" });
+  const [weeklyRecent, setWeeklyRecent] = useState<{ placeId: string; areaId: string | null; points: Hotspot[] | null; truncated: boolean } | null>(null);
+  const [recentStatus, setRecentStatus] = useState<"loading" | "ready" | "unavailable">("unavailable");
   const selections = useRef({ areaId, platform });
   selections.current = { areaId, platform };
 
@@ -82,9 +85,12 @@ export function usePlaceData() {
     const controller = new AbortController();
     setStatus({ kind: "loading", message: `Loading ${place.label}` });
     setLoaded(null);
-    loadPlace(place, controller.signal, (progress) => {
+    const loadCore = place.kind === "weekly"
+      ? loadWeeklyCore(place, controller.signal)
+      : loadPlace(place, controller.signal, (progress) => {
       if (!controller.signal.aborted) setStatus({ kind: "loading", message: `Loading ${place.label}`, progress });
-    })
+    });
+    loadCore
       .then((data) => {
         if (data.place.kind === "weekly" && "areas" in data) {
           const first = data.areas.features[0]?.properties.area_id ?? null;
@@ -104,6 +110,29 @@ export function usePlaceData() {
       });
     return () => controller.abort();
   }, [place, isCsv, csv]);
+
+  useEffect(() => {
+    if (!place || place.kind !== "weekly" || !loaded || !("areas" in loaded) || loaded.place.id !== place.id) {
+      setWeeklyRecent(null);
+      setRecentStatus("unavailable");
+      return;
+    }
+    const controller = new AbortController();
+    const requestedArea = areaId ?? null;
+    setWeeklyRecent(null);
+    setRecentStatus("loading");
+    loadWeeklyRecent(place, controller.signal, requestedArea).then((result) => {
+      if (controller.signal.aborted || placeId !== place.id || (store.getState().areaId ?? null) !== requestedArea) return;
+      setWeeklyRecent({ placeId: place.id, areaId: requestedArea, points: result.points, truncated: result.truncated });
+      setRecentStatus(result.points ? "ready" : "unavailable");
+    }).catch(() => {
+      if (!controller.signal.aborted && placeId === place.id && (store.getState().areaId ?? null) === requestedArea) {
+        setWeeklyRecent({ placeId: place.id, areaId: requestedArea, points: null, truncated: false });
+        setRecentStatus("unavailable");
+      }
+    });
+    return () => controller.abort();
+  }, [place, loaded, areaId, placeId, store]);
 
   // Grid cells whose centre falls in the area of interest (every cell for the whole place).
   const cells = useMemo(
@@ -167,14 +196,17 @@ export function usePlaceData() {
       const w = w0 + Math.floor((p.lon - w0) / d) * d, s = s0 + Math.floor((p.lat - s0) / d) * d;
       return keep.has(`${w}:${s}`);
     };
-    return (loaded?.recent ?? []).filter((p) => SATELLITE_ORDER.includes(p.platform) && inBox(p)).map((p) => ({
+    const points = loaded?.place.kind === "weekly"
+      ? (weeklyRecent?.placeId === placeId && weeklyRecent.areaId === (areaId ?? null) ? weeklyRecent.points ?? [] : [])
+      : loaded?.recent ?? [];
+    return points.filter((p) => SATELLITE_ORDER.includes(p.platform) && inBox(p)).map((p) => ({
       date: p.acquired_utc.slice(0, 10),
       platform: p.platform as CsvPoint["platform"],
       frp: Number.isFinite(p.frp) ? p.frp : null,
       daynight: p.daynight === "D" || p.daynight === "N" ? p.daynight : null,
       lon: p.lon, lat: p.lat,
     }));
-  }, [isCsv, csvData, loaded, bbox, cells]);
+  }, [isCsv, csvData, loaded, bbox, cells, weeklyRecent, placeId, areaId]);
 
   const areas = useMemo(() => {
     if (isCsv) return csv ? [{ id: "upload", name: csv.name }] : [];
@@ -191,11 +223,19 @@ export function usePlaceData() {
   const setRange = (next: Range | null) =>
     store.actions.setRange(next, series ? ym(series.startYear) : undefined);
 
+  const weeklyRecentMatches = weeklyRecent?.placeId === placeId && weeklyRecent.areaId === (areaId ?? null);
+  const currentRecentStatus = isCsv || loaded?.place.kind === "grid"
+    ? "ready" as const
+    : loaded?.place.kind === "weekly" && loaded.place.id === placeId
+      ? weeklyRecentMatches ? (weeklyRecent?.points ? "ready" as const : "unavailable" as const) : "loading" as const
+      : recentStatus;
+
   return {
     status, places, place, loaded, isCsv, csvData, csv,
     areas, platforms, series, stats, values, cells, harmonization,
     range: activeRange, setRange, seriesRange,
-    focus, recent, bbox,
+    focus, recent, bbox, recentStatus: currentRecentStatus,
+    recentTruncated: !!weeklyRecent?.truncated && weeklyRecentMatches,
     selectPlace: store.actions.setPlace,
   };
 }
