@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useMemo } from "react";
-import { heatScale } from "../lib/color";
+import { useMemo, type ReactNode } from "react";
+import { anomalyScale, heatScale } from "../lib/color";
+
+const anomaly = anomalyScale(0.8);
 import { fmt, fmtCompact, fmtPercent } from "../lib/format";
 import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/series";
 import type { MonthlySeries } from "../lib/types";
@@ -29,6 +31,7 @@ export function YearCalendar({
   hoverMonth,
   onYear,
   onHover,
+  aside,
 }: {
   series: MonthlySeries;
   stats: Stats;
@@ -37,6 +40,8 @@ export function YearCalendar({
   hoverMonth: number | null;
   onYear: (year: number) => void;
   onHover: (month: number | null) => void;
+  /** Shown at the right of the year row (the Details button). */
+  aside?: ReactNode;
 }) {
   // Years with any source data (the VIIRS-only view starts in 2012).
   const years = useMemo(
@@ -61,18 +66,18 @@ export function YearCalendar({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <button
-            className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
+            className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
             onClick={() => onYear(years[at - 1])}
             disabled={at <= 0}
             aria-label="Previous year"
           >
             <ChevronLeft size={16} aria-hidden />
           </button>
-          <span className="num w-11 text-center text-sm font-semibold" aria-live="polite">
+          <span className="num w-12 text-center text-base font-semibold" aria-live="polite">
             {shown}
           </span>
           <button
-            className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
+            className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
             onClick={() => onYear(years[at + 1])}
             disabled={at < 0 || at >= years.length - 1}
             aria-label="Next year"
@@ -80,12 +85,10 @@ export function YearCalendar({
             <ChevronRight size={16} aria-hidden />
           </button>
         </div>
-        <span className="num text-xs text-muted">
-          {total !== null ? `${fmtCompact(Math.round(total))} hotspots` : `${fmtCompact(Math.round(soFar))} so far`}
-        </span>
+        {aside}
       </div>
 
-      <div className="mt-2 grid grid-cols-4 gap-1.5" role="grid" aria-label={`Hotspots by month in ${shown}`}>
+      <div className="mt-2.5 grid grid-cols-4 gap-1.5" role="grid" aria-label={`Hotspots by month in ${shown}`}>
         {MONTHS.map((name, m) => {
           const index = base + m;
           const value = series.values[index] ?? null;
@@ -101,24 +104,55 @@ export function YearCalendar({
               key={m}
               role="gridcell"
               aria-label={label}
-              title={label}
               onMouseEnter={() => onHover(value === null ? null : index)}
               onMouseLeave={() => onHover(null)}
               onFocus={() => onHover(value === null ? null : index)}
               onBlur={() => onHover(null)}
-              className={`relative flex h-14 flex-col justify-between rounded-md p-1.5 text-left transition-[opacity,box-shadow] duration-200 ${
-                value === null ? "border border-dashed border-border bg-transparent" : ""
+              className={`h-10 rounded-lg text-xs font-medium transition-[opacity,box-shadow] duration-200 ${
+                value === null ? "border border-dashed border-border text-muted" : dark ? "text-bg" : "text-text/90"
               } ${hoverMonth === index ? "ring-2 ring-text" : ""} ${partial ? "outline-dashed outline-1 -outline-offset-2 outline-[#9AA6C0]" : ""}`}
               style={{ background: fill, opacity: inRange ? 1 : 0.35 }}
             >
-              <span className={`text-[11px] font-medium ${dark ? "text-bg" : "text-text/90"}`}>{name}</span>
-              <span className={`num text-xs font-semibold ${dark ? "text-bg" : "text-text"}`}>
-                {value === null ? "–" : fmtCompact(Math.round(value))}
-              </span>
+              {name}
             </button>
           );
         })}
       </div>
+
+      {/* One line: the hovered month, otherwise the year against the mean and the fire season. */}
+      <p className="num mt-2.5 h-4 truncate text-xs text-muted" aria-live="polite">
+        {(() => {
+          const m = hoverMonth !== null && hoverMonth >= base && hoverMonth < base + 12 ? hoverMonth - base : null;
+          if (m !== null) {
+            const v = series.values[base + m];
+            const clim = stats.climatology[m];
+            const rel = v != null && !series.partial[base + m] && clim ? v / clim - 1 : null;
+            return (
+              <>
+                <span className="text-text">{MONTHS_LONG[m]}</span>{" "}
+                {v == null ? "no source data" : `${fmtCompact(Math.round(v))} hotspots`}
+                {rel !== null && <span style={{ color: anomaly(rel) }}> · {fmtPercent(rel)} vs typical</span>}
+              </>
+            );
+          }
+          const yearRel = total !== null && stats.meanYear ? total / stats.meanYear - 1 : null;
+          return (
+            <>
+              <span className="text-text">
+                {total !== null ? fmtCompact(Math.round(total)) : `${fmtCompact(Math.round(soFar))} so far`}
+              </span>
+              {" hotspots"}
+              {yearRel !== null && " · "}
+              {yearRel !== null && <span style={{ color: anomaly(yearRel) }}>{fmtPercent(yearRel)} vs mean</span>}
+            </>
+          );
+        })()}
+      </p>
+      {stats.peak && (
+        <p className="mt-0.5 text-xs text-muted">
+          Fire season {MONTHS[stats.peak.from]}–{MONTHS[stats.peak.to]}
+        </p>
+      )}
     </div>
   );
 }

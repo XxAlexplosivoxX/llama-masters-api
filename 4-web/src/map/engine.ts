@@ -350,14 +350,14 @@ export class MapEngine {
       type: "line",
       source: "country",
       layout: { "line-join": "round" },
-      paint: { "line-color": "#0B0F1A", "line-width": 5, "line-opacity": 0.55, "line-blur": 2 },
+      paint: { "line-color": "#0B0F1A", "line-width": 4, "line-opacity": 0.35, "line-blur": 2 },
     });
     map.addLayer({
       id: "country",
       type: "line",
       source: "country",
       layout: { "line-join": "round" },
-      paint: { "line-color": "#E8ECF5", "line-width": 1.6, "line-opacity": 0.95 },
+      paint: { "line-color": "#E8ECF5", "line-width": 1.2, "line-opacity": 0.6 },
     });
     map.addLayer({
       id: "outline",

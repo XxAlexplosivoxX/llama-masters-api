@@ -82,7 +82,7 @@ export function App() {
   }, []);
 
   const padding: Padding = desktop
-    ? { top: 96, right: calendarShown ? 352 : 48, bottom: 48, left: 48 }
+    ? { top: 96, right: calendarShown ? 336 : 48, bottom: 48, left: 48 }
     : { top: 128, right: 24, bottom: Math.round(window.innerHeight * 0.56), left: 24 };
 
   const chooseArea = (polygon: GeoJSON.Polygon, label?: string) => {

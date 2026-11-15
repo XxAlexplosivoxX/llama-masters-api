@@ -41,7 +41,7 @@ export function stepsFrom(
 
 const MESSAGE_MS = 700; // each loading message stays at least this long, so it can be read
 
-/** First-load pill at the top middle: one line naming the current step, a thin progress line under it. */
+/** First-load pill at the top middle: a progress ring and one line naming the current step. */
 export function LoadingCard({ title, steps, onFinished }: { title: string; steps: Step[]; onFinished?: () => void }) {
   const known = steps.filter((s) => s.fraction !== undefined || s.state === "done");
   const overall = known.length
@@ -71,36 +71,54 @@ export function LoadingCard({ title, steps, onFinished }: { title: string; steps
   const label = step ? `Loading ${step.label.charAt(0).toLowerCase()}${step.label.slice(1)}` : title;
   const detail = step?.state === "active" ? step.detail : undefined;
   const shownProgress = Math.max(overall, Math.min(1, index / steps.length));
+  // Ring: the arc is the progress; the whole ring turns slowly so it reads as busy.
+  const R = 6,
+    C = 2 * Math.PI * R;
   return (
     <motion.div
       role="status"
       aria-live="polite"
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8, transition: { duration: 0.3 } }}
+      initial={{ opacity: 0, y: -8, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8, scale: 0.97, transition: { duration: 0.25 } }}
       transition={{ duration: 0.3, ease }}
-      className="relative flex h-9 max-w-[calc(100vw-2rem)] items-center gap-2 overflow-hidden rounded-full border border-border bg-bg/90 pl-3 pr-4 text-xs shadow-xl shadow-black/40 backdrop-blur-md"
+      className="flex h-8 max-w-[calc(100vw-2rem)] items-center gap-2.5 rounded-full border border-white/10 bg-bg/80 pl-2.5 pr-3.5 text-xs shadow-lg shadow-black/30 backdrop-blur-md"
     >
-      <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" aria-hidden />
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        className="shrink-0 animate-spin [animation-duration:1.4s]"
+        aria-hidden
+      >
+        <circle cx="8" cy="8" r={R} fill="none" stroke="currentColor" strokeWidth="2" className="text-white/10" />
+        <motion.circle
+          cx="8"
+          cy="8"
+          r={R}
+          fill="none"
+          stroke="var(--color-accent)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          animate={{ strokeDashoffset: C * (1 - Math.max(0.12, shownProgress)) }}
+          transition={{ duration: 0.4, ease }}
+          transform="rotate(-90 8 8)"
+        />
+      </svg>
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={label}
-          initial={{ opacity: 0, y: 6 }}
+          initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.2 }}
-          className="truncate"
+          exit={{ opacity: 0, y: -5 }}
+          transition={{ duration: 0.18 }}
+          className="truncate text-text/90"
         >
           {label}
         </motion.span>
       </AnimatePresence>
       {detail && <span className="num shrink-0 text-muted">{detail}</span>}
-      <motion.span
-        className="absolute bottom-0 left-0 h-0.5 bg-accent"
-        animate={{ width: `${Math.max(4, shownProgress * 100)}%` }}
-        transition={{ duration: 0.3 }}
-        aria-hidden
-      />
     </motion.div>
   );
 }

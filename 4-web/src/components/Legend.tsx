@@ -79,7 +79,7 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
   }
   if (!title) return null;
 
-  const hasTemps = !!(layer === "recent" ? explorer.recentTemps : explorer.temps?.VIIRS.hi || explorer.temps?.MODIS.hi);
+  const hasTemps = !!(layer === "recent" ? explorer.recentTemps : explorer.temps);
 
   return (
     <div className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-3.5 py-3 backdrop-blur-md">

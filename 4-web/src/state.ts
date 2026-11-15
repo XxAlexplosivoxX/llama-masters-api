@@ -95,7 +95,11 @@ export function useExplorer() {
   }, [loaded]);
 
   // Each sensor's temperature colour range, fixed per place so months compare.
-  const temps = useMemo(() => (loaded ? tempScales(loaded.grid) : null), [loaded]);
+  // Null when the grid has no temperatures (version 5 files).
+  const temps = useMemo(() => {
+    const t = loaded ? tempScales(loaded.grid) : null;
+    return t && (t.MODIS.lo > 0 || t.VIIRS.lo > 0) ? t : null;
+  }, [loaded]);
   const recentTemps = useMemo(() => (loaded ? recentScales(loaded.recent) : null), [loaded]);
 
   const series: MonthlySeries | null = useMemo(() => {
