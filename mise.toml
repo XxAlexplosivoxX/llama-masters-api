@@ -80,6 +80,12 @@ dir = "5-web_landing"
 depends = ["landing:install"]
 run = "bun run check"
 
+[tasks."landing:test"]
+description = "Test the landing page (Vitest)"
+dir = "5-web_landing"
+depends = ["landing:install"]
+run = "bun run test"
+
 [tasks.deploy]
 description = "Build the landing page and the atlas, and deploy the Worker (sites + API)"
 dir = "3-api_atlas"
