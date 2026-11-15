@@ -6,15 +6,16 @@ covered in the [README](../README.md#uploading).
 
 ## Base URL
 
-The team instance runs behind a Cloudflare quick tunnel:
+The team instance runs on an Azure VM (Chile Central) with HTTPS, deployed with
+[deploy/](../deploy/README.md):
 
 ```sh
-API=https://generation-exit-dear-walks.trycloudflare.com
+API=https://68-211-179-63.sslip.io
 curl "$API/healthz"          # {"status":"ok","writes_enabled":true}
 ```
 
-The URL stays the same while the tunnel process keeps running. If it restarts,
-it gets a new URL. For a local server, use `http://localhost:8080`.
+The name comes from sslip.io, which resolves it to the VM's static IP. For a
+local server, use `http://localhost:8080`.
 
 ## Regions
 
@@ -36,7 +37,7 @@ curl "$API/v1/regions"
 ```
 
 ```json
-[{"name": "world", "version": 11, "start": "2000-11-01", "end": "2026-11-14",
+[{"name": "world", "version": 12, "start": "2000-11-01", "end": "2026-11-14",
   "platforms": ["Aqua", "NOAA-20", "NOAA-21", "S-NPP", "Terra"], "areas": 9,
   "hotspots": {"first_day": "2026-11-13", "last_day": "2026-11-14", "features": 160726}}]
 ```
@@ -144,7 +145,7 @@ Read it before publishing numbers.
 ```python
 import pandas as pd
 
-API = "https://generation-exit-dear-walks.trycloudflare.com"
+API = "https://68-211-179-63.sslip.io"
 weekly = pd.read_json(f"{API}/v1/regions/world/weekly?platform=Aqua", dtype={"reported_detections": "Int64"})
 weekly["week_start"] = pd.to_datetime(weekly["week_start"])
 complete = weekly[weekly["week_complete"] & weekly["source_complete"]]
