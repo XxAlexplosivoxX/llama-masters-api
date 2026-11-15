@@ -1,5 +1,7 @@
 # Documentation
 
+- [Usage](usage.md): how to read the data: regions, routes, filters, field
+  meanings, a pandas example, caching and errors.
 - [Data contract](data-contract.md): the exports the API accepts, how they are
   produced, and the rules the API enforces on upload.
 - [Challenge](CHALLENGE.md): NASA Space Apps 2026 "MODIS and VIIRS Hot Spots",
