@@ -134,6 +134,12 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
     else engine.stopDrawing();
   }, [engine, drawMode]);
 
+  useEffect(() => {
+    if (!engine || status.kind !== "empty") return;
+    engine.setGridCells({ cellDeg: 0.1, cells: [] });
+    if (placeBBox) engine.fit(placeBBox, padding);
+  }, [engine, status.kind, placeBBox]);
+
   // First data: play the opening sequence once; later place changes just fly.
   useEffect(() => {
     if (!engine || !loaded || !placeBBox) return;

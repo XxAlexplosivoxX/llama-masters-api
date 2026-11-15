@@ -56,6 +56,7 @@ interface PlaceIndexEntry {
   bbox: BBox;
   base: string;
   history: Record<string, { first_source_month: string; last_source_day: string }>;
+  empty?: boolean;
 }
 
 /** Countries built by scripts/build-country.mjs (public/data/places.json). */
@@ -63,8 +64,8 @@ async function loadGridPlaces(): Promise<GridPlace[]> {
   try {
     const index = await getJSON<PlaceIndexEntry[]>("./data/places.json");
     return index.map((p) => ({
-      id: p.id, label: p.label, kind: "grid", scope: p.kind ?? "country", base: p.base, bbox: p.bbox,
-      summary: p.kind === "region"
+      id: p.id, label: p.label, kind: "grid", scope: p.kind ?? "country", base: p.base, bbox: p.bbox, empty: p.empty,
+      summary: p.empty ? "No data yet" : p.kind === "region"
         ? `Every country combined, since ${p.history.MODIS.first_source_month.slice(0, 4)}`
         : p.id === "brazil" ? "MVP: the most tested area" : `Since ${p.history.MODIS.first_source_month.slice(0, 4)}`,
     }));
@@ -78,7 +79,6 @@ export const COMING_SOON: { label: string; note: string }[] = [
   { label: "Mexico and Central America", note: "Yucatán and Sierra Madre" },
   { label: "Canada", note: "Boreal forest" },
   { label: "Australia", note: "Northern savanna" },
-  { label: "Indonesia", note: "Peatland fires" },
 ];
 
 /** Where contract regions are read from, and whether it is the live API. */
@@ -142,6 +142,7 @@ function fromGeoJSON(fc: GeoJSON.FeatureCollection): Hotspot[] {
 
 export async function loadPlace(place: Place, signal?: AbortSignal, onProgress?: (p: LoadProgress[]) => void): Promise<Loaded> {
   if (place.kind === "grid") {
+    if (place.empty) throw new Error(`${place.label} has no data yet. Build it with scripts/build-country.mjs --country ${place.id}.`);
     const steps: LoadProgress[] = [
       { step: "history", label: "Monthly history", loaded: 0, total: null },
       { step: "recent", label: "Last 7 days", loaded: 0, total: null },

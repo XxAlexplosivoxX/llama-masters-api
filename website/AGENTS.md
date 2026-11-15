@@ -13,8 +13,8 @@ you change behaviour.
   hotspot records are made comparable so "the sensor of origin no longer matters", and a web app
   lets a user pick an area and dates, see when it burns, which years burned more, how now compares,
   and download CSVs. Audience: emergency managers, land managers, firefighters, scientists.
-- MVP scope: **South America, Brazil first** (Brazil opens by default). Other continents are
-  "Coming soon" entries only.
+- MVP scope: **South America, Brazil first** (Brazil opens by default). Indonesia is built as the
+  first country outside it; other continents are "Coming soon" entries only.
 - The repo root (`llama-masters-api`) also has a Go API (`../cmd`, `../internal`) that serves weekly
   region exports from the research pipeline. The website does **not** need it; it is optional
   (`VITE_DATA_URL`). Work in `website/` unless the user asks for backend changes; if a backend
@@ -117,7 +117,10 @@ npm run data:sync                                   # optional: research weekly 
 ### Files the app loads (`public/data/`)
 
 - `places.json`: `[{ id, kind: "region"|"country", label, bbox, base, history, hotspots }]`, order:
-  regions, Brazil, then A-Z.
+  regions, Brazil, then A-Z. A placeholder entry (none at the moment) has `history: {}`, `empty: true` and no files: the
+  switcher marks it "No data yet", the map flies to its bbox with an empty grid, the panel says no
+  records were built, and `loadPlace` throws a clear error (shown by `website-graphs`). Building it
+  (`npm run data:country -- --country <id>`) replaces the entry without `empty`.
 - `<id>/monthly_grid.json` (`MonthlyGrid` in `src/lib/types.ts`, `version: 3`):
   - `start_month` "2000-01", `months` (index 0 = Jan 2000, through Dec of the current year)
   - `cell_deg` 0.1 (about 11 km north–south)
@@ -137,7 +140,7 @@ npm run data:sync                                   # optional: research weekly 
 - `regions/` (optional, git-ignored): weekly research exports, shown as "Weekly research exports".
 
 Built: Brazil, Argentina, Bolivia, Chile, Colombia, Ecuador, French Guiana, Guyana, Paraguay, Peru,
-Suriname, Uruguay, Venezuela, and `south-america`.
+Suriname, Uruguay, Venezuela, `south-america`, and Indonesia (version 3, built 2026-11-15).
 The committed version-2 grids must be regenerated country by country, then region by region.
 The loader rejects version 2 with an explicit regeneration error; it does not reinterpret dense arrays.
 
@@ -156,6 +159,11 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
   raw VIIRS 270 %); South America 8.9 % (single ratio **8.2 %, slightly better**; the UI says so).
   Version-3 coefficients and scores must be refitted on the finer cells during regeneration.
   Caveats: MODIS is not ground truth; Terra/Aqua orbits drifted after ~2020/2022.
+- Indonesia (version 3): the seasonal model fits poorly. Test 2020-2025 WAPE 42.6 % with +39.5 % bias,
+  single fixed ratio 15.8 % (train 17.2 % vs 9.7 %). β_m is 0.4-0.7, set by the 2015/2019 peat
+  fires, so converted VIIRS overstates quiet years. The panel says the fixed ratio is clearly
+  better. About 13 % of Indonesia's archive points are static sources (`type` != 0: volcanoes,
+  smelters, flares); NRT months cannot drop them, so provisional quiet months read high.
 - `localCheck` recomputes the test for any selected area; the panel shows it.
 
 ## 5. Semantics the UI must keep

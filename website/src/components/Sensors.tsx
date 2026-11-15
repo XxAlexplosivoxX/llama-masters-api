@@ -69,7 +69,9 @@ export function HowCombined({ explorer, grid }: { explorer: Explorer; grid: Mont
         ; raw VIIRS would be off by <span className="num">{Math.round(h.test.raw_viirs.wape * 100)}%</span>.
         {" "}Across {grid.label}, one fixed ratio for every month scores <span className="num">{Math.round(h.test.single_ratio.wape * 100)}%</span>
         {h.test.single_ratio.wape < h.test.model.wape
-          ? ", slightly better than this method here, so the seasonal adjustment is not yet proven for the whole area."
+          ? h.test.model.wape - h.test.single_ratio.wape < 0.02
+            ? ", slightly better than this method here, so the seasonal adjustment is not yet proven for the whole area."
+            : `, clearly better than this method's ${Math.round(h.test.model.wape * 100)}%, so the seasonal adjustment does not hold here yet: read the harmonized record and converted VIIRS with care.`
           : `, against ${Math.round(h.test.model.wape * 100)}% for this method.`}
       </p>
 

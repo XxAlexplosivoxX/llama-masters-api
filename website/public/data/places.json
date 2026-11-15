@@ -255,6 +255,35 @@
   }
  },
  {
+  "id": "indonesia",
+  "kind": "country",
+  "label": "Indonesia",
+  "bbox": [
+   94.9,
+   -11.1,
+   141.1,
+   6.2
+  ],
+  "base": "./data/indonesia",
+  "history": {
+   "MODIS": {
+    "series": "MODIS (Terra + Aqua), Collection 6.1",
+    "first_source_month": "2000-11",
+    "last_source_day": "2026-11-15"
+   },
+   "VIIRS": {
+    "series": "VIIRS (Suomi NPP), Collection 2, 375 m",
+    "first_source_month": "2012-01",
+    "last_source_day": "2026-11-02"
+   }
+  },
+  "hotspots": {
+   "first_day": "2026-11-08",
+   "last_day": "2026-11-15",
+   "features": 14251
+  }
+ },
+ {
   "id": "paraguay",
   "label": "Paraguay",
   "bbox": [

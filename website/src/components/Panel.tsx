@@ -86,6 +86,10 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay, showChart
         <p className="rounded-lg border border-nasa-red/50 bg-nasa-red/10 p-4 text-sm" role="alert">{status.message}</p>
       )}
 
+      {status.kind === "empty" && (
+        <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted" role="status">{status.message}</p>
+      )}
+
       {status.kind === "ready" && !series && (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted" role="status">
           {loaded && "grid" in loaded

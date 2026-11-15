@@ -60,6 +60,7 @@ export function PlaceSwitcher({ places, current, onSelect }: { places: Place[]; 
                       className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm hover:bg-surface-2">
                       <span className="w-4 shrink-0 text-accent">{p.id === current?.id && <Check size={15} aria-hidden />}</span>
                       {p.label}
+                      {p.kind === "grid" && p.empty && <span className="ml-auto text-2xs text-muted">No data yet</span>}
                     </button>
                   ))}
                 </div>

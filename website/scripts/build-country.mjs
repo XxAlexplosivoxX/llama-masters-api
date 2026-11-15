@@ -33,6 +33,7 @@ export const COUNTRIES = {
   guyana: { label: "Guyana", file: "Guyana", bbox: [-61.4, 1.1, -56.4, 8.6] },
   suriname: { label: "Suriname", file: "Suriname", bbox: [-58.1, 1.8, -53.9, 6.1] },
   "french-guiana": { label: "French Guiana", file: "French_Guiana", bbox: [-54.6, 2.1, -51.5, 5.8] },
+  indonesia: { label: "Indonesia", file: "Indonesia", bbox: [94.9, -11.1, 141.1, 6.2] },
 };
 
 // MODIS confidence is 0-100 (FIRMS "low" is below 30); VIIRS uses l / n / h.

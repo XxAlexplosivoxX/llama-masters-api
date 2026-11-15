@@ -128,6 +128,7 @@ export interface GridPlace extends PlaceBase {
   kind: "grid";
   scope?: "region" | "country";
   base: string;
+  empty?: boolean;
 }
 
 /** A region from the data contract (API or static export): fixed areas, weekly rows per platform. */

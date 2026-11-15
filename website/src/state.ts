@@ -12,6 +12,7 @@ import { sensorOf, type Sensor } from "./lib/color";
 export type Status =
   | { kind: "loading"; message: string; progress?: LoadProgress[] }
   | { kind: "error"; message: string }
+  | { kind: "empty"; message: string }
   | { kind: "ready" };
 
 const PLATFORM_ORDER = ["NOAA-20", "NOAA-21", "S-NPP", "Aqua", "Terra"];
@@ -55,6 +56,10 @@ export function useExplorer() {
     setShape(null);
     setRange(null);
     setFocusYear(null);
+    if (place.kind === "grid" && place.empty) {
+      setStatus({ kind: "empty", message: `No hotspot records for ${place.label} yet. The area is on the map, but its monthly history and last 7 days have not been built.` });
+      return;
+    }
     loadPlace(place, controller.signal, (progress) => {
       if (!controller.signal.aborted) setStatus({ kind: "loading", message: `Loading ${place.label}`, progress });
     })
