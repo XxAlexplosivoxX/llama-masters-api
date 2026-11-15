@@ -36,6 +36,38 @@ curl https://$DOMAIN/healthz           # {"status":"ok","writes_enabled":true}
 The repository is private, so the VPS needs access to it: a deploy key, or
 `gh auth login`.
 
+## Small VPS: build the image elsewhere
+
+The Go build of the SQLite driver needs a few GB of RAM. On a 1 GB VM (e.g. an
+Azure B2ats_v2), build on another machine and load the image instead. On the
+build machine:
+
+```sh
+docker build -t llama-masters-api:latest .
+docker save llama-masters-api:latest | gzip | ssh user@VPS 'gunzip | docker load'
+```
+
+Then, on the VPS:
+
+```sh
+docker compose -f deploy/compose.yaml up -d --no-build
+```
+
+The repository can be copied the same way, which avoids giving the VPS access to
+GitHub:
+
+```sh
+git archive HEAD | ssh user@VPS 'mkdir -p llama-masters-api && tar -x -C llama-masters-api'
+```
+
+Add swap on 1 GB machines:
+
+```sh
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
 ## Loading the data
 
 The VPS starts empty. There are two ways to fill it.

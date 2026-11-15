@@ -3,6 +3,9 @@
 #   docker compose -f deploy/compose.yaml up -d --build
 services:
   api:
+    # --build tags the image with this name; on a small VPS, load one built elsewhere
+    # (docker save | ssh docker load) and start with --no-build. See deploy/README.md.
+    image: llama-masters-api:latest
     build:
       context: ..
     env_file: .env
