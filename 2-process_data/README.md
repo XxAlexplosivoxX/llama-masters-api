@@ -8,7 +8,7 @@ per stage. Method and targets: [the harmonization plan](../0-plans/HARMONIZATION
 | `src/prepare.py` | `raw/` → `reference/` (world ADM1, cell owners, static cells, work list) and `staging/api/` (API rows split by country) | done |
 | `src/clean.py` | `raw/` + `staging/` → `clean/country=<C>/sensor=<s>/part.parquet`, sharded over workers | done |
 | `src/aggregate.py` | `clean/` → `aggregates/country=<C>/`: counts per satellite × 0.1° cell × state × month, plus the latest points; runs on the same workers right after `clean.py` | done |
-| `src/export.py` | `aggregates/` → `exports/`: the harmonized record (fit, leave-one-year-out scores, fallback, bands) and the files [3-api](../3-api/README.md) serves | done |
+| `src/export.py` | `aggregates/` → `exports/`: the harmonized record (fit, leave-one-year-out scores, fallback, bands) and the files [3-api_atlas](../3-api_atlas/README.md) serves | done |
 
 ## prepare.py (once per run)
 

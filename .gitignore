@@ -17,5 +17,6 @@ data/*.zip
 # Railway IaC SDK (.railway/)
 node_modules/
 
-# Cloudflare Workers (3-api)
+# Cloudflare Workers (3-api_atlas)
 .wrangler/
+3-api_atlas/site/

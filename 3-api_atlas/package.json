@@ -1,0 +1,23 @@
+{
+  "name": "llama-masters-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "test": "bun test",
+    "check": "tsc -b",
+    "worker:dev": "wrangler dev",
+    "build:site": "bun run --cwd ../5-web_landing build && bun run --cwd ../4-web_atlas build && rm -rf site && cp -r ../5-web_landing/dist site && cp -r ../4-web_atlas/dist site/atlas",
+    "deploy": "bun run build:site && wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "4.13.18"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261113.1",
+    "@types/bun": "1.4.4",
+    "typescript": "7.0.2",
+    "wrangler": "4.162.0"
+  }
+}
