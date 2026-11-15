@@ -246,7 +246,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
 - `styles.css`: Tailwind v4 `@theme` tokens and component classes (`.seg`, `.field`, `.btn`,
   `.link`), MapLibre chrome and popup restyle, timeline scrubber, `details[open]` fade-in.
 - `components/Brand.tsx`: `TonalliMark` (the landing's sun), `BrandName` and `BrandLink` (top-left of the
-  toolbar, links to `/`, the landing; name hidden on phones, sun only). The panel header uses the same mark.
+  toolbar, links to the landing, `VITE_LANDING_URL` or https://tonalli.earth/; name hidden on phones, sun only). The panel header uses the same mark.
 - `tour/`: own product tour (no library), text only. Opens with what Tonalli ATLAS is and why the name.
   - `steps.ts`: all copy and targets. `title` / `body` (`bodyMobile` replaces `body` on phones);
     `target` is a `data-tour` value (none = centred card), `side` the preferred card side, `only`

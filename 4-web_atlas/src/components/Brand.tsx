@@ -29,11 +29,14 @@ export function BrandName() {
   );
 }
 
-/** Top-left name; links back to the landing page at the site root. */
+/** The landing page (5-web_landing); the atlas itself is served at https://tonalli.earth/atlas/. */
+const LANDING = (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "https://tonalli.earth/";
+
+/** Top-left name; links back to the landing page. */
 export function BrandLink() {
   return (
     <a
-      href="/"
+      href={LANDING}
       data-tour="brand"
       className="seg min-h-[46px] items-center gap-2 !px-3 hover:text-text max-sm:w-[46px] max-sm:justify-center max-sm:!px-0"
       aria-label="Tonalli ATLAS: back to the home page"
