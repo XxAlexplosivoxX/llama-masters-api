@@ -1,43 +1,70 @@
 [tools]
-go = "1.27.4"
-node = "24"
+python = "3.12.16"
+uv = "0.13.7"
+bun = "1.4.4"
 
 [env]
-# Local settings such as API_TOKEN; .env is git-ignored, see .env.example.
+UV_PYTHON_DOWNLOADS = "never"
+# Local secrets (FIRMS map keys, R2 credentials); .env is git-ignored, see .env.example.
 _.file = { path = ".env", redact = true }
 
-[tasks.dev]
-description = "Run the API with settings from .env"
-run = "go run ./cmd/llama-api serve"
+[tasks.setup]
+description = "Create the Python environment"
+run = "uv sync --locked"
 
-[tasks.test]
-description = "Run all tests"
-run = "go test ./..."
+[tasks.check]
+description = "Check the Python runtime"
+depends = ["setup"]
+run = "uv run python -c 'import sys; print(sys.version); assert sys.prefix != sys.base_prefix'"
 
-[tasks.vet]
-description = "Static checks"
-run = "go vet ./..."
+[tasks."api:install"]
+description = "Install the API dependencies (releases at least 1 day old)"
+dir = "3-api"
+run = "bun install --frozen-lockfile"
 
-[tasks.build]
-description = "Build a static binary into bin/llama-api"
-env = { CGO_ENABLED = "0" }
-run = "go build -trimpath -ldflags='-s -w' -o bin/llama-api ./cmd/llama-api"
+[tasks."api:dev"]
+description = "Run the API locally on the synthetic fixture"
+dir = "3-api"
+depends = ["api:install"]
+run = "bun run dev"
+
+[tasks."api:test"]
+description = "Test the API"
+dir = "3-api"
+depends = ["api:install"]
+run = "bun test"
+
+[tasks."api:check"]
+description = "Type-check the API for Bun and Workers"
+dir = "3-api"
+depends = ["api:install"]
+run = "bun run check"
+
+[tasks."web:install"]
+description = "Install the website dependencies (releases at least 1 day old)"
+dir = "4-web"
+run = "bun install --frozen-lockfile"
 
 [tasks."web:dev"]
-description = "Run the website against this API (start `mise run dev` first)"
-dir = "website"
-run = "npm install && npm run dev"
+description = "Run the website locally (set VITE_API_URL in 4-web/.env.local for the deployed API)"
+dir = "4-web"
+depends = ["web:install"]
+run = "bun run dev"
+
+[tasks."web:check"]
+description = "Format, lint and type-check the website (Vite+)"
+dir = "4-web"
+depends = ["web:install"]
+run = "bun run check"
 
 [tasks."web:build"]
-description = "Type-check and build the website into website/dist"
-dir = "website"
-run = "npm install && npm run build"
+description = "Build the website into 4-web/dist"
+dir = "4-web"
+depends = ["web:install"]
+run = "bun run build"
 
-[tasks."web:data"]
-description = "Rebuild Brazil (MODIS + VIIRS history, current year, last 7 days) from NASA FIRMS; current year needs FIRMS_MAP_KEY"
-dir = "website"
-run = "npm run data:brazil"
-
-[tasks.push]
-description = "Upload a prepared region: mise run push -- --dir PATH [--url URL] [--name NAME]"
-run = "go run ./cmd/llama-api push"
+[tasks.deploy]
+description = "Build the website and deploy the Worker (site + API)"
+dir = "3-api"
+depends = ["api:install", "web:install"]
+run = "bun run deploy"

@@ -1,8 +1,0 @@
-.git
-.env
-bin
-data
-*.db*
-website
-**/.env
-deploy/data

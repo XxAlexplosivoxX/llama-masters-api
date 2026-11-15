@@ -1,11 +1,21 @@
+.venv/
+__pycache__/
+*.py[cod]
 .env
-bin/
-data/
-# Built country data for the website ships with the static site (website/.gitignore still skips regions/).
-!website/public/data/
-*.db
-*.db-shm
-*.db-wal
 
-# Large reference image, fetched on demand (see docs/references/README.md)
-docs/references/dominic-roye/examples/firefly-map.png
+# Heavy or regenerable data: downloads and extracts stay local.
+# Commit only small metadata in data/ and final exports in data/processed/.
+data/raw/
+data/interim/
+data/*.csv
+data/*.zip
+*.part
+0-plans/references/dominic-roye/examples/firefly-map.png
+.duckdb_tmp/
+.ruff_cache/
+
+# Railway IaC SDK (.railway/)
+node_modules/
+
+# Cloudflare Workers (3-api)
+.wrangler/

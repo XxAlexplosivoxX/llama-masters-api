@@ -1,0 +1,7 @@
+{
+  // Two runtimes, two type environments: editors pick the project that includes each file.
+  //   tsconfig.bun.json     Bun server and tests (bun types)
+  //   tsconfig.worker.json  Cloudflare Worker (workers types, no DOM)
+  "files": [],
+  "references": [{ "path": "./tsconfig.bun.json" }, { "path": "./tsconfig.worker.json" }]
+}

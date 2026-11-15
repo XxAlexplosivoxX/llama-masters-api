@@ -1,4 +1,0 @@
-{"type": "FeatureCollection", "features": [
-{"type": "Feature", "properties": {"area_id": "north", "name": "North strip"}, "geometry": {"type": "Polygon", "coordinates": [[[-90, 14], [-88, 14], [-88, 15], [-90, 15], [-90, 14]]]}},
-{"type": "Feature", "properties": {"area_id": "south", "name": "South strip"}, "geometry": {"type": "Polygon", "coordinates": [[[-90, 13], [-88, 13], [-88, 14], [-90, 14], [-90, 13]]]}}
-]}
