@@ -1,0 +1,50 @@
+{
+  "retrieved_at_utc": "2026-11-14T08:31:31.643142+00:00",
+  "page_url": "https://www.spaceappschallenge.org/2026/challenges/modis-and-viirs-hot-spots/",
+  "page_last_published_at": "2026-11-13T03:46:22.754924Z",
+  "video": {
+    "id": "tEPHsiZtuvk",
+    "title": "2026 Challenge | Harmonization of MODIS and VIIRS Hot Spots",
+    "duration": 292,
+    "channel": "NASA Space Apps Challenge",
+    "webpage_url": "https://www.youtube.com/watch?v=tEPHsiZtuvk",
+    "description": "The explanation of the \"Harmonization of MODIS and VIIRS Hot Spots\" challenge is more specifically described on https://www.spaceappschallenge.org/2026/challenges/"
+  },
+  "caption_type": "YouTube automatic captions, en-orig; no manual tracks listed",
+  "resource_links": [
+    "https://www.earthdata.nasa.gov/data/tools/firms"
+  ],
+  "retrieval_note": "Public challenge HTML fetched with certificate verification disabled after the local trust chain failed; browser rendering was independently reviewed. Captions retrieved from the public YouTube timed-text URL discovered by yt-dlp. No browser cookies or account credentials used.",
+  "files": [
+    {
+      "file": "details.html",
+      "bytes": 7926,
+      "sha256": "0cd3cba9152af37cd5dad3e7bc5871e08dc88bc4b378589cb25f1b560642629b"
+    },
+    {
+      "file": "details.txt",
+      "bytes": 6402,
+      "sha256": "2182720c73886b808883b3a09834cacbc53abf884b12d3c7e317b0888d476eb1"
+    },
+    {
+      "file": "page-source.html",
+      "bytes": 78088,
+      "sha256": "1006cafc9dec08466c8cc1290ff6d5d1201a48d9f28642983f5dbc2fc5abf9a0"
+    },
+    {
+      "file": "resources.html",
+      "bytes": 962,
+      "sha256": "a067a44bf3933c0411143f499f90f4f7a2c92c740a968d720c83f1ffcb1ee576"
+    },
+    {
+      "file": "video.en.auto.json",
+      "bytes": 62231,
+      "sha256": "0bbac331bd548bad152ae747eba87d655d7922be6e63fd2c87b2293f38b39078"
+    },
+    {
+      "file": "video.en.auto.txt",
+      "bytes": 5145,
+      "sha256": "d155060b501ffdc9b9dc9d699f4f18d86905171a51fc977312f60dd2ff52f3fb"
+    }
+  ]
+}

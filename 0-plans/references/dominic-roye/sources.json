@@ -1,0 +1,79 @@
+[
+  {
+    "file": "home.html",
+    "url": "https://dominicroye.github.io/",
+    "retrieved_at_utc": "2026-11-14T08:19:54.148909+00:00",
+    "bytes": 25535,
+    "sha256": "14c6f31df82f84324167749ae115e5b79694c93260967d06c0b3cb81d02766e9"
+  },
+  {
+    "file": "gallery.html",
+    "url": "https://dominicroye.github.io/project/index.html",
+    "retrieved_at_utc": "2026-11-14T08:19:54.734088+00:00",
+    "bytes": 86915,
+    "sha256": "fd3475bfc2dc813ab2f115c48232811bfbf80a1bfc9e9092d8084532636c5410"
+  },
+  {
+    "file": "calendar-heatmap.html",
+    "url": "https://dominicroye.github.io/blog/calendar-heatmap/index.html",
+    "retrieved_at_utc": "2026-11-14T08:19:55.168200+00:00",
+    "bytes": 52070,
+    "sha256": "0507da0c816aadcd7fce48f1dbc0b69fcaa33f8b7a532e52103b8685c9932e45"
+  },
+  {
+    "file": "temperature-normal.html",
+    "url": "https://dominicroye.github.io/blog/spain-temperature-normals-openmeteo/index.html",
+    "retrieved_at_utc": "2026-11-14T08:19:55.831836+00:00",
+    "bytes": 204921,
+    "sha256": "5d09112c336fc05aee15c2c3ebb1fe38f917a88110e41557cf9535c783244a7c"
+  },
+  {
+    "file": "firefly-maps.html",
+    "url": "https://dominicroye.github.io/blog/firefly-maps/index.html",
+    "retrieved_at_utc": "2026-11-14T08:19:56.210185+00:00",
+    "bytes": 73089,
+    "sha256": "afebf10380349cf89795bd9e7287d25dea3562e2a7a9ca48eaabd31e288a0c0e"
+  },
+  {
+    "file": "map-circle-packing.html",
+    "url": "https://dominicroye.github.io/blog/map-circle-packing/",
+    "retrieved_at_utc": "2026-11-14T08:19:56.929065+00:00",
+    "bytes": 118742,
+    "sha256": "a83448e1a7a50b15b737c5e9bc590dcb7d951dc53254a6db2dd160dcb12844e7"
+  },
+  {
+    "file": "normalization.html",
+    "url": "https://dominicroye.github.io/blog/always-normalize-your-data/index.html",
+    "retrieved_at_utc": "2026-11-14T08:19:57.694505+00:00",
+    "bytes": 63193,
+    "sha256": "d57caff20df33fa5732c5be32cf14cc356fcfc7c7bd7c7886e9dbc327130a5ae"
+  },
+  {
+    "file": "bivariate-map.html",
+    "url": "https://dominicroye.github.io/blog/bivariate-dasymetric-map/index.html",
+    "retrieved_at_utc": "2026-11-14T08:19:58.526792+00:00",
+    "bytes": 69975,
+    "sha256": "9d08476b6c563928b27f82c341123daebe63a2acaeffaa6106e87ccf1e6e8360"
+  },
+  {
+    "file": "examples/calendar-heatmap.png",
+    "url": "https://dominicroye.github.io/blog/calendar-heatmap/img/figure-html/unnamed-chunk-9-1.png",
+    "retrieved_at_utc": "2026-11-14T08:19:59.916585+00:00",
+    "bytes": 454439,
+    "sha256": "079b624c5c34d947085af8c15ba54edb7b01fa49449e90de3344f919d7cffa39"
+  },
+  {
+    "file": "examples/firefly-map.png",
+    "url": "https://dominicroye.github.io/blog/firefly-maps/img/figure-html/unnamed-chunk-11-1.png",
+    "retrieved_at_utc": "2026-11-14T08:20:04.114185+00:00",
+    "bytes": 36508814,
+    "sha256": "0675214fe2ab7a5de46628e86502d702005e79b5dcc7c55bae3ce3ba7aa6aff3"
+  },
+  {
+    "file": "examples/temperature-normal.png",
+    "url": "https://dominicroye.github.io/blog/spain-temperature-normals-openmeteo/index_files/figure-html/unnamed-chunk-31-1.png",
+    "retrieved_at_utc": "2026-11-14T08:20:04.557293+00:00",
+    "bytes": 245918,
+    "sha256": "aad39d6d3b1b76b0fbf6631f1e32e917c00e50b2e1874ccafe961d1b0d1638fe"
+  }
+]

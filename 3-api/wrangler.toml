@@ -1,0 +1,14 @@
+name = "llama-masters-api"
+main = "src/worker.ts"
+compatibility_date = "2026-11-01"
+send_metrics = false
+
+# Two addresses: llama-masters-api.<subdomain>.workers.dev and the custom domain (DNS record and
+# certificate are created by Cloudflare; esauflores.com must be a zone in the same account).
+workers_dev = true
+routes = [{ pattern = "llama-masters-api.esauflores.com", custom_domain = true }]
+
+# The bucket 2-process_data writes to; the API reads exports/ from it (no credentials in code).
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "llama-masters-firms"

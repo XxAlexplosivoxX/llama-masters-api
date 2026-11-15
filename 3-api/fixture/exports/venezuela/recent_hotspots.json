@@ -1,0 +1,1 @@
+{"id":"venezuela","synthetic":true,"generated_at_utc":"2026-11-15T00:00:00Z","last_day":"2026-03-14","days":7,"platforms":["NOAA-20","Terra"],"states":["East","West"],"lon":[-68.02,-62.1],"lat":[8.01,7.05],"acquired_utc":["2026-03-14T15:20Z","2026-03-14T17:41Z"],"platform":[1,0],"state":[1,0],"confidence":["50","n"],"frp":[12.5,3.1]}

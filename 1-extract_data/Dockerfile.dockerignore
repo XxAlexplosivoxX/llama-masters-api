@@ -1,0 +1,7 @@
+# Docker reads <Dockerfile>.dockerignore next to the Dockerfile. Build context: repo root.
+.git
+.env
+.venv
+.duckdb_tmp
+data
+**/__pycache__

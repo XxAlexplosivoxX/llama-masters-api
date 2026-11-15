@@ -1,0 +1,41 @@
+[tools]
+python = "3.12.16"
+uv = "0.13.7"
+bun = "1.4.4"
+
+[env]
+UV_PYTHON_DOWNLOADS = "never"
+# Local secrets (FIRMS map keys, R2 credentials); .env is git-ignored, see .env.example.
+_.file = { path = ".env", redact = true }
+
+[tasks.setup]
+description = "Create the Python environment"
+run = "uv sync --locked"
+
+[tasks.check]
+description = "Check the Python runtime"
+depends = ["setup"]
+run = "uv run python -c 'import sys; print(sys.version); assert sys.prefix != sys.base_prefix'"
+
+[tasks."api:install"]
+description = "Install the API dependencies (releases at least 1 day old)"
+dir = "3-api"
+run = "bun install --frozen-lockfile"
+
+[tasks."api:dev"]
+description = "Run the API locally on the synthetic fixture"
+dir = "3-api"
+depends = ["api:install"]
+run = "bun run dev"
+
+[tasks."api:test"]
+description = "Test the API"
+dir = "3-api"
+depends = ["api:install"]
+run = "bun test"
+
+[tasks."api:check"]
+description = "Type-check the API for Bun and Workers"
+dir = "3-api"
+depends = ["api:install"]
+run = "bun run check"

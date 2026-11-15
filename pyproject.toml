@@ -1,0 +1,27 @@
+[project]
+name = "llama-masters"
+version = "0.1.0"
+description = "NASA FIRMS MODIS/VIIRS hotspot harmonization"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "duckdb>=2.0.0",
+    "geopandas>=1.2.0",
+    "pandas>=3.1.1",
+]
+
+[tool.uv]
+package = false
+
+# Type checking (pyright / basedpyright, as in Zed). Each step's scripts run as
+# `python <step>/src/<script>.py` and import their siblings, so each step's src/ is its own
+# search path (both steps have a common.py).
+[tool.pyright]
+typeCheckingMode = "standard"  # basedpyright otherwise defaults to "recommended" when a config exists
+executionEnvironments = [
+    { root = "1-extract_data/src", extraPaths = ["1-extract_data/src"] },
+    { root = "2-process_data/src", extraPaths = ["2-process_data/src"] },
+]
+
+# Lint settings shared by the editor (Zed) and the command line; 120 matches the wrap guide.
+[tool.ruff]
+line-length = 120
