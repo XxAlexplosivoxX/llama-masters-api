@@ -19,13 +19,15 @@ interface Props {
 }
 
 const ERA = 84; // left margin for era brackets
-const YEAR = 44; // year label column
+const YEAR = 50; // year label column, wide enough for "Median"
 const GAP = 2;
 const TOP = 20;
 const MAX_COL = 44;
 const BAR_GAP = 10;
 const BAR = 56; // annual-total bar
 const BAR_TXT = 40;
+const NARROW = 420; // below this width the year-total column is dropped so all 12 months fit
+const MIN_COL = 14; // narrowest month column; below it the calendar scrolls inside its card
 const LIMIT = 0.8; // anomaly colours saturate at ±80 %
 const anomalyColor = anomalyScale(LIMIT);
 const VIIRS_YEAR = 2012;
@@ -54,10 +56,12 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   const ROW = coarse ? 24 : 16;
 
   const era = width >= 560 ? ERA : 0;
-  const COL = Math.min(MAX_COL, Math.max(8, (width - era - YEAR - BAR_GAP - BAR - BAR_TXT) / 12));
+  const bars = width >= NARROW;
+  const COL = Math.min(MAX_COL, Math.max(MIN_COL, (width - era - YEAR - (bars ? BAR_GAP + BAR + BAR_TXT : 0)) / 12));
   const gridX = era + YEAR;
   const barX = gridX + 12 * COL + BAR_GAP;
-  const svgW = barX + BAR + BAR_TXT;
+  const svgW = bars ? barX + BAR + BAR_TXT : gridX + 12 * COL;
+  const scrolls = svgW > width + 0.5;
   const medianY = TOP + years.length * ROW + 8;
   const height = medianY + ROW + 4;
   const yearStep = ROW < 14 ? 2 : 1;
@@ -79,6 +83,9 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
     return vals.length >= MIN_BASELINE_YEARS ? percentile(vals, 0.5) : null;
   }), [series, stats]);
   const hasMedian = medians.some((c) => c !== null);
+  const medianText = medians.map((v) => (v === null ? "–" : fmtTick(Math.round(v))));
+  // Labels need ~7 px per character plus a gap; narrow columns label every 2nd or 3rd month (all keep a tooltip).
+  const labelEvery = Math.max(1, Math.ceil((Math.max(...medianText.map((t) => t.length)) * 7 + 8) / COL));
 
   const [chosen, setChosen] = useState<Mode | null>(null);
   const mode: Mode = chosen ?? (hasMedian ? "anomaly" : "counts");
@@ -125,7 +132,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   const showTip = (m: number, clientX: number, clientY: number) => {
     if (coarse || !boxRef.current) return;
     const box = boxRef.current.getBoundingClientRect();
-    setTip({ m, x: clientX - box.left, y: clientY - box.top });
+    setTip({ m, x: clientX - box.left + boxRef.current.scrollLeft, y: clientY - box.top + boxRef.current.scrollTop });
   };
   const tipAtCell = (m: number) => {
     const cell = svgRef.current?.querySelector<SVGGElement>(`[data-cell="${m}"] rect`)?.getBoundingClientRect();
@@ -135,12 +142,14 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
   useLayoutEffect(() => {
     const el = tipRef.current, box = boxRef.current;
     if (!tip || !el || !box) return;
-    const w = el.offsetWidth, h = el.offsetHeight, bw = box.clientWidth, bh = box.clientHeight, off = 12;
+    // Visible window of the box, in its (possibly scrolled) content coordinates.
+    const w = el.offsetWidth, h = el.offsetHeight, off = 12;
+    const x0 = box.scrollLeft, y0 = box.scrollTop, x1 = x0 + box.clientWidth, y1 = y0 + box.clientHeight;
     let left = tip.x + off, top = tip.y + off;
-    if (left + w > bw) left = tip.x - off - w;
-    if (top + h > bh) top = tip.y - off - h;
-    el.style.left = `${Math.max(0, Math.min(left, bw - w))}px`;
-    el.style.top = `${Math.max(0, Math.min(top, bh - h))}px`;
+    if (left + w > x1) left = tip.x - off - w;
+    if (top + h > y1) top = tip.y - off - h;
+    el.style.left = `${Math.max(x0, Math.min(left, x1 - w))}px`;
+    el.style.top = `${Math.max(y0, Math.min(top, y1 - h))}px`;
   }, [tip]);
 
   const ym = (m: number) => `${series.startYear + Math.floor(m / 12)}-${String((m % 12) + 1).padStart(2, "0")}`;
@@ -183,7 +192,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
         {shown !== null ? describe(shown) : <span className="text-muted">Hover or focus a month to read its value.</span>}
       </p>
 
-      <div ref={boxRef} className={`relative ${coarse ? "dark-scroll max-h-[36rem] overflow-auto" : ""}`}>
+      <div ref={boxRef} className={`relative ${coarse ? "dark-scroll max-h-[36rem] overflow-auto" : scrolls ? "dark-scroll overflow-x-auto" : ""}`}>
       {width > 0 && (
         <svg ref={svgRef} viewBox={`0 0 ${svgW} ${height}`} width={svgW} height={height} className="block" role="grid"
           {...{ [CALENDAR_EXPORT]: "" }} aria-label="Hotspots by year and month" onPointerLeave={() => { setActive(null); setTip(null); }}>
@@ -202,7 +211,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
               </text>
             )
           ))}
-          <text x={barX} y={13} fontSize={TICK.size} fill={TICK.fill}>Year total</text>
+          {bars && <text x={barX} y={13} fontSize={TICK.size} fill={TICK.fill}>Year total</text>}
 
           {/* Era brackets in the left margin, never over the cells */}
           {era > 0 && preBaseRows > 0 && (
@@ -277,7 +286,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
                     );
                   })}
                 </g>
-                {total !== null && (
+                {bars && total !== null && (
                   <g>
                     <rect x={barX} y={y + h3(ROW)} width={Math.max(1, (total / maxTotal) * BAR)} height={ROW - 2 * h3(ROW) - GAP} rx={1.5} fill={MUTED}>
                       <title>{`${year}: ${fmt(Math.round(total))} hotspots`}</title>
@@ -293,9 +302,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
           <text x={gridX - 6} y={medianY + ROW / 2 + 4} textAnchor="end" fontSize={AXIS.size} fill={TEXT}>Median</text>
           {medians.map((v, c) => {
             const numbers = mode === "anomaly";
-            const text = v === null ? "–" : fmtTick(Math.round(v));
-            // Labels need ~7 px per character; on narrow columns every other month is labelled (all keep a tooltip).
-            const labelEvery = COL - GAP >= text.length * 7 + 2 ? 1 : 2;
+            const text = medianText[c];
             return (
               <g key={c}>
                 <rect x={gridX + c * COL} y={medianY} width={Math.max(COL - GAP, 1)} height={ROW - GAP} rx={2}
@@ -404,7 +411,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
         </span>
       </div>
       <ul className="mt-2 space-y-0.5 text-xs leading-snug text-muted">
-        <li>Year total: complete {base ? `${base}+ ` : ""}years only, bar length to the same scale.{" "}
+        <li>{bars && <>Year total: complete {base ? `${base}+ ` : ""}years only, bar length to the same scale.{" "}</>}
           {mode === "anomaly"
             ? "Median row: baseline median of each month, in hotspots."
             : "Median row: baseline median of each month, on the same colour scale."}</li>
