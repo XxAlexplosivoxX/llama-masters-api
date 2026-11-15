@@ -26,6 +26,8 @@ export function Harmonization({ data, grid }: { data: PlaceData; grid: MonthlyGr
   const [hover, setHover] = useState<number | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const { ref, width } = useWidth();
+  // The annual chart sits outside "Method details", so it is measured on its own (a closed details reports 0).
+  const chart = useWidth();
   const h = grid.harmonization;
   const ratio = rows.reduce((s, r) => s + r.VIIRS, 0) / Math.max(1, rows.reduce((s, r) => s + r.MODIS, 0));
 
@@ -45,12 +47,12 @@ export function Harmonization({ data, grid }: { data: PlaceData; grid: MonthlyGr
       </ol>
 
       {rows.length > 1 && (
-        <div>
+        <div ref={chart.ref} className="min-w-0">
           <label className="mb-1.5 inline-flex cursor-pointer items-center gap-1.5 text-xs text-muted">
             <input type="checkbox" checked={showRaw} onChange={(e) => setShowRaw(e.target.checked)} className="accent-[#F97316]" />
             Show raw VIIRS (before conversion)
           </label>
-          {width > 0 && <Chart rows={rows} testYears={h.test_years} hover={hover} setHover={setHover} width={width} showRaw={showRaw} />}
+          {chart.width > 0 && <Chart rows={rows} testYears={h.test_years} hover={hover} setHover={setHover} width={chart.width} showRaw={showRaw} />}
         </div>
       )}
 
@@ -215,7 +217,7 @@ function Chart({ rows, testYears, hover, setHover, width, showRaw }: {
             </text>
           </g>
         ))}
-        {rows.map((r, i) => (i % yearStep === 0 || i === rows.length - 1) && (
+        {rows.map((r, i) => (i === rows.length - 1 || (i % yearStep === 0 && rows.length - 1 - i >= yearStep)) && (
           <text key={r.year} x={x(i)} y={H - 6} fontSize={TICK.size} fill={TICK.fill}
             textAnchor={i === rows.length - 1 ? "end" : "middle"} className="num">{r.year}</text>
         ))}

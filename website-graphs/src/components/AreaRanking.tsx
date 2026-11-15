@@ -36,7 +36,7 @@ export function AreaRanking({ loaded, platform, range }: Props) {
       {rows.map((r) => (
         <li key={r.id}>
           <button
-            className="grid w-full grid-cols-[8rem_1fr_5rem] items-center gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-bg"
+            className="grid w-full grid-cols-[minmax(0,8rem)_minmax(3rem,1fr)_5rem] items-center gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-bg"
             onClick={() => store.actions.setArea(r.id)} aria-pressed={r.id === areaId}
           >
             <span className="truncate text-xs" style={{ color: r.id === areaId ? TEXT : MUTED, fontWeight: r.id === areaId ? 700 : 400 }}>

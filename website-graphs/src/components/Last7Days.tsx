@@ -21,7 +21,7 @@ const PANELS: { sensor: Sensor; resolution: string; color: string }[] = [
   { sensor: "VIIRS", resolution: "375 m", color: VIIRS },
 ];
 
-const H = 96, L = 36, B = 20, T = 8;
+const H = 96, L = 40, B = 20, T = 8;
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Last 7 days of point data: MODIS and VIIRS in separate panels, each on its own scale. */
@@ -58,7 +58,7 @@ export function Last7Days({ points }: Props) {
     <div ref={ref}>
       <div className="seg seg-40 mb-3" role="group" aria-label="Metric">
         {METRICS.map((m) => (
-          <button key={m.id} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)} className="!min-h-0 !px-3">
+          <button key={m.id} aria-pressed={metric === m.id} onClick={() => setMetric(m.id)} className="!px-3">
             {metric === m.id && <span className="absolute inset-0 rounded-[9px] bg-grid ring-1 ring-grid" />}
             <span className="relative">{m.label}</span>
           </button>
@@ -126,7 +126,7 @@ export function Last7Days({ points }: Props) {
       <p className="mt-3 text-2xs text-muted">Detections per satellite (raw; MODIS and VIIRS are not comparable):</p>
       <ul className="mt-1.5 space-y-1.5">
         {bySat.map(({ p, n }) => (
-          <li key={p} className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-xs">
+          <li key={p} className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-2 text-xs">
             <span className="text-muted">{p}</span>
             <span className="h-1.5 overflow-hidden rounded-full bg-grid">
               <span className="block h-full rounded-full" style={{ background: SENSOR[p], width: `${(n / satMax) * 100}%` }} />

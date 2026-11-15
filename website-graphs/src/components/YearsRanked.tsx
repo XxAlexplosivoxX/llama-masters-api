@@ -40,7 +40,7 @@ export function YearsRanked({ stats, focusYear, onFocusYear, harmonized = false 
       {rows.map((r) => (
         <li key={r.year}>
           <button
-            className="grid w-full grid-cols-[3rem_1fr_5.5rem] items-center gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-bg"
+            className="grid w-full grid-cols-[3rem_minmax(0,1fr)_5.5rem] items-center gap-2 rounded-lg px-1 py-0.5 text-left hover:bg-bg"
             onClick={() => onFocusYear(r.year)} aria-pressed={r.year === focusYear}
           >
             <span className="num text-xs" style={{ color: r.year === focusYear ? TEXT : MUTED, fontWeight: r.year === focusYear ? 700 : 400 }}>

@@ -60,6 +60,8 @@
 
   .seg {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
     padding: 3px;
     gap: 2px;
     background: color-mix(in oklab, var(--color-bg) 82%, transparent);
@@ -68,6 +70,7 @@
   }
   .seg > button {
     position: relative;
+    white-space: nowrap;
     min-height: 40px;
     padding: 0 14px;
     border-radius: 9px;
@@ -81,9 +84,10 @@
   }
   .seg > button[aria-pressed="true"] { color: var(--color-text); }
   .seg > button:hover { color: var(--color-text); }
-  /* Toolbar variant: the whole control is 40px tall, buttons stretch to fill. */
-  .seg.seg-40 { height: 40px; }
-  .seg.seg-40 > button { min-height: 0; }
+  /* Toolbar variant: the whole control is 40px tall, buttons stretch to fill.
+     Min heights (not a fixed height) so a wrapped second row keeps the same size. */
+  .seg.seg-40 { min-height: 40px; }
+  .seg.seg-40 > button { min-height: 32px; }
 
   .field {
     min-height: 40px;
