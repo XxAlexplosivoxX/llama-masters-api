@@ -1,18 +1,24 @@
-import { Layers, X } from "lucide-react";
+import { Settings, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
 import { DEFAULT_MAP_OPTIONS, type MapOptions as Options } from "../hooks/useMapOptions";
+import { UNIT_LABEL } from "../lib/temperature";
+import type { Explorer } from "../state";
 
 export function MapOptions({
   options,
   onChange,
   online,
+  explorer,
+  hasTemps,
   onOpen,
 }: {
   options: Options;
   onChange: React.Dispatch<React.SetStateAction<Options>>;
   online: boolean | null;
+  explorer: Explorer;
+  hasTemps: boolean;
   onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -75,13 +81,13 @@ export function MapOptions({
           aria-label="Map options"
           title="Map options"
           aria-haspopup="dialog"
-          className="max-sm:w-10 max-sm:justify-center max-sm:px-0"
+          className="aria-pressed:bg-accent/10 aria-pressed:text-accent aria-pressed:hover:text-accent max-sm:w-10 max-sm:justify-center max-sm:px-0"
           aria-expanded={open}
           aria-controls={open ? id : undefined}
           aria-pressed={open}
           onClick={() => (open ? close() : setOpen(true))}
         >
-          <Layers size={16} aria-hidden />
+          <Settings size={16} aria-hidden />
         </button>
       </div>
       <AnimatePresence>
@@ -120,6 +126,31 @@ export function MapOptions({
             {online === false && <p className="text-xs text-muted">Imagery needs a connection</p>}
             {toggle("labels", "Place names")}
             {toggle("borders", "Borders")}
+            <label className="flex min-h-9 items-center justify-between gap-3 text-sm">
+              Colour by temperature
+              <input
+                type="checkbox"
+                role="switch"
+                checked={explorer.metric === "temperature"}
+                disabled={!hasTemps}
+                onChange={(e) => explorer.setMetric(e.target.checked ? "temperature" : "count")}
+                className="h-4 w-4 cursor-pointer accent-accent disabled:cursor-not-allowed"
+              />
+            </label>
+            {explorer.metric === "temperature" && (
+              <div className="grid gap-1.5">
+                <p id={`${id}-temperature-unit`} className="text-sm">
+                  Temperature unit
+                </p>
+                <div className="seg map-options-seg" role="group" aria-labelledby={`${id}-temperature-unit`}>
+                  {(["C", "F", "K"] as const).map((unit) => (
+                    <button key={unit} aria-pressed={explorer.unit === unit} onClick={() => explorer.setUnit(unit)}>
+                      {UNIT_LABEL[unit]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <label className="grid gap-2 text-sm">
               <span className="flex justify-between gap-2">
                 Hotspot grid opacity <span className="num text-muted">{Math.round(options.gridOpacity * 100)}%</span>
@@ -140,7 +171,14 @@ export function MapOptions({
               { value: "globe", label: "Globe" },
               { value: "mercator", label: "Flat" },
             ])}
-            <button className="link justify-self-start text-xs" onClick={() => onChange({ ...DEFAULT_MAP_OPTIONS })}>
+            <button
+              className="link justify-self-start text-xs"
+              onClick={() => {
+                onChange({ ...DEFAULT_MAP_OPTIONS });
+                explorer.setMetric("count");
+                explorer.setUnit("C");
+              }}
+            >
               Reset
             </button>
           </motion.div>

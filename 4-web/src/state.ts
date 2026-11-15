@@ -41,6 +41,8 @@ export function useExplorer() {
   const [range, setRange] = useState<Range | null>(null);
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoverMonth, setHoverMonth] = useState<number | null>(null);
+  // A month clicked in the calendar stays on the map until clicked again; hovering previews others.
+  const [pinnedMonth, setPinnedMonth] = useState<number | null>(null);
   const [playbackMonth, setPlaybackMonth] = useState<number | null>(null);
   const [metric, setMetric] = usePref<Metric>("map:metric", "count", ["count", "temperature"]);
   const [unit, setUnit] = usePref<TempUnit>("map:unit", "C", ["K", "C", "F"]);
@@ -118,7 +120,7 @@ export function useExplorer() {
   const playFrom = activeRange?.from ?? 0,
     playTo = activeRange?.to ?? 0;
   const cursor = Math.max(playFrom, Math.min(playbackMonth ?? playFrom, playTo));
-  const shownMonth = playing ? cursor : hoverMonth;
+  const shownMonth = playing ? cursor : (hoverMonth ?? pinnedMonth);
   const pause = () => {
     setPlaying(false);
     setHoverMonth(null);
@@ -139,6 +141,7 @@ export function useExplorer() {
     setPlaying(false);
     setTimelineOpen(false);
     setHoverMonth(null);
+    setPinnedMonth(null);
     setPlaybackMonth(null);
   }, [place, shape, kind]);
 
@@ -186,16 +189,24 @@ export function useExplorer() {
     },
     resetRange: () => {
       pause();
+      setPinnedMonth(null);
       setRange(null);
     },
     seriesRange,
     focus,
+    calendarFocus: focusYear ?? (series && activeRange ? series.startYear + Math.floor(activeRange.to / 12) : null),
     setFocusYear,
     hoverMonth: shownMonth,
     playbackMonth: cursor,
     // Pointer hovers are ignored while playing, so moving the mouse does not fight the timeline.
     setHoverMonth: (m: number | null) => {
       if (!playing) setHoverMonth(m);
+    },
+    pinnedMonth,
+    /** Pins a month on the map, or unpins it when it is already pinned. */
+    togglePin: (m: number) => {
+      setPlaying(false);
+      setPinnedMonth((old) => (old === m ? null : m));
     },
     seek: (m: number) => {
       const next = Math.max(playFrom, Math.min(m, playTo));
@@ -209,6 +220,7 @@ export function useExplorer() {
     timelineOpen,
     play: () => {
       setHoverMonth(null);
+      setPinnedMonth(null);
       setPlaybackMonth(cursor);
       setTimelineOpen(true);
       setPlaying(true);

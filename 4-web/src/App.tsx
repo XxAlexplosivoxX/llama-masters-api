@@ -121,6 +121,8 @@ export function App() {
           {historyAvailable && layer === "history" && <PlayButton explorer={explorer} onPlay={play} />}
           <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
           <MapOptions
+            explorer={explorer}
+            hasTemps={!!(layer === "recent" ? explorer.recentTemps : explorer.temps)}
             options={mapOptions}
             onChange={setMapOptions}
             online={mapOnline}

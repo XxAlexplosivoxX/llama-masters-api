@@ -25,7 +25,7 @@ export function Summary({
   showingRecent: boolean;
   onDetails: () => void;
 }) {
-  const { series, stats, range, focus } = explorer;
+  const { series, stats, range, calendarFocus } = explorer;
   const ready = explorer.status.kind === "ready" && series && stats && range;
   const details = (
     <button
@@ -63,10 +63,12 @@ export function Summary({
               series={series}
               stats={stats}
               range={range}
-              year={focus ?? stats.years.at(-1)!}
+              year={calendarFocus ?? stats.years.at(-1)!}
               hoverMonth={explorer.hoverMonth}
               onYear={explorer.setFocusYear}
               onHover={showingRecent ? () => {} : explorer.setHoverMonth}
+              pinned={showingRecent ? null : explorer.pinnedMonth}
+              onPin={showingRecent ? undefined : explorer.togglePin}
               aside={details}
             />
           </div>

@@ -79,15 +79,19 @@ const container = (map: MapLibreMap) => map.getContainer();
 
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Linear temperature ramp from lo to hi (K) on the cell's feature-state value; zero is transparent. */
+/**
+ * Linear temperature ramp from lo to hi (K) on the cell's feature-state value `v`, with the
+ * cell's solidity `a` (0..1, from its detections) as the colour's alpha; zero is transparent.
+ */
 function tempRamp(lo: number, hi: number): ExpressionSpecification {
   const v: ExpressionSpecification = ["coalesce", ["feature-state", "v"], 0];
   const stops = TEMP.flatMap((color, i) => [lo + ((hi - lo) * i) / (TEMP.length - 1), color]);
+  const c = ["to-rgba", ["interpolate", ["linear"], v, ...stops]];
   return [
     "case",
     ["<=", v, 0],
     "rgba(0,0,0,0)",
-    ["interpolate", ["linear"], v, ...stops],
+    ["rgba", ["at", 0, c], ["at", 1, c], ["at", 2, c], ["coalesce", ["feature-state", "a"], 1]],
   ] as unknown as ExpressionSpecification;
 }
 
@@ -129,6 +133,7 @@ export class MapEngine {
   private borders = true;
   private baseLayers: StyleSpecification["layers"];
   private gridValues: number[] = [];
+  private gridAlpha: number[] = [];
   private skip = false;
   private gridPending = false;
   private introRunning = false;
@@ -479,11 +484,8 @@ export class MapEngine {
 
   private applyGridOpacity(immediate = false) {
     this.map.setPaintProperty("grid", "fill-opacity-transition", { duration: immediate ? 0 : 700, delay: 0 });
-    this.map.setPaintProperty(
-      "grid",
-      "fill-opacity",
-      this.layer === "history" && !this.gridPending && !this.introRunning ? this.gridOpacity : 0,
-    );
+    const base = this.layer === "history" && !this.gridPending && !this.introRunning ? this.gridOpacity : 0;
+    this.map.setPaintProperty("grid", "fill-opacity", base);
   }
 
   startDrawing(mode: DrawMode) {
@@ -529,6 +531,7 @@ export class MapEngine {
     });
     this.map.removeFeatureState({ source: "grid" });
     this.gridValues = [];
+    this.gridAlpha = [];
     this.gridPending = true;
     this.applyGridOpacity();
     const source = this.map.getSource("grid") as GeoJSONSource;
@@ -550,13 +553,23 @@ export class MapEngine {
     this.setGridRamp(`count:${max}`, () => heatRamp(max));
   }
 
-  /** Mean temperatures per cell (K, 0 = no fires) on the lo..hi scale of one sensor. */
-  setGridTemps(values: number[], lo: number, hi: number) {
+  /**
+   * Mean temperatures per cell (K, 0 = no fires) on the lo..hi scale, with each cell's detections
+   * (`counts`, scale `max`) as its solidity: log-scaled from faint (one fire) to solid (max and over).
+   */
+  setGridTemps(values: number[], lo: number, hi: number, counts: number[], max: number) {
     if (this.destroyed) return;
+    const top = Math.log1p(Math.max(max, 1));
+    // Rounded to 1/50 so that playback only touches cells whose look changes.
+    const alpha = counts.map((c) =>
+      c > 0 ? Math.round((0.15 + 0.85 * Math.min(1, Math.log1p(c) / top)) * 50) / 50 : 1,
+    );
     for (let id = 0; id < values.length; id++) {
-      if (values[id] !== this.gridValues[id]) this.map.setFeatureState({ source: "grid", id }, { v: values[id] });
+      if (values[id] !== this.gridValues[id] || alpha[id] !== this.gridAlpha[id])
+        this.map.setFeatureState({ source: "grid", id }, { v: values[id], a: alpha[id] });
     }
     this.gridValues = values;
+    this.gridAlpha = alpha;
     this.setGridRamp(`temp:${lo}:${hi}`, () => tempRamp(lo, hi));
   }
 
