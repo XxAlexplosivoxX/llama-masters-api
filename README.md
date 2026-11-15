@@ -28,6 +28,9 @@ docker build -t llama-api .
 docker run -p 8080:8080 -e API_TOKEN=... -v llama-data:/data llama-api
 ```
 
+To run it on a server with HTTPS, see [deploy/README.md](deploy/README.md): Docker
+Compose with Caddy, the database on the host, and how to move the current data.
+
 ## Uploading
 
 `PUT /v1/regions/{name}` with `Authorization: Bearer $API_TOKEN` and multipart parts
@@ -121,6 +124,7 @@ Without `API_TOKEN`, the API serves reads only.
 | `internal/push` | Streaming multipart upload client |
 | `testdata/tiny-region` | Synthetic fixture used by the tests (not real observations) |
 | `docs/` | Data contract, challenge, plans and references |
+| `deploy/` | Docker Compose + Caddy setup for a VPS |
 | `website/` | Static web app (fire calendar); see [`website/README.md`](website/README.md) |
 
 The data are raw satellite hotspot detections, not unique fires or burned area, and
