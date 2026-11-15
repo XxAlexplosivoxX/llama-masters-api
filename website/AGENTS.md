@@ -39,7 +39,8 @@ match the website exactly. Consequences:
 
 - Treat the exports of `series.ts`, `data.ts`, `geo.ts`, `types.ts` and the files in
   `public/data/` as a shared contract. Renaming or changing a signature or file format breaks
-  `website-graphs`. After such a change, run `npm ci && npx tsc --noEmit` in `../website-graphs`.
+  `website-graphs`. After such a change, run `npx tsc --noEmit` in `../website-graphs` using its
+  installed dependencies.
 - Do not edit `website-graphs/` unless asked; coordinate with its owner.
 
 ## 2. Run, build, verify
@@ -67,8 +68,8 @@ Deploy: static site. Vercel/Netlify root `website/`, build `npm run build`, outp
 
 ## 3. Data: where it comes from and what is stored
 
-Everything the app shows is precomputed by **`scripts/build-country.mjs`** and committed under
-`public/data/` (~31 MB; South America alone is ~15 MB, ~2 MB gzipped). The browser never calls NASA.
+Gridded history and recent points are precomputed by **`scripts/build-country.mjs`** and committed
+under `public/data/`. Version-3 sizes await regeneration. The browser never calls NASA.
 
 ### Sources
 
@@ -86,15 +87,18 @@ last 7 days. `api/data_availability/csv/<KEY>/all` tells where SP ends and NRT b
 
 1. Quality: MODIS confidence >= 30; VIIRS confidence not `l`; `type == 0` where present (NRT files
    have no `type`, so a few static industrial sources may remain; documented as a limitation).
-2. Aggregate to **0.5° cells x calendar months (UTC)**, separately for MODIS and VIIRS. Points are
+2. Aggregate to **0.1° cells x calendar months (UTC)**, separately for MODIS and VIIRS. Points are
    not kept for history.
 3. Country clipping: archives are clipped by NASA. API and 7-day data are bbox requests, so they are
    filtered by a 0.1° footprint built from every archive point of that country.
 4. Harmonization fit (see §4), trained 2012-2019, tested 2020-2025.
-5. Caches per sensor-year and per API chunk in `.cache/<id>/` (git-ignored). A Brazil first build
-   streams ~2.5 GB; reruns only fetch the current year and the 7-day feeds.
+5. Caches per sensor-year and per API chunk in `.cache/<id>/cell-<CELL>/` (git-ignored), currently
+   `cell-0.1`. Both cache kinds are keyed by cell size; old unversioned aggregates are never reused.
+   The footprint mask uses the independent `FINE = 0.1` resolution. A Brazil first build streams
+   ~2.5 GB; changing cell size requires fresh downloads, then reruns reuse that resolution's caches.
 6. `--region south-america` sums the already-built country grids (border cells add up correctly
    because each archive is clipped to its country), refits, and concatenates the 7-day points.
+   It requires version-3 sparse country grids with the current `CELL`; stale grids fail clearly.
 
 API limits: 1-5 days per request; 5,000 transactions per 10 minutes. The script waits 10 minutes
 when it sees "Exceeding allowed transaction limit" and resumes.
@@ -113,15 +117,19 @@ npm run data:sync                                   # optional: research weekly 
 
 - `places.json`: `[{ id, kind: "region"|"country", label, bbox, base, history, hotspots }]`, order:
   regions, Brazil, then A-Z.
-- `<id>/monthly_grid.json` (`MonthlyGrid` in `src/lib/types.ts`, `version: 2`):
+- `<id>/monthly_grid.json` (`MonthlyGrid` in `src/lib/types.ts`, `version: 3`):
   - `start_month` "2000-01", `months` (index 0 = Jan 2000, through Dec of the current year)
-  - `cell_deg` 0.5
+  - `cell_deg` 0.1 (about 11 km north–south)
   - `sensors.MODIS|VIIRS`: `first_source_day`, `last_source_day`, `provisional_from_day`,
     `baseline_from_year` (MODIS 2003, VIIRS 2012), `baseline_note`, `quality_rules`,
     `quality_counts`, `processing`
   - `harmonization`: `coefficients[12] {month, beta, k, pairs}`, `train`/`test` scores
     (`model`, `single_ratio`, `raw_viirs` each `{wape, bias, r}`), `method`, `caveats`
-  - `cells: [west, south, modis[months], viirs[months]][]` (dense integer arrays)
+  - `cells: [west, south, modisSparse, viirsSparse][]`; each sensor stores flat
+    `[monthIndex, count, ...]` pairs in ascending month order, only for nonzero counts.
+    `[]` means all counts are zero; sensor coverage still determines no-data (`null`) months.
+    `cellValues` expands counts once per place into the existing dense series API shared with
+    `website-graphs`; coverage, partial-month and provisional semantics remain unchanged.
 - `<id>/recent_hotspots.json` (`RecentColumns`): columnar arrays `lon, lat, acquired_utc, platform
   (index into platforms), confidence (1 nominal, 2 high), frp, daynight (1 day)`.
 - `<id>/meta.json`: summary.
@@ -129,6 +137,8 @@ npm run data:sync                                   # optional: research weekly 
 
 Built: Brazil, Argentina, Bolivia, Chile, Colombia, Ecuador, French Guiana, Guyana, Paraguay, Peru,
 Suriname, Uruguay, Venezuela, and `south-america`.
+The committed version-2 grids must be regenerated country by country, then region by region.
+The loader rejects version 2 with an explicit regeneration error; it does not reinterpret dense arrays.
 
 ## 4. Harmonization (the scientific core)
 
@@ -141,8 +151,9 @@ Suriname, Uruguay, Venezuela, and `south-america`.
 - **Harmonized record (default view)**: MODIS alone where only MODIS fully covers a month (before
   2012); the mean of MODIS and VIIRS-on-MODIS-scale where both fully cover it; whichever has data
   otherwise (`harmonizedSource`). If either satellite stops, the record continues.
-- Held-out test 2020-2025, monthly WAPE vs real MODIS: Brazil 10.0 % (single fixed ratio 10.6 %,
+- Legacy version-2 held-out test 2020-2025, monthly WAPE vs real MODIS: Brazil 10.0 % (single fixed ratio 10.6 %,
   raw VIIRS 270 %); South America 8.9 % (single ratio **8.2 %, slightly better**; the UI says so).
+  Version-3 coefficients and scores must be refitted on the finer cells during regeneration.
   Caveats: MODIS is not ground truth; Terra/Aqua orbits drifted after ~2020/2022.
 - `localCheck` recomputes the test for any selected area; the panel shows it.
 
@@ -167,6 +178,9 @@ Suriname, Uruguay, Venezuela, and `south-america`.
 - "Hotspot" = a satellite pixel with an active fire; not a fire count or burned area. Say
   "hotspots" in the UI, not "detections" or "fires".
 - Weekly research exports: ISO week → month of its Thursday; flagged approximate.
+  Places use the index entry's `bbox` when supplied, otherwise worldwide `[-180, -90, 180, 90]`
+  (including the API's `world` region). API hotspot requests send the selection bbox, or the place
+  bbox when there is no selection.
 
 ## 6. Code map (`src/`)
 
@@ -272,7 +286,7 @@ uppercase micro-labels, no emoji. Every colour ramp has a legend. Respect reduce
 ## 9. Known limits and open work
 
 - Limits to keep stating: hotspots are not fires or burned area; harmonization is statistical and
-  scored against MODIS; 0.5° history resolution (areas smaller than a cell have no history); no
+  scored against MODIS; 0.1° history resolution (areas smaller than a cell have no history); no
   correction for clouds or overpass counts; NRT data is provisional.
 - Open:
   - Test the Vaul drawer on a real phone.

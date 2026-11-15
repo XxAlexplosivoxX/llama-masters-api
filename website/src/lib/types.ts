@@ -2,6 +2,7 @@
 
 export interface RegionEntry {
   name: string;
+  bbox?: BBox;
   start: string;
   end: string;
   platforms: string[];
@@ -75,7 +76,7 @@ export interface Harmonization {
 
 /** Monthly detections on a regular grid, written by scripts/build-country.mjs. */
 export interface MonthlyGrid {
-  version: 2;
+  version: 3;
   name: string;
   label: string;
   unit: string;
@@ -86,8 +87,11 @@ export interface MonthlyGrid {
   harmonization: Harmonization;
   sources: string[];
   limitations: string[];
-  cells: [west: number, south: number, modis: number[], viirs: number[]][];
+  cells: [west: number, south: number, modis: SparseSeries, viirs: SparseSeries][];
 }
+
+/** Flat [monthIndex, count, ...] pairs in ascending month order; only nonzero counts. */
+export type SparseSeries = number[];
 
 /** Columnar recent detections, written by scripts/build-country.mjs. */
 export interface RecentColumns {

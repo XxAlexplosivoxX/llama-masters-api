@@ -38,13 +38,25 @@ export function modisEquivalent(grid: MonthlyGrid, viirs: number, month: number)
  * otherwise whichever one has data (MODIS alone before 2012).
  */
 export function cellValues(grid: MonthlyGrid, kind: SeriesKind): number[][] {
-  if (kind === "MODIS") return grid.cells.map((c) => c[2]);
-  if (kind === "VIIRS") return grid.cells.map((c) => c[3]);
-  const eq = grid.cells.map((c) => c[3].map((v, m) => modisEquivalent(grid, v, m)));
-  if (kind === "MODIS_EQ") return eq;
-  const source = harmonizedSource(grid);
-  return grid.cells.map((c, i) => c[2].map((modis, m) =>
-    source[m] === "both" ? (modis + eq[i][m]) / 2 : source[m] === "VIIRS" ? eq[i][m] : modis));
+  const source = kind === "HARMONIZED" ? harmonizedSource(grid) : null;
+  return grid.cells.map((c) => {
+    const values: number[] = Array(grid.months).fill(0);
+    if (kind === "MODIS" || source) {
+      for (let i = 0; i < c[2].length; i += 2) {
+        const m = c[2][i], v = c[2][i + 1];
+        values[m] = source?.[m] === "both" ? v / 2 : source?.[m] === "VIIRS" ? 0 : v;
+      }
+    }
+    if (kind !== "MODIS") {
+      for (let i = 0; i < c[3].length; i += 2) {
+        const m = c[3][i], v = c[3][i + 1];
+        const eq = kind === "VIIRS" ? v : modisEquivalent(grid, v, m);
+        if (!source || source[m] === "VIIRS") values[m] = eq;
+        else if (source[m] === "both") values[m] += eq / 2;
+      }
+    }
+    return values;
+  });
 }
 
 /** Which sensor the harmonized record uses in each month. */

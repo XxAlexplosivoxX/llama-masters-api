@@ -88,7 +88,7 @@ export function Panel({ explorer, showingRecent, onShowRecent, onPlay }: {
       {status.kind === "ready" && !series && (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted" role="status">
           {loaded && "grid" in loaded
-            ? <>No history inside this area. The history grid has cells of {loaded.grid.cell_deg}° (about 55 km) inside {loaded.place.label}: draw a larger area there, or go back to all of {loaded.place.label}.</>
+            ? <>No history inside this area. The history grid has cells of {loaded.grid.cell_deg}° (about {Math.round(loaded.grid.cell_deg * 111)} km north–south) inside {loaded.place.label}: draw a larger area there, or go back to all of {loaded.place.label}.</>
             : <>This area has no rows for {explorer.platform}. Pick another satellite.</>}
         </p>
       )}

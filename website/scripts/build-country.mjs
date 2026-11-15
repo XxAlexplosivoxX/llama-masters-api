@@ -1,5 +1,5 @@
 // Builds one country's exports for the website from public NASA FIRMS data:
-//   public/data/<id>/monthly_grid.json     MODIS and VIIRS S-NPP monthly detections on a 0.5° grid,
+//   public/data/<id>/monthly_grid.json     MODIS and VIIRS S-NPP monthly detections on a 0.1° grid,
 //                                          plus the fitted MODIS-equivalent adjustment and its test scores
 //   public/data/<id>/recent_hotspots.json  last 7 days of near-real-time MODIS + VIIRS detections
 //   public/data/<id>/meta.json
@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const FIRMS = "https://firms.modaps.eosdis.nasa.gov";
-const CELL = 0.5;
+const CELL = 0.1;
 const FINE = 0.1; // country mask resolution for API and 7-day points
 
 export const COUNTRIES = {
@@ -78,7 +78,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const END_YEAR = USE_API ? Number(TODAY.slice(0, 4)) : ARCHIVE_TO;
 const MONTHS = (END_YEAR - FROM + 1) * 12;
 const OUT = join(ROOT, "public", "data", ID);
-const CACHE = join(ROOT, ".cache", ID);
+const CACHE = join(ROOT, ".cache", ID, `cell-${CELL}`);
 
 try { process.loadEnvFile(join(ROOT, ".env.local")); } catch { /* optional */ }
 const KEY = process.env.FIRMS_MAP_KEY;
@@ -115,7 +115,7 @@ async function* lines(url) {
   }
 }
 
-const cellKey = (lat, lon) => `${Math.floor(lon / CELL)}:${Math.floor(lat / CELL)}`;
+const cellKey = (lat, lon) => `${Math.floor(lon * (1 / CELL))}:${Math.floor(lat * (1 / CELL))}`;
 const fineKey = (lat, lon) => `${Math.floor(lon / FINE)}:${Math.floor(lat / FINE)}`;
 const inBox = (lat, lon) => lon >= COUNTRY.bbox[0] && lon <= COUNTRY.bbox[2] && lat >= COUNTRY.bbox[1] && lat <= COUNTRY.bbox[3];
 
@@ -210,6 +210,9 @@ if (REGION) {
     const file = join(ROOT, "public", "data", id, "monthly_grid.json");
     if (!existsSync(file)) throw new Error(`${id} is not built yet: run --country ${id} first`);
     const g = JSON.parse(await readFile(file, "utf8"));
+    if (g.version !== 3 || g.cell_deg !== CELL) {
+      throw new Error(`${id}/monthly_grid.json has version ${g.version} and cell_deg ${g.cell_deg}; expected version 3 with ${CELL}° sparse cells. Rebuild --country ${id} first.`);
+    }
     if (g.start_month !== `${FROM}-01`) throw new Error(`${id} starts at ${g.start_month}, expected ${FROM}-01`);
     memberGrids.push(g);
     const ym = (i) => `${FROM + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
@@ -217,7 +220,10 @@ if (REGION) {
       const cells = {};
       for (const c of g.cells) {
         const key = `${Math.round(c[0] / CELL)}:${Math.round(c[1] / CELL)}`;
-        c[n].forEach((v, i) => { if (v) (cells[key] ??= {})[ym(i)] = (cells[key][ym(i)] ?? 0) + v; });
+        for (let i = 0; i < c[n].length; i += 2) {
+          const month = ym(c[n][i]);
+          (cells[key] ??= {})[month] = (cells[key][month] ?? 0) + c[n][i + 1];
+        }
       }
       const info = g.sensors[sensor];
       parts[sensor].push({ cells, quality: info.quality_counts, last: info.last_source_day });
@@ -392,7 +398,7 @@ function round(v, digits) { return Math.round(v * 10 ** digits) / 10 ** digits; 
 
 const harmonization = {
   target: "MODIS-equivalent detections: what Terra + Aqua MODIS would likely have reported, estimated from VIIRS S-NPP",
-  method: "Per calendar month m and 0.5° cell: MODIS ≈ k_m · ((1 + VIIRS)^β_m − 1); β_m is the log-log slope over cell-months with VIIRS detections, k_m matches training totals.",
+  method: `Per calendar month m and ${CELL}° cell: MODIS ≈ k_m · ((1 + VIIRS)^β_m − 1); β_m is the log-log slope over cell-months with VIIRS detections, k_m matches training totals.`,
   train_years: TRAIN,
   test_years: TEST,
   coefficients,
@@ -428,12 +434,18 @@ const sensorInfo = (sensor) => {
   };
 };
 
+function sparse(counts) {
+  const pairs = [];
+  counts.forEach((count, month) => { if (count) pairs.push(month, count); });
+  return pairs;
+}
+
 const grid = {
-  version: 2,
+  version: 3,
   name: ID,
   label: COUNTRY.label,
   generated_at_utc: new Date().toISOString(),
-  unit: "quality-filtered hotspot detections per 0.5° cell and calendar month (UTC)",
+  unit: `quality-filtered hotspot detections per ${CELL}° cell and calendar month (UTC)`,
   cell_deg: CELL,
   start_month: `${FROM}-01`,
   months: MONTHS,
@@ -454,7 +466,7 @@ const grid = {
   ],
   cells: keys.map((key) => {
     const [x, y] = key.split(":").map(Number);
-    return [x * CELL, y * CELL, Array.from(series("MODIS", key)), Array.from(series("VIIRS", key))];
+    return [round(x * CELL, 6), round(y * CELL, 6), sparse(series("MODIS", key)), sparse(series("VIIRS", key))];
   }),
 };
 await writeFile(join(OUT, "monthly_grid.json"), JSON.stringify(grid));

@@ -108,7 +108,7 @@ export async function loadPlaces(): Promise<Place[]> {
     label: titleCase(entry.name),
     kind: "weekly",
     entry,
-    bbox: [-170, -56, -30, 84],
+    bbox: entry.bbox ?? [-180, -90, 180, 90],
     summary: `Weekly detections by satellite, ${entry.start} to ${entry.end}`,
     synthetic: entry.name.includes("tiny"),
   }));
@@ -154,6 +154,18 @@ export async function loadPlace(place: Place, signal?: AbortSignal, onProgress?:
       getJSONWithProgress<MonthlyGrid>(`${place.base}/monthly_grid.json`, signal, track(0)),
       getJSONWithProgress<RecentColumns>(`${place.base}/recent_hotspots.json`, signal, track(1)).catch(() => null),
     ]);
+    const raw = grid as { version: number; cells: [number, number, number[], number[]][] };
+    if (raw.version === 2) {
+      // Pre-0.1° files store dense [months] arrays; normalize them to sparse pairs.
+      for (const cell of raw.cells) {
+        cell[2] = cell[2].flatMap((v, m) => (v ? [m, v] : []));
+        cell[3] = cell[3].flatMap((v, m) => (v ? [m, v] : []));
+      }
+      raw.version = 3;
+    }
+    if (raw.version !== 3) {
+      throw new Error(`${place.base}/monthly_grid.json has version ${grid.version}; expected version 3 with sparse cells. Regenerate the history data with scripts/build-country.mjs.`);
+    }
     return { place, grid, recent: columns ? fromColumns(columns) : [] };
   }
   const base = `${regionBase}/${place.id}`;
@@ -174,7 +186,7 @@ export async function fetchHotspots(place: WeeklyPlace, bbox: BBox | null, signa
   Promise<{ points: Hotspot[]; truncated: boolean } | null> {
   if (usingApi()) {
     const query = new URLSearchParams({ limit: "200000" });
-    if (bbox) query.set("bbox", bbox.map((v) => v.toFixed(4)).join(","));
+    query.set("bbox", (bbox ?? place.bbox).map((v) => v.toFixed(4)).join(","));
     const response = await fetch(`${API}/v1/regions/${place.id}/hotspots?${query}`, { signal });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`hotspots answered HTTP ${response.status}`);
