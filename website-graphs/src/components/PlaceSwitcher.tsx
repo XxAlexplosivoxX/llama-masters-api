@@ -65,7 +65,7 @@ export function PlaceSwitcher({ places, current, csvName, csvSelected, onSelect,
       </button>
       {open && (
         <ul role="listbox" aria-label="Places"
-          className="absolute left-0 top-full z-30 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-grid bg-card p-1 shadow-2xl shadow-black/60">
+          className="absolute left-0 top-full z-30 mt-2 dark-scroll max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-grid bg-card p-1 shadow-2xl shadow-black/60">
           {csvName && (
             <>
               <li>

@@ -141,3 +141,9 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+/* Scroll containers that remain (touch layout): keep the dark theme. */
+.dark-scroll { scrollbar-color: var(--color-grid) transparent; scrollbar-width: thin; }
+.dark-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.dark-scroll::-webkit-scrollbar-thumb { background: var(--color-grid); border-radius: 4px; }
+.dark-scroll::-webkit-scrollbar-track { background: transparent; }

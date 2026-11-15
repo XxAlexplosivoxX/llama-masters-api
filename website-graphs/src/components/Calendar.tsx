@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
-import { AXIS, TICK, thinBy } from "../lib/chart";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AXIS, fmtTick, TICK, thinBy } from "../lib/chart";
 import { ALERT, ANOM, anomalyScale, BG, fireflyScale, GRID, MUTED, TEXT } from "../lib/color";
-import { fmt, fmtCompact, fmtPercent } from "../lib/format";
+import { fmt, fmtPercent } from "../lib/format";
 import { percentile } from "../lib/seasonal";
 import { Ramp } from "./Ramp";
 import { MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/shared";
@@ -18,22 +18,50 @@ interface Props {
   onFocus: (year: number, month: number, ym: string) => void;
 }
 
-const LABEL = 40;
+const ERA = 84; // left margin for era brackets
+const YEAR = 44; // year label column
 const GAP = 2;
 const TOP = 20;
-const ROW = 26; // ≥24 px rows so cells are comfortable touch targets
+const MAX_COL = 44;
+const BAR_GAP = 10;
+const BAR = 56; // annual-total bar
+const BAR_TXT = 40;
 const LIMIT = 0.8; // anomaly colours saturate at ±80 %
 const anomalyColor = anomalyScale(LIMIT);
+const VIIRS_YEAR = 2012;
 type Mode = "counts" | "anomaly";
 
-/** Years × months heatmap of the active series (Firefly ramp). */
+/** True on touch-first devices, where rows grow to 24 px and the calendar may scroll. */
+function useCoarsePointer() {
+  const query = "(pointer: coarse)";
+  const [coarse, setCoarse] = useState(() => typeof matchMedia !== "undefined" && matchMedia(query).matches);
+  useEffect(() => {
+    const mq = matchMedia(query);
+    const on = () => setCoarse(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return coarse;
+}
+
+/** Years × months heatmap with annual totals, a baseline-median row, era notes and a live readout. */
 export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus }: Props) {
   const { ref, width } = useWidth();
+  const coarse = useCoarsePointer();
+  const svgRef = useRef<SVGSVGElement>(null);
   const years = stats.years;
-  const COL = Math.max((width - LABEL) / 12, 1);
-  const height = TOP + years.length * ROW + 6;
-  const step = thinBy(COL, 14);
-  const [mode, setMode] = useState<Mode>("counts");
+  const base = series.baselineFrom;
+  const ROW = coarse ? 24 : 16;
+
+  const era = width >= 560 ? ERA : 0;
+  const COL = Math.min(MAX_COL, Math.max(8, (width - era - YEAR - BAR_GAP - BAR - BAR_TXT) / 12));
+  const gridX = era + YEAR;
+  const barX = gridX + 12 * COL + BAR_GAP;
+  const svgW = barX + BAR + BAR_TXT;
+  const medianY = TOP + years.length * ROW + 8;
+  const height = medianY + ROW + 4;
+  const yearStep = ROW < 14 ? 2 : 1;
+  const monthStep = thinBy(COL, 14);
 
   const { color, max, median } = useMemo(() => {
     const usable = series.values.filter((v): v is number => v !== null);
@@ -41,9 +69,6 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
     const positive = usable.filter((v) => v > 0).sort((a, b) => a - b);
     return { color: fireflyScale(max), max, median: positive.length ? percentile(positive, 0.5) : null };
   }, [series]);
-
-  const viirsRow = years.includes(2011) && years.includes(2012) ? years.indexOf(2012) : null;
-  const base = series.baselineFrom;
 
   // Baseline median per calendar month, the same reference as the KPIs and the current-month card.
   const medians = useMemo(() => Array.from({ length: 12 }, (_, c) => {
@@ -53,25 +78,66 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
       .sort((a, b) => a - b);
     return vals.length >= MIN_BASELINE_YEARS ? percentile(vals, 0.5) : null;
   }), [series, stats]);
+  const hasMedian = medians.some((c) => c !== null);
 
+  const [chosen, setChosen] = useState<Mode | null>(null);
+  const mode: Mode = chosen ?? (hasMedian ? "anomaly" : "counts");
+
+  // Annual totals only for complete baseline years; the rest stay empty.
+  const totals = years.map((y) => (stats.baselineYears.includes(y) ? stats.yearTotals.get(y) ?? null : null));
+  const maxTotal = Math.max(1, ...totals.map((t) => t ?? 0));
+
+  const isProvisional = (m: number) => series.provisionalFrom !== undefined && m >= series.provisionalFrom;
   /** value / baseline median of that calendar month − 1; null whenever the month must not be compared. */
-  const anomalyOf = (m: number, year: number): number | null => {
+  const anomalyOf = (m: number): number | null => {
     const value = series.values[m];
-    const clim = medians[m % 12];
-    const provisional = series.provisionalFrom !== undefined && m >= series.provisionalFrom;
-    if (value === null || series.partial[m] || provisional || clim === null || clim <= 0) return null;
+    const ref = medians[m % 12];
+    const year = series.startYear + Math.floor(m / 12);
+    if (value === null || series.partial[m] || isProvisional(m) || ref === null || ref <= 0) return null;
     if (base !== undefined && year < base) return null;
-    return value / clim - 1;
+    return value / ref - 1;
   };
-  const hasClimatology = medians.some((c) => c !== null);
+
+  const [active, setActive] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<number>(() => focusMonth ?? 0);
+  const shown = active ?? focusMonth;
+
+  const describe = (m: number) => {
+    const value = series.values[m];
+    const head = `${MONTHS[m % 12]} ${series.startYear + Math.floor(m / 12)}`;
+    if (value === null) return `${head} · no source data`;
+    const tail = series.partial[m] ? "partial month" : isProvisional(m) ? "provisional" : (() => {
+      const a = anomalyOf(m);
+      return a !== null ? `${fmtPercent(a)} vs median` : "not compared";
+    })();
+    return `${head} · ${fmt(Math.round(value))} hotspots · ${tail}`;
+  };
+
+  const ym = (m: number) => `${series.startYear + Math.floor(m / 12)}-${String((m % 12) + 1).padStart(2, "0")}`;
+  const pick = (m: number) => onFocus(series.startYear + Math.floor(m / 12), m, ym(m));
+  const move = (m: number) => {
+    const next = Math.max(0, Math.min(years.length * 12 - 1, m));
+    setCursor(next);
+    svgRef.current?.querySelector<SVGGElement>(`[data-cell="${next}"]`)?.focus();
+  };
+  const onKey = (e: React.KeyboardEvent, m: number) => {
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -12, ArrowDown: 12, Home: -(m % 12), End: 11 - (m % 12) }[e.key];
+    if (step !== undefined) { e.preventDefault(); move(m + step); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(m); }
+  };
+
+  const activeRow = shown !== null ? Math.floor(shown / 12) : null;
+  const activeCol = shown !== null ? shown % 12 : null;
+  const showViirs = (series.kind ?? "HARMONIZED") === "HARMONIZED" && years.includes(VIIRS_YEAR - 1) && years.includes(VIIRS_YEAR);
+  const preBaseRows = base !== undefined ? years.filter((y) => y < base).length : 0;
 
   return (
     <div ref={ref}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="seg" role="group" aria-label="Calendar colour">
-          {(["counts", "anomaly"] as const).map((m) => (
-            <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}
-              disabled={m === "anomaly" && !hasClimatology}
+          {(["anomaly", "counts"] as const).map((m) => (
+            <button key={m} aria-pressed={mode === m} onClick={() => setChosen(m)}
+              disabled={m === "anomaly" && !hasMedian}
               className={`disabled:opacity-40 ${mode === m ? "bg-slate-800" : ""}`}>
               {m === "counts" ? "Counts" : "Anomaly"}
             </button>
@@ -81,102 +147,156 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
           <p className="text-xs text-muted">vs the {base ? `${base}+ ` : ""}baseline median of each calendar month · + / − marks ±25 % or more</p>
         )}
       </div>
-      <div className="max-h-[32rem] overflow-y-auto">
+
+      <p className="num mb-1 min-h-5 text-sm text-text" aria-live="polite">
+        {shown !== null ? describe(shown) : <span className="text-muted">Hover or focus a month to read its value.</span>}
+      </p>
+
+      <div className={coarse ? "dark-scroll max-h-[36rem] overflow-auto" : ""}>
       {width > 0 && (
-        <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} className="block" role="grid" {...{ [CALENDAR_EXPORT]: "" }}
-          aria-label="Hotspots by year and month">
+        <svg ref={svgRef} viewBox={`0 0 ${svgW} ${height}`} width={svgW} height={height} className="block" role="grid"
+          {...{ [CALENDAR_EXPORT]: "" }} aria-label="Hotspots by year and month" onPointerLeave={() => setActive(null)}>
           <defs>
             <pattern id="partial" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <line x1="0" y1="0" x2="0" y2="4" stroke={ALERT} strokeWidth="1.2" />
             </pattern>
           </defs>
 
+          {/* Header */}
           {MONTHS.map((name, c) => (
-            c % step === 0 && (
-              <text key={name} x={LABEL + c * COL + COL / 2} y={13} textAnchor="middle" fontSize={TICK.size} fill={TICK.fill}>
-                {step > 2 ? name : name[0]}
+            c % monthStep === 0 && (
+              <text key={name} x={gridX + c * COL + COL / 2} y={13} textAnchor="middle" fontSize={TICK.size}
+                fill={c === activeCol ? TEXT : TICK.fill} fontWeight={c === activeCol ? 700 : 400}>
+                {COL >= 28 ? name : name[0]}
               </text>
             )
           ))}
+          <text x={barX} y={13} fontSize={TICK.size} fill={TICK.fill}>Year total</text>
+
+          {/* Era brackets in the left margin, never over the cells */}
+          {era > 0 && preBaseRows > 0 && (
+            <g>
+              <path d={`M${era - 4},${TOP + 1} h-4 V${TOP + preBaseRows * ROW - GAP - 1} h4`} fill="none" stroke={MUTED} />
+              <text x={era - 12} y={TOP + (preBaseRows * ROW) / 2 - 2} textAnchor="end" fontSize={TICK.size} fill={MUTED}>
+                <tspan x={era - 12}>Before {base}</tspan>
+                <tspan x={era - 12} dy={13}>see note ¹</tspan>
+                <title>{series.baselineNote}</title>
+              </text>
+            </g>
+          )}
+          {era > 0 && showViirs && (() => {
+            const r = years.indexOf(VIIRS_YEAR);
+            return (
+              <g>
+                <path d={`M${era - 4},${TOP + r * ROW - 1} h-4 V${TOP + (r + 1) * ROW - GAP} h4`} fill="none" stroke={MUTED} />
+                <text x={era - 12} y={TOP + r * ROW + ROW / 2 + 4} textAnchor="end" fontSize={TICK.size} fill={MUTED}>VIIRS joins</text>
+              </g>
+            );
+          })()}
+
+          {/* Active row/column highlight */}
+          {activeRow !== null && activeRow < years.length && (
+            <rect x={gridX - 1} y={TOP + activeRow * ROW - 1} width={12 * COL} height={ROW} rx={3} fill="none" stroke={TEXT} strokeOpacity={0.35} pointerEvents="none" />
+          )}
+          {activeCol !== null && (
+            <rect x={gridX + activeCol * COL - 1} y={TOP - 1} width={COL} height={years.length * ROW} rx={3} fill="none" stroke={TEXT} strokeOpacity={0.35} pointerEvents="none" />
+          )}
 
           {years.map((year, r) => {
             const y = TOP + r * ROW;
             const faded = base !== undefined && year < base;
+            const total = totals[r];
             return (
-              <g key={year} opacity={faded ? 0.4 : 1}>
-                <text x={LABEL - 6} y={y + ROW - 5} textAnchor="end" fontSize={AXIS.size}
-                  fill={year === focusYear ? TEXT : MUTED} fontWeight={year === focusYear ? 700 : 400} className="num">
-                  {year}
-                </text>
-                {MONTHS.map((_, c) => {
-                  const m = r * 12 + c;
-                  const value = series.values[m];
-                  const inRange = m >= range.from && m <= range.to;
-                  const provisional = series.provisionalFrom !== undefined && m >= series.provisionalFrom;
-                  const selected = year === focusYear && m === focusMonth;
-                  const anom = mode === "anomaly" ? anomalyOf(m, year) : null;
-                  const notCompared = mode === "anomaly" && value !== null && anom === null;
-                  const fill = value === null ? "none" : mode === "counts" ? color(value) : anom === null ? GRID : anomalyColor(anom);
-                  const status = value === null ? "no source data" : `${fmt(Math.round(value))} hotspots${series.partial[m] ? ", partial month" : ""}${provisional ? ", provisional" : ""}`;
-                  const anomText = mode !== "anomaly" || value === null ? ""
-                    : anom !== null ? `, ${fmtPercent(anom)} vs baseline median` : ", not compared";
-                  return (
-                    <g key={c} className="cell" tabIndex={0} role="gridcell"
-                      aria-label={`${MONTHS_LONG[c]} ${year}: ${status}${anomText}`}
-                      onClick={() => onFocus(year, m, `${year}-${String(c + 1).padStart(2, "0")}`)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFocus(year, m, `${year}-${String(c + 1).padStart(2, "0")}`); } }}
-                    >
-                      <rect
-                        x={LABEL + c * COL} y={y} width={Math.max(COL - GAP, 1)} height={ROW - GAP} rx={2}
-                        fill={fill}
-                        stroke={value === null ? GRID : selected ? TEXT : "none"}
-                        strokeWidth={selected ? 1.6 : 0.8}
-                        opacity={inRange ? 1 : 0.25}
-                        className="cursor-pointer"
-                      />
-                      {value !== null && series.partial[m] && (
-                        <rect x={LABEL + c * COL} y={y} width={Math.max(COL - GAP, 1)} height={ROW - GAP} rx={2}
-                          fill="url(#partial)" opacity={inRange ? 1 : 0.25} pointerEvents="none" />
-                      )}
-                      {provisional && <circle cx={LABEL + c * COL + 4} cy={y + 4} r={1.8} fill={MUTED} pointerEvents="none" />}
-                      {notCompared && !series.partial[m] && !provisional && (
-                        <line x1={LABEL + c * COL + 4} x2={LABEL + (c + 1) * COL - GAP - 4} y1={y + (ROW - GAP) / 2} y2={y + (ROW - GAP) / 2}
-                          stroke={MUTED} strokeWidth={1} pointerEvents="none" />
-                      )}
-                      {anom !== null && Math.abs(anom) >= 0.25 && COL >= 16 && (
-                        <text x={LABEL + c * COL + (COL - GAP) / 2} y={y + (ROW - GAP) / 2 + 4} textAnchor="middle"
-                          fontSize={12} fontWeight={700} fill={BG} pointerEvents="none" aria-hidden>
-                          {anom > 0 ? "+" : "−"}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
+              <g key={year}>
+                {r % yearStep === 0 && (
+                  <text x={gridX - 6} y={y + ROW / 2 + 4} textAnchor="end" fontSize={AXIS.size}
+                    fill={year === focusYear || r === activeRow ? TEXT : MUTED} fontWeight={year === focusYear ? 700 : 400} className="num">
+                    {year}
+                  </text>
+                )}
+                <g opacity={faded ? 0.4 : 1}>
+                  {MONTHS.map((_, c) => {
+                    const m = r * 12 + c;
+                    const value = series.values[m];
+                    const inRange = m >= range.from && m <= range.to;
+                    const provisional = isProvisional(m);
+                    const selected = year === focusYear && m === focusMonth;
+                    const anom = mode === "anomaly" ? anomalyOf(m) : null;
+                    const notCompared = mode === "anomaly" && value !== null && anom === null;
+                    const fill = value === null ? "none" : mode === "counts" ? color(value) : anom === null ? GRID : anomalyColor(anom);
+                    const x = gridX + c * COL, w = Math.max(COL - GAP, 1), h = ROW - GAP;
+                    return (
+                      <g key={c} pointerEvents="none">
+                        <rect x={x} y={y} width={w} height={h} rx={2} fill={fill}
+                          stroke={value === null ? GRID : selected ? TEXT : "none"} strokeWidth={selected ? 1.6 : 0.8}
+                          opacity={inRange ? 1 : 0.25} />
+                        {value !== null && series.partial[m] && (
+                          <rect x={x} y={y} width={w} height={h} rx={2} fill="url(#partial)" opacity={inRange ? 1 : 0.25} />
+                        )}
+                        {provisional && <circle cx={x + 4} cy={y + 4} r={1.8} fill={MUTED} />}
+                        {notCompared && !series.partial[m] && !provisional && (
+                          <line x1={x + 4} x2={x + w - 4} y1={y + h / 2} y2={y + h / 2} stroke={MUTED} strokeWidth={1} />
+                        )}
+                        {anom !== null && Math.abs(anom) >= 0.25 && COL >= 16 && (
+                          <text x={x + w / 2} y={y + h / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={BG} aria-hidden>
+                            {anom > 0 ? "+" : "−"}
+                          </text>
+                        )}
+                      </g>
+                    );
+                  })}
+                </g>
+                {total !== null && (
+                  <g>
+                    <rect x={barX} y={y + h3(ROW)} width={Math.max(1, (total / maxTotal) * BAR)} height={ROW - 2 * h3(ROW) - GAP} rx={1.5} fill={MUTED}>
+                      <title>{`${year}: ${fmt(Math.round(total))} hotspots`}</title>
+                    </rect>
+                    <text x={barX + BAR + 4} y={y + ROW / 2 + 4} fontSize={TICK.size} fill={TICK.fill} className="num">{fmtTick(Math.round(total))}</text>
+                  </g>
+                )}
               </g>
             );
           })}
 
-          {viirsRow !== null && (
-            <g>
-              <line x1={LABEL - 2} x2={width} y1={TOP + viirsRow * ROW - 1.5} y2={TOP + viirsRow * ROW - 1.5}
-                stroke={MUTED} strokeWidth={0.8} strokeDasharray="3 2" />
-              <text x={LABEL + 3} y={TOP + viirsRow * ROW - 5} fontSize={TICK.size} fill={MUTED}
-                stroke="#060D1E" strokeWidth={3} paintOrder="stroke">VIIRS joins (2012)</text>
-            </g>
-          )}
+          {/* Baseline median row (counts scale) */}
+          <text x={gridX - 6} y={medianY + ROW / 2 + 4} textAnchor="end" fontSize={AXIS.size} fill={TEXT}>Median</text>
+          {medians.map((v, c) => (
+            <rect key={c} x={gridX + c * COL} y={medianY} width={Math.max(COL - GAP, 1)} height={ROW - GAP} rx={2}
+              fill={v === null ? "none" : color(v)} stroke={v === null ? GRID : TEXT} strokeOpacity={v === null ? 1 : 0.5} strokeWidth={0.8}>
+              <title>{`${MONTHS_LONG[c]} baseline median: ${v === null ? "not enough years" : fmt(Math.round(v))}`}</title>
+            </rect>
+          ))}
+
+          {/* Hit layer: one focusable zone per month, drawn last so it owns the pointer */}
+          {years.map((year, r) => MONTHS.map((_, c) => {
+            const m = r * 12 + c;
+            const value = series.values[m];
+            const anom = anomalyOf(m);
+            const status = value === null ? "no source data"
+              : `${fmt(Math.round(value))} hotspots${series.partial[m] ? ", partial month" : ""}${isProvisional(m) ? ", provisional" : ""}`;
+            const anomText = value === null ? "" : anom !== null ? `, ${fmtPercent(anom)} vs baseline median` : ", not compared";
+            return (
+              <g key={m} data-cell={m} className="cell" role="gridcell" tabIndex={m === cursor ? 0 : -1}
+                aria-label={`${MONTHS_LONG[c]} ${year}: ${status}${anomText}`}
+                onPointerEnter={() => setActive(m)} onFocus={() => { setActive(m); setCursor(m); }} onBlur={() => setActive(null)}
+                onClick={() => pick(m)} onKeyDown={(e) => onKey(e, m)}>
+                <rect x={gridX + c * COL} y={TOP + r * ROW} width={COL} height={ROW} fill="transparent" className="cursor-pointer" />
+              </g>
+            );
+          }))}
         </svg>
       )}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-2xs text-muted">
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
         {mode === "counts" ? (
           <Ramp
             label="Hotspots per month (square-root scale)"
             stops={Array.from({ length: 9 }, (_, i) => color(max * (i / 8) ** 2))}
             ticks={[
               { at: 0, text: "0" },
-              ...(median !== null && median < max * 0.8 ? [{ at: Math.sqrt(median / max), text: `${fmtCompact(Math.round(median))} median` }] : []),
-              { at: 1, text: `${fmtCompact(Math.round(max))} max` },
+              ...(median !== null && median < max * 0.8 ? [{ at: Math.sqrt(median / max), text: fmtTick(Math.round(median)) }] : []),
+              { at: 1, text: fmtTick(Math.round(max)) },
             ]}
           />
         ) : (
@@ -185,9 +305,9 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
               label="Anomaly vs baseline median"
               stops={ANOM}
               ticks={[
-                { at: 0, text: `${fmtPercent(-LIMIT)} or less` },
+                { at: 0, text: fmtPercent(-LIMIT) },
                 { at: 0.5, text: "0" },
-                { at: 1, text: `${fmtPercent(LIMIT)} or more` },
+                { at: 1, text: `${fmtPercent(LIMIT)}` },
               ]}
             />
             <span className="inline-flex items-center gap-1.5">
@@ -212,6 +332,14 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
           Provisional
         </span>
       </div>
+      <ul className="mt-2 space-y-0.5 text-xs leading-snug text-muted">
+        <li>Year total: complete {base ? `${base}+ ` : ""}years only, bar length to the same scale. Median row: baseline median of each month, on the counts colour scale.</li>
+        {preBaseRows > 0 && series.baselineNote && <li>¹ Before {base}: {series.baselineNote}</li>}
+        {showViirs && <li>From {VIIRS_YEAR} the record averages MODIS with VIIRS on the MODIS scale; earlier years are MODIS only.</li>}
+      </ul>
     </div>
   );
 }
+
+/** Vertical inset that turns a row into a thin bar. */
+const h3 = (row: number) => Math.round(row / 4);

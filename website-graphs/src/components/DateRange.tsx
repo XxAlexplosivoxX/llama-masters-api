@@ -135,7 +135,7 @@ function MonthField({ label, startYear, value, min, max, align = "left", trailin
               <ChevronRight size={16} aria-hidden />
             </button>
           </div>
-          <div className={`grid gap-1 ${view === "months" ? "grid-cols-4" : "max-h-56 grid-cols-4 overflow-y-auto"}`}>
+          <div className={`grid gap-1 ${view === "months" ? "grid-cols-4" : "dark-scroll max-h-56 grid-cols-4 overflow-y-auto"}`}>
             {view === "months"
               ? MONTHS.map((name, m) => {
                 const i = index(year, m);
