@@ -311,7 +311,7 @@ export function Calendar({ series, stats, range, focusYear, focusMonth, onFocus 
                   <title>{`${MONTHS_LONG[c]} baseline median: ${v === null ? "not enough years" : fmt(Math.round(v))}`}</title>
                 </rect>
                 {numbers && c % labelEvery === 0 && (
-                  <text x={gridX + c * COL + (COL - GAP) / 2} y={medianY + (ROW - GAP) / 2 + 4} textAnchor="middle"
+                  <text x={Math.max(gridX + text.length * 3.5, Math.min(gridX + c * COL + (COL - GAP) / 2, gridX + 12 * COL - text.length * 3.5))} y={medianY + (ROW - GAP) / 2 + 4} textAnchor="middle"
                     fontSize={TICK.size} fill={TEXT} className="num" pointerEvents="none">{text}</text>
                 )}
               </g>
