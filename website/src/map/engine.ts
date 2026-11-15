@@ -7,6 +7,7 @@ import { TerraDraw, TerraDrawPolygonMode, TerraDrawRectangleMode, ValidateNotSel
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import { HEAT, SENSOR, sensorOf } from "../lib/color";
 import type { BBox, Hotspot } from "../lib/types";
+import type { MapOptions } from "../hooks/useMapOptions";
 
 setWorkerUrl(workerUrl);
 
@@ -77,6 +78,11 @@ export class MapEngine {
   private layer: MapLayer = "history";
   private introFrame = 0;
   private gridMax = -1;
+  private gridOpacity = 0.82;
+  private basemap: MapOptions["basemap"] = "dark";
+  private labels = true;
+  private borders = true;
+  private baseLayers: StyleSpecification["layers"];
   private gridValues: number[] = [];
   private skip = false;
   private gridPending = false;
@@ -136,6 +142,21 @@ export class MapEngine {
       map.setPaintProperty(id, "text-opacity", 0.45);
       map.setPaintProperty(id, "text-color", "#9AA6C0");
       map.setPaintProperty(id, "text-halo-width", 0.5);
+    }
+    // Snapshot after thinning: restoring Dark must preserve the original hidden layers and label paint.
+    this.baseLayers = map.getStyle().layers;
+    const background = this.baseLayers.findIndex((l) => l.type === "background");
+    const aboveBackground = this.baseLayers[background + 1]?.id;
+    for (const [id, product, date, extension] of [
+      ["satellite", "BlueMarble_ShadedRelief_Bathymetry", "2004-08-01", "jpeg"],
+      ["night", "VIIRS_Black_Marble", "2016-01-01", "png"],
+    ]) {
+      map.addSource(`gibs-${id}`, {
+        type: "raster", tileSize: 256, maxzoom: 8, attribution: "Imagery: NASA EOSDIS GIBS",
+        tiles: [`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${product}/default/${date}/GoogleMapsCompatible_Level8/{z}/{y}/{x}.${extension}`],
+      });
+      map.addLayer({ id: `gibs-${id}`, type: "raster", source: `gibs-${id}`, layout: { visibility: "none" },
+        paint: { "raster-opacity": 0.85, "raster-saturation": id === "satellite" ? -0.2 : 0 } }, aboveBackground);
     }
     const firstLabel = map.getStyle().layers.find((l) =>
       "source-layer" in l && ["boundary", "place"].includes(String(l["source-layer"])))?.id;
@@ -246,6 +267,70 @@ export class MapEngine {
     this.map.resize();
   }
 
+  setBasemap(value: MapOptions["basemap"]) {
+    if (this.destroyed) return;
+    const next = this.online ? value : "dark";
+    if (next === this.basemap) return;
+    this.basemap = next;
+    for (const id of ["satellite", "night"]) {
+      this.map.setLayoutProperty(`gibs-${id}`, "visibility", next === id ? "visible" : "none");
+    }
+    for (const layer of this.baseLayers) {
+      if (["fill", "line", "fill-extrusion"].includes(layer.type)
+        && !("source-layer" in layer && layer["source-layer"] === "boundary")) {
+        this.map.setLayoutProperty(layer.id, "visibility", next === "dark" ? layer.layout?.visibility : "none");
+      }
+      if (layer.type === "symbol" && layer.layout?.visibility !== "none" && layer.layout?.["text-field"]) {
+        // Stronger text and dark halos keep names readable over bright imagery; Dark restores exact paint.
+        const paint = { "text-opacity": 0.85, "text-color": "#E8ECF5", "text-halo-color": "#0B0F1A", "text-halo-width": 1.2 } as const;
+        for (const key of Object.keys(paint) as (keyof typeof paint)[]) {
+          this.map.setPaintProperty(layer.id, key, next === "dark" ? layer.paint?.[key] : paint[key]);
+        }
+      }
+    }
+  }
+
+  setLabels(on: boolean) {
+    if (this.destroyed || on === this.labels) return;
+    this.labels = on;
+    this.updateBaseVisibility();
+  }
+
+  setBorders(on: boolean) {
+    if (this.destroyed || on === this.borders) return;
+    this.borders = on;
+    this.updateBaseVisibility();
+  }
+
+  private updateBaseVisibility() {
+    for (const layer of this.baseLayers) {
+      const boundary = "source-layer" in layer && layer["source-layer"] === "boundary";
+      if (layer.type !== "symbol" && !boundary) continue;
+      const visible = (layer.type !== "symbol" || this.labels) && (!boundary || this.borders);
+      const value = visible ? layer.layout?.visibility : "none";
+      if (this.map.getLayoutProperty(layer.id, "visibility") !== value) {
+        this.map.setLayoutProperty(layer.id, "visibility", value);
+      }
+    }
+  }
+
+  setProjection(type: MapOptions["projection"]) {
+    if (this.destroyed) return;
+    this.map.setProjection({ type });
+  }
+
+  setGridOpacity(value: number) {
+    if (this.destroyed || !Number.isFinite(value)) return;
+    this.gridOpacity = Math.max(0.3, Math.min(1, value));
+    if (this.layer === "history" && !this.gridPending && !this.introRunning) this.applyGridOpacity(true);
+  }
+
+  private applyGridOpacity(immediate = false) {
+    this.map.setPaintProperty("grid", "fill-opacity-transition", { duration: immediate ? 0 : 700, delay: 0 });
+    this.map.setPaintProperty("grid", "fill-opacity",
+      this.layer === "history" && !this.gridPending && !this.introRunning ? this.gridOpacity : 0);
+  }
+
   startDrawing(mode: DrawMode) {
     if (this.destroyed) return;
     this.draw.clear();
@@ -273,12 +358,12 @@ export class MapEngine {
     this.map.removeFeatureState({ source: "grid" });
     this.gridValues = [];
     this.gridPending = true;
-    this.map.setPaintProperty("grid", "fill-opacity", 0);
+    this.applyGridOpacity();
     const source = this.map.getSource("grid") as GeoJSONSource;
     source.setData({ type: "FeatureCollection", features }).then(() => {
       if (this.destroyed) return;
       this.gridPending = false;
-      if (this.layer === "history" && !this.introRunning) this.map.setPaintProperty("grid", "fill-opacity", 0.82);
+      if (this.layer === "history" && !this.introRunning) this.applyGridOpacity();
     });
   }
 
@@ -326,7 +411,7 @@ export class MapEngine {
     if (this.destroyed) return;
     this.layer = layer;
     this.showRecent(layer === "recent");
-    this.map.setPaintProperty("grid", "fill-opacity", layer === "history" && !this.gridPending ? 0.82 : 0);
+    this.applyGridOpacity();
     this.map.triggerRepaint();
   }
 

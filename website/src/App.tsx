@@ -12,6 +12,8 @@ import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView } from "./map/MapView";
 import { shapeFromDrawing, useExplorer } from "./state";
 import { useDrawerViewport } from "./hooks/useDrawerViewport";
+import { MapOptions } from "./components/MapOptions";
+import { useMapOptions } from "./hooks/useMapOptions";
 
 const DESKTOP = "(min-width: 1024px)";
 const SNAPS = ["168px", 0.55, 1] as const;
@@ -36,6 +38,8 @@ export function App() {
   const [gridMax, setGridMax] = useState(0);
   const [snap, setSnap] = useState<number | string | null>(SNAPS[1]);
   const [chartsOpen, setChartsOpen] = useState(false);
+  const [mapOptions, setMapOptions] = useMapOptions();
+  const [mapOnline, setMapOnline] = useState<boolean | null>(null);
   const drawer = useDrawerViewport(desktop, snap);
   const changeLayer = (next: MapLayer) => { explorer.pause(); setLayer(next); };
 
@@ -76,12 +80,16 @@ export function App() {
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
       <PlaceSwitcher places={explorer.places} current={explorer.place} onSelect={explorer.selectPlace} />
-      <div className="flex flex-col items-end gap-2">
+      <div className="flex max-w-full flex-col items-end gap-2">
         <div className="flex flex-wrap justify-end gap-2">
           <DrawTools drawMode={drawMode} onDrawMode={setDrawMode} onCoordinates={chooseArea}
             bounds={explorer.place?.bbox ?? null} placeLabel={explorer.place?.label ?? "this place"}
             onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
-          <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
+          <div className="flex items-start gap-2">
+            <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
+            <MapOptions options={mapOptions} onChange={setMapOptions} online={mapOnline}
+              onOpen={() => { if (!desktop) setSnap(SNAPS[0]); }} />
+          </div>
         </div>
         <SelectionChip label={explorer.shape?.label ?? null} placeLabel={explorer.place?.label ?? ""}
           hidden={!!drawMode} onClear={() => explorer.setShape(null)} />
@@ -93,6 +101,7 @@ export function App() {
     <ErrorBoundary label="map">
       <MapView
         explorer={explorer} layer={layer} drawMode={drawMode} padding={padding}
+        options={mapOptions} onOnline={setMapOnline}
         onDrawn={(polygon) => chooseArea(polygon)} onIntroDone={() => setIntroDone(true)} onGridScale={setGridMax}
       />
     </ErrorBoundary>

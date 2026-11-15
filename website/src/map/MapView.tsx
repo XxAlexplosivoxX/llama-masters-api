@@ -4,6 +4,7 @@ import { AnimatePresence } from "motion/react";
 import { labelOf } from "../lib/series";
 import { MapEngine, type DrawMode, type MapLayer, type Padding } from "./engine";
 import { LoadingCard, MapCaption, stepsFrom } from "./MapStatus";
+import type { MapOptions } from "../hooks/useMapOptions";
 
 
 interface Props {
@@ -14,6 +15,8 @@ interface Props {
   onDrawn: (polygon: GeoJSON.Polygon) => void;
   onIntroDone: () => void;
   onGridScale: (max: number) => void;
+  options: MapOptions;
+  onOnline: (online: boolean | null) => void;
 }
 
 function percentile(values: number[], p: number): number {
@@ -22,7 +25,7 @@ function percentile(values: number[], p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] || 1;
 }
 
-export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDone, onGridScale }: Props) {
+export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDone, onGridScale, options, onOnline }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const [engine, setEngine] = useState<MapEngine | null>(null);
   const [failure, setFailure] = useState("");
@@ -45,6 +48,21 @@ export function MapView({ explorer, layer, drawMode, padding, onDrawn, onIntroDo
       setEngine(null);
     };
   }, []);
+
+  useEffect(() => {
+    onOnline(engine?.online ?? null);
+    return () => onOnline(null);
+  }, [engine, onOnline]);
+  useEffect(() => { engine?.setBasemap(options.basemap); }, [engine, options.basemap]);
+  useEffect(() => { engine?.setLabels(options.labels); }, [engine, options.labels]);
+  useEffect(() => { engine?.setBorders(options.borders); }, [engine, options.borders]);
+  useEffect(() => { engine?.setProjection(options.projection); }, [engine, options.projection]);
+  useEffect(() => {
+    if (!engine) return;
+    // Coalesce slider events; only a constant paint property changes on each animation frame.
+    const frame = requestAnimationFrame(() => engine.setGridOpacity(options.gridOpacity));
+    return () => cancelAnimationFrame(frame);
+  }, [engine, options.gridOpacity]);
 
   useEffect(() => {
     if (!engine) return;

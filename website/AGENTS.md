@@ -69,12 +69,13 @@ Deploy: static site. Vercel/Netlify root `website/`, build `npm run build`, outp
 ## 3. Data: where it comes from and what is stored
 
 Gridded history and recent points are precomputed by **`scripts/build-country.mjs`** and committed
-under `public/data/`. Version-3 sizes await regeneration. The browser never calls NASA.
+under `public/data/`. Version-3 sizes await regeneration. Only optional basemap imagery calls NASA from the browser.
 
 ### Sources
 
 | Source | Content | Period | Key |
 | --- | --- | --- | --- |
+| NASA EOSDIS GIBS raster basemaps | Blue Marble shaded relief / VIIRS Black Marble, zoom 0-8 | Blue Marble composite / VIIRS 2016; not live imagery | none |
 | FIRMS yearly country archive `data/country/modis/<y>/modis_<y>_<Country>.csv` | MODIS C6.1 Terra+Aqua, 1 km | 2000-11 to 2025 | none |
 | FIRMS yearly country archive `data/country/viirs-snpp/<y>/...` | VIIRS S-NPP C2, 375 m | 2012-01-20 to 2025 | none |
 | FIRMS area API `api/area/csv/<KEY>/<SOURCE>/<bbox>/<1..5 days>/<date>` | current year; `*_SP` (standard) while released, then `*_NRT` (provisional) | 2026 to today | `FIRMS_MAP_KEY` |
@@ -230,6 +231,9 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
     hidden until tiled), `setGridValues` (feature-state per cell; paint only when the scale
     changes), `setRecent`, `setLayer`, `setSelection`, `fit`, `intro` (fly + fade in history),
     `skipIntro`. Every public method checks `destroyed`.
+    `setBasemap` switches constructor-created `gibs-satellite` / `gibs-night` rasters beneath data
+    and boundaries; restores original Dark visibility/label paint. `setLabels`, `setBorders`,
+    `setGridOpacity`, `setProjection` apply display options; opacity keeps intro/pending/recent guards.
   - `MapView.tsx`: wires state to the engine. Shown cells = selection only; values = total over
     the range, or one month (hover/playback) with **one fixed monthly scale** (98th percentile of
     cell-months in range). Load card, captions.
@@ -239,6 +243,10 @@ The loader rejects version 2 with an explicit regeneration error; it does not re
     `DrawTools` (Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
     Box tabs and per-field validation; on phones popovers become a sheet and the drawer folds),
     `SelectionChip` (area label + Clear), `LayerSwitch`.
+  - `MapOptions.tsx`: toolbar popover / phone sheet, basemap, names, borders, opacity, projection,
+    Reset; imagery disabled offline, dated composites explicitly not live. `hooks/useMapOptions.ts`
+    validates and persists App-owned defaults to `map:options`; MapView applies each option separately
+    (opacity coalesced to animation frames, immediate slider paint; other grid fades remain 700 ms).
   - `Panel.tsx`: order = header → `DateRange` → `KeyNumbers` → "When does it burn?" (`Calendar`)
     → "Which years burned more?" (`Anomalies`) → "What is burning now?" (`Recent`) → Download
     (`Export`) → "How MODIS and VIIRS are combined" (`Sensors.HowCombined`, with the single-sensor
