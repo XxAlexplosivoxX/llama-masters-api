@@ -1,11 +1,20 @@
 import { ChevronLeft, ChevronRight, Pin } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
-import { anomalyScale, heatScale } from "../lib/color";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { anomalyScale, ANOM, heatScale } from "../lib/color";
 
 const anomaly = anomalyScale(0.8);
 import { fmt, fmtCompact, fmtPercent } from "../lib/format";
 import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/series";
+import { useDismiss } from "../hooks/useDismiss";
 import type { MonthlySeries } from "../lib/types";
+
+const pop = {
+  initial: { opacity: 0, y: -6, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -6, scale: 0.98 },
+  transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const },
+};
 
 /** Relative luminance of a "#rrggbb" or "rgb(r, g, b)" colour, 0..1. */
 function luminance(color: string): number {
@@ -21,6 +30,7 @@ function luminance(color: string): number {
 
 /**
  * One year as a wall calendar: twelve month tiles coloured by hotspots, with arrows to change year.
+ * The year label opens a grid of every year with data, coloured by its anomaly vs the mean year.
  * Hovering or focusing a month shows it on the map.
  */
 export function YearCalendar({
@@ -66,24 +76,59 @@ export function YearCalendar({
   const total = stats.yearTotals.get(shown) ?? null;
   const soFar = series.values.slice(base, base + 12).reduce<number>((a, v) => a + (v ?? 0), 0);
 
+  const [picking, setPicking] = useState(false);
+  const pickerRef = useDismiss(picking, () => setPicking(false));
+  const yearButton = useRef<HTMLButtonElement>(null);
+  const yearGrid = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (picking) yearGrid.current?.querySelector<HTMLButtonElement>(`[data-year="${shown}"]`)?.focus();
+  }, [picking]);
+  const jump = (target: number | undefined) => {
+    if (target !== undefined) onYear(target);
+  };
+
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
+      <div ref={pickerRef} className="relative flex items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           <button
             className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
-            onClick={() => onYear(years[at - 1])}
+            onClick={() => jump(years[at - 1])}
             disabled={at <= 0}
             aria-label="Previous year"
           >
             <ChevronLeft size={16} aria-hidden />
           </button>
-          <span className="num w-12 text-center text-base font-semibold" aria-live="polite">
+          <button
+            ref={yearButton}
+            className="num min-w-12 rounded-md px-1 py-1 text-center text-base font-semibold hover:bg-surface-2"
+            aria-haspopup="dialog"
+            aria-expanded={picking}
+            aria-label={`${shown}, choose a year`}
+            aria-live="polite"
+            onClick={() => setPicking(!picking)}
+            onKeyDown={(e) => {
+              const target =
+                e.key === "ArrowLeft"
+                  ? years[at - 1]
+                  : e.key === "ArrowRight"
+                    ? years[at + 1]
+                    : e.key === "Home"
+                      ? years[0]
+                      : e.key === "End"
+                        ? years.at(-1)
+                        : undefined;
+              if (target !== undefined) {
+                e.preventDefault();
+                jump(target);
+              }
+            }}
+          >
             {shown}
-          </span>
+          </button>
           <button
             className="grid h-8 w-8 place-items-center rounded-md text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
-            onClick={() => onYear(years[at + 1])}
+            onClick={() => jump(years[at + 1])}
             disabled={at < 0 || at >= years.length - 1}
             aria-label="Next year"
           >
@@ -91,6 +136,104 @@ export function YearCalendar({
           </button>
         </div>
         {aside}
+        <AnimatePresence>
+          {picking && (
+            <motion.div
+              {...pop}
+              role="dialog"
+              aria-label="Choose a year"
+              className="absolute inset-x-0 top-full z-30 mt-2 origin-top rounded-xl border border-border bg-surface p-2.5 shadow-2xl shadow-black/60"
+            >
+              <div
+                ref={yearGrid}
+                role="grid"
+                aria-label="Years"
+                className="grid grid-cols-5 gap-1"
+                onKeyDown={(e) => {
+                  const tile = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-year]");
+                  if (!tile) return;
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPicking(false);
+                    yearButton.current?.focus();
+                    return;
+                  }
+                  const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -5, ArrowDown: 5 }[e.key];
+                  if (delta === undefined) return;
+                  e.preventDefault();
+                  const i = years.indexOf(Number(tile.dataset.year));
+                  const target = years[Math.max(0, Math.min(years.length - 1, i + delta))];
+                  yearGrid.current?.querySelector<HTMLButtonElement>(`[data-year="${target}"]`)?.focus();
+                }}
+              >
+                {years.map((y) => {
+                  const yearTotal = stats.yearTotals.get(y) ?? null;
+                  const rel = yearTotal !== null && stats.meanYear ? yearTotal / stats.meanYear - 1 : null;
+                  const fill = rel !== null ? anomaly(rel) : undefined;
+                  const dark = fill !== undefined && luminance(fill) > 0.35;
+                  const inBaseline = stats.baselineYears.includes(y);
+                  const yearSoFar =
+                    yearTotal === null
+                      ? series.values
+                          .slice((y - series.startYear) * 12, (y - series.startYear) * 12 + 12)
+                          .reduce<number>((a, v) => a + (v ?? 0), 0)
+                      : 0;
+                  const label =
+                    yearTotal === null
+                      ? `${y}: incomplete (${fmt(yearSoFar)} hotspots so far)`
+                      : rel !== null
+                        ? `${y}: ${fmt(yearTotal)} hotspots, ${fmtPercent(rel)} vs mean`
+                        : `${y}: ${fmt(yearTotal)} hotspots`;
+                  return (
+                    <button
+                      key={y}
+                      data-year={y}
+                      role="gridcell"
+                      aria-label={label}
+                      title={label}
+                      onClick={() => {
+                        onYear(y);
+                        setPicking(false);
+                      }}
+                      className={`num h-8 rounded-md text-xs font-medium ${
+                        yearTotal === null
+                          ? "border border-dashed border-muted text-muted"
+                          : fill === undefined
+                            ? "bg-surface-2 text-text"
+                            : dark
+                              ? "text-bg"
+                              : "text-text/90"
+                      } ${y === shown ? "ring-2 ring-nasa-red" : ""}`}
+                      style={{ background: fill, opacity: rel !== null && !inBaseline ? 0.35 : 1 }}
+                    >
+                      {y}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted">
+                {stats.meanYear !== null && (
+                  <span className="inline-flex items-center gap-1.5">
+                    Below
+                    <span
+                      className="h-2 w-10 rounded-sm"
+                      style={{ background: `linear-gradient(90deg, ${ANOM.join(",")})` }}
+                      aria-hidden
+                    />
+                    Above average
+                  </span>
+                )}
+                {years.some((y) => stats.yearTotals.get(y) == null) && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="h-3 w-3 rounded-[3px] border border-dashed border-muted" aria-hidden />
+                    Incomplete
+                  </span>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="mt-2.5 grid grid-cols-4 gap-1.5" role="grid" aria-label={`Hotspots by month in ${shown}`}>
@@ -149,10 +292,9 @@ export function YearCalendar({
           const yearRel = total !== null && stats.meanYear ? total / stats.meanYear - 1 : null;
           return (
             <>
-              <span className="text-text">
-                {total !== null ? fmtCompact(Math.round(total)) : `${fmtCompact(Math.round(soFar))} so far`}
-              </span>
+              <span className="text-text">{fmtCompact(Math.round(total ?? soFar))}</span>
               {" hotspots"}
+              {total === null && " so far"}
               {yearRel !== null && " · "}
               {yearRel !== null && <span style={{ color: anomaly(yearRel) }}>{fmtPercent(yearRel)} vs mean</span>}
             </>

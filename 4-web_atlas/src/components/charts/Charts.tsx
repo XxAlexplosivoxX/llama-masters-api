@@ -1,26 +1,18 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useWidth } from "../../hooks/useWidth";
-import { seamSeries } from "../../lib/series";
 import type { Explorer } from "../../state";
 import { LatestMonth } from "./LatestMonth";
 import { Seasonal } from "./Seasonal";
-import { Sensors } from "./Sensors";
 import { transition } from "./plot";
 
-const tabs = ["Seasonal pattern", "This month vs past years", "MODIS vs VIIRS"];
+const tabs = ["Seasonal pattern", "This month"];
 
 export function Charts({ explorer, showingRecent }: { explorer: Explorer; showingRecent: boolean }) {
-  const { loaded, series, stats, range, focus } = explorer;
+  const { series, stats, range, focus } = explorer;
   const { ref, width } = useWidth();
   const id = useId();
   const [tab, setTab] = useState(0);
-  // the seam check is exported per country (and state), not per drawn area
-  const monthly = useMemo(
-    () => (loaded && !explorer.shape ? seamSeries(loaded.monthly) : null),
-    [loaded, explorer.shape],
-  );
-  const active = tab === 2 && !monthly ? 0 : tab;
   const selection = useMemo(() => JSON.stringify(explorer.shape?.polygon ?? null), [explorer.shape]);
   const animationKey = `${explorer.place?.id}:${selection}:${explorer.kind}:${focus}:${range?.from}:${range?.to}`;
   const clear = useRef(() => {});
@@ -30,23 +22,23 @@ export function Charts({ explorer, showingRecent }: { explorer: Explorer; showin
   useEffect(() => {
     clear.current();
     return () => clear.current();
-  }, [animationKey, active]);
+  }, [animationKey, tab]);
   const select = (next: number) => {
     clear.current();
     setTab(next);
   };
-  const count = monthly ? 3 : 2;
+  const count = tabs.length;
   return (
     <div ref={ref} className="charts min-w-0 num">
       <div className="seg chart-tabs" role="tablist" aria-label="Charts">
-        {tabs.slice(0, count).map((label, i) => (
+        {tabs.map((label, i) => (
           <button
             key={label}
             id={`${id}-tab-${i}`}
             role="tab"
-            aria-selected={active === i}
+            aria-selected={tab === i}
             aria-controls={`${id}-panel-${i}`}
-            tabIndex={active === i ? 0 : -1}
+            tabIndex={tab === i ? 0 : -1}
             onClick={() => select(i)}
             onKeyDown={(e) => {
               if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
@@ -68,17 +60,17 @@ export function Charts({ explorer, showingRecent }: { explorer: Explorer; showin
       <AnimatePresence mode="wait" initial={false}>
         {series && stats && range && width > 0 && (
           <motion.div
-            key={active}
+            key={tab}
             role="tabpanel"
-            id={`${id}-panel-${active}`}
-            aria-labelledby={`${id}-tab-${active}`}
+            id={`${id}-panel-${tab}`}
+            aria-labelledby={`${id}-tab-${tab}`}
             tabIndex={0}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={transition}
           >
-            {active === 0 && (
+            {tab === 0 && (
               <Seasonal
                 key={animationKey}
                 series={series}
@@ -90,7 +82,7 @@ export function Charts({ explorer, showingRecent }: { explorer: Explorer; showin
                 onHover={showingRecent ? () => {} : explorer.setHoverMonth}
               />
             )}
-            {active === 1 && (
+            {tab === 1 && (
               <LatestMonth
                 series={series}
                 stats={stats}
@@ -99,9 +91,6 @@ export function Charts({ explorer, showingRecent }: { explorer: Explorer; showin
                 width={width}
                 animationKey={animationKey}
               />
-            )}
-            {active === 2 && monthly && (
-              <Sensors monthly={monthly} range={range} width={width} animationKey={animationKey} />
             )}
           </motion.div>
         )}

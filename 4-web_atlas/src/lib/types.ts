@@ -57,6 +57,7 @@ export interface MonthlyGridFile extends MonthAxis {
 export interface MonthlyGrid extends MonthAxis {
   unit: string;
   cell_deg: number;
+  cell_degs?: number[]; // per cell, when grids of several countries (different cell sizes) are merged
   cells: [
     west: number,
     south: number,
@@ -179,7 +180,7 @@ export interface Hotspot {
 export interface Place {
   id: string;
   label: string;
-  kind: "country";
+  kind: "country" | "global"; // global: no data of its own; countries are picked on the map
   iso: string[];
   bbox: BBox;
   states: number;
@@ -195,6 +196,7 @@ export interface Loaded {
   meta: Meta;
   recent: Hotspot[];
   outline: GeoJSON.MultiPolygon | null; // the country's border, drawn over the map
+  parts?: Loaded[]; // Global: the countries merged into this one, each as loaded
 }
 
 /** A user-drawn or typed area; null means the whole place. */

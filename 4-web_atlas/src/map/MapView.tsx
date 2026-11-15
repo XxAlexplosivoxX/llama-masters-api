@@ -16,6 +16,7 @@ interface Props {
   drawMode: DrawMode | null;
   padding: Padding;
   onDrawn: (polygon: GeoJSON.Polygon) => void;
+  onMapClick?: (lon: number, lat: number) => void; // Global: pick the country under the click
   onIntroDone: () => void;
   onGridScale: (scale: GridScale) => void;
   options: MapOptions;
@@ -34,6 +35,7 @@ export function MapView({
   drawMode,
   padding,
   onDrawn,
+  onMapClick,
   onIntroDone,
   onGridScale,
   options,
@@ -45,6 +47,8 @@ export function MapView({
   const introPlayed = useRef(false);
   const onDrawnRef = useRef(onDrawn);
   onDrawnRef.current = onDrawn;
+  const onClickRef = useRef(onMapClick);
+  onClickRef.current = onMapClick;
   const {
     loaded,
     range,
@@ -150,10 +154,23 @@ export function MapView({
   }, [counts, shown, from, to]);
 
   useEffect(() => {
-    if (!engine || !gridData) return;
+    engine?.setClickHandler(onMapClick ? (lon, lat) => onClickRef.current?.(lon, lat) : null);
+  }, [engine, !!onMapClick]);
+
+  useEffect(() => {
+    if (!engine) return;
+    // Global before any pick has no grid: clear the last country's cells.
+    if (!gridData) {
+      engine.setGridCells({ cellDeg: 0.1, cells: [] });
+      return;
+    }
     engine.setGridCells({
       cellDeg: gridData.cell_deg,
-      cells: shown.map((i) => ({ west: gridData.cells[i][0], south: gridData.cells[i][1] })),
+      cells: shown.map((i) => ({
+        west: gridData.cells[i][0],
+        south: gridData.cells[i][1],
+        deg: gridData.cell_degs?.[i],
+      })),
     });
   }, [engine, gridData, shown]);
 
@@ -231,10 +248,17 @@ export function MapView({
         setTimeout(() => setAfterIntro(false), 4500);
         onIntroDone();
       });
-    } else if (!shape) {
+    } else if (!shape && loaded.place.kind !== "global") {
+      // Global: countries are picked by clicking them, so they are in view; keep the view as it is.
       engine.fit(placeBBox, padding);
     }
   }, [engine, loaded, placeBBox]);
+
+  // Global with nothing picked yet: show the whole world.
+  useEffect(() => {
+    if (engine && introPlayed.current && place?.kind === "global" && !loaded && !shape)
+      engine.world(padding);
+  }, [engine, place, loaded]);
 
   useEffect(() => {
     if (!engine || !shape) return;
@@ -279,7 +303,7 @@ export function MapView({
           <div
             key="loading"
             // Top middle, level with the toolbar; on phones the toolbar spans the top, so just below it.
-            className="pointer-events-none absolute left-1/2 top-[4.5rem] z-30 -translate-x-1/2 lg:top-4"
+            className="pointer-events-none absolute left-1/2 top-[7.5rem] z-30 sm:top-[4.5rem] -translate-x-1/2 lg:top-4"
           >
             <LoadingCard
               title={place ? `Loading ${place.label}` : "Loading"}
@@ -294,7 +318,7 @@ export function MapView({
           </div>
         )}
       </AnimatePresence>
-      <div className="pointer-events-none absolute left-1/2 top-[4.5rem] z-30 max-w-[calc(100%-24px)] -translate-x-1/2 lg:top-4">
+      <div className="pointer-events-none absolute left-1/2 top-[7.5rem] z-30 sm:top-[4.5rem] max-w-[calc(100%-24px)] -translate-x-1/2 lg:top-4">
         <MapCaption text={firstLoad ? null : caption} />
       </div>
       {failure && (

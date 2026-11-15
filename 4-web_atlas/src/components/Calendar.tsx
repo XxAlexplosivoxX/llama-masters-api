@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { memo, useMemo, useRef, useState } from "react";
+import { useWidth } from "../hooks/useWidth";
 import { anomalyScale, heatScale, HEAT_ZERO } from "../lib/color";
 import { fmt, fmtPercent } from "../lib/format";
 import { MONTHS, MONTHS_LONG, type Range, type Stats } from "../lib/series";
@@ -60,7 +61,7 @@ interface Props {
 }
 
 const W = 400;
-const LABEL = 36;
+const LABEL = 40;
 const BARS = 58;
 const GAP = 2;
 const TOP = 16;
@@ -79,6 +80,9 @@ export function Calendar({
   onFocusYear,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null);
+  const { ref, width } = useWidth();
+  // Grow the fixed-viewBox font so labels render at ~10 px on phones; never below today's size.
+  const fs = (base: number) => Math.min(Math.max(base, (10 * W) / Math.max(width || W, 1)), 15);
   const [touchSelect, setTouchSelect] = useState(false);
   const pointer = useRef<number | null>(null);
   const keyboardAnchor = useRef<number | null>(null);
@@ -125,7 +129,7 @@ export function Calendar({
       : null;
 
   return (
-    <div className="relative select-none" style={{ containerType: "inline-size" }}>
+    <div ref={ref} className="relative select-none" style={{ containerType: "inline-size" }}>
       <button
         type="button"
         className="btn mb-2 text-xs lg:hidden"
@@ -246,11 +250,11 @@ export function Calendar({
         </defs>
 
         {MONTHS.map((name, c) => (
-          <text key={name} x={LABEL + c * COL + COL / 2} y={10} textAnchor="middle" fontSize="9" fill="#9AA6C0">
+          <text key={name} x={LABEL + c * COL + COL / 2} y={10} textAnchor="middle" fontSize={fs(9)} fill="#9AA6C0">
             {name[0]}
           </text>
         ))}
-        <text x={W - BARS} y={10} fontSize="9" fill="#9AA6C0">
+        <text x={W} y={10} textAnchor="end" fontSize={fs(9)} fill="#9AA6C0">
           Year total
         </text>
 
@@ -266,7 +270,7 @@ export function Calendar({
                   x={LABEL - 6}
                   y={y + ROW - 4.5}
                   textAnchor="end"
-                  fontSize="9.5"
+                  fontSize={fs(9.5)}
                   fill={focused ? "#FC3D21" : "#9AA6C0"}
                   fontWeight={focused ? 700 : 400}
                   className="num cursor-pointer"
@@ -327,7 +331,7 @@ export function Calendar({
           })}
         </g>
 
-        <text x={LABEL - 6} y={avgY + ROW - 4.5} textAnchor="end" fontSize="9.5" fill="#E8ECF5" fontWeight={600}>
+        <text x={LABEL - 6} y={avgY + ROW - 4.5} textAnchor="end" fontSize={fs(9.5)} fill="#E8ECF5" fontWeight={600}>
           Avg
         </text>
         {stats.climatology.map((clim, c) => (

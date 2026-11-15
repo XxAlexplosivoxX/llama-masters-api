@@ -69,6 +69,21 @@ async function getJSONWithProgress<T>(
 }
 
 /** Every country with a record, A-Z (exports/places.json). */
+/** A country's border (a few KB), cached: Global uses it to find the countries under a click or an area. */
+const outlines = new Map<string, Promise<GeoJSON.MultiPolygon | null>>();
+export function loadOutline(place: Place): Promise<GeoJSON.MultiPolygon | null> {
+  let hit = outlines.get(place.id);
+  if (!hit) {
+    hit = getJSON<{ geometry: GeoJSON.MultiPolygon | null }>(
+      `${API}/v1/places/${place.id}/outline${place.version ? `?v=${place.version}` : ""}`,
+    )
+      .then((o) => o.geometry)
+      .catch(() => null);
+    outlines.set(place.id, hit);
+  }
+  return hit;
+}
+
 export async function loadPlaces(): Promise<Place[]> {
   const index = await getJSON<{ places: Place[] }>(`${API}/v1/places`);
   return index.places;

@@ -168,26 +168,44 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
   - `MapStatus.tsx`: `LoadingCard` (basemap / history / 7 days with real MB), `MapCaption`.
 - `components/`
   - `Toolbar.tsx`: `PlaceSwitcher` (search by name or ISO code; Enter picks the first match),
-    `DrawTools` (switched off for now, the site works by country; one "Select area" menu: Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
+    `DrawTools` (one "Select area" menu, icon-only on phones: Rectangle, Shape, Coordinates; mutually exclusive; coordinate form with Point and
     Box tabs and per-field validation; on phones popovers become a sheet and the drawer folds),
     `SelectionChip` (area label + Clear), `LayerSwitch`.
   - `MapOptions.tsx`: cog toolbar popover / phone sheet, basemap, names, borders, temperature toggle and units, opacity, projection,
     Reset; imagery disabled offline, dated composites explicitly not live. `hooks/useMapOptions.ts`
     validates and persists App-owned defaults to `map:options`; MapView applies each option separately
     (opacity coalesced to animation frames, immediate slider paint; other grid fades remain 700 ms).
-  - `Panel.tsx`: order = header → `DateRange` → `KeyNumbers` → "When does it burn?" (`Calendar`)
-    → "Which years burned more?" (`Anomalies`) → "What is burning now?" (`Recent`) → Download
-    (`Export`) → "How MODIS and VIIRS are combined" (`Sensors.HowCombined`, with the single-sensor
-    switch) → About this data. Charts sit after Anomalies (desktop and mobile).
+  - `Panel.tsx`: order = header → `KeyNumbers` (last 7 days → current month to date, short note with a
+    "How is this calculated?" disclosure → focus year → fire season) → "What is burning now?" (`Recent`)
+    → "When does it burn?" (`DateRange`, selected-dates total with a per-year figure, `Calendar`; help
+    text differs for mouse and touch) → "Which years burned more?" (`Anomalies`) → "How does {focus}
+    compare?" (lazy `Charts`) → Download (`Export`) → "How MODIS and VIIRS are combined"
+    (`Sensors.HowCombined` plus the lazy MODIS vs VIIRS seam chart; the record switch lives only in the
+    map legend) → About this data.
   - `Summary.tsx`: desktop map card: selection, three numbers (dates total, fire season, focus year
     vs mean), `YearCalendar` (one year as 12 month tiles, ‹ › change the focus year, hover shows the
-    month on the map) and the "Details & stats" button.
-    The calendar defaults to the latest year in the selected range, including an incomplete final year;
-    annual statistics still default to the latest complete year. `computeStats` includes partial final
+    month on the map) and the "Details & stats" button. The year label opens a 5-column grid of every
+    year with data, tinted by the anomaly scale vs the mean year (faded before the baseline, dashed when
+    incomplete, legend underneath); arrows / Home / End navigate, Escape closes.
+    One `focus` year for the card and the panel: it defaults to the current UTC year while it has any
+    data (else the latest year with data); an incomplete focus year shows "N hotspots so far", no rank. `computeStats` includes partial final
     years in its year list, but missing months exclude them from complete-year totals and baselines.
   - `Timeline.tsx`: the player bar (only while playing) and `PlayButton` (toolbar, history layer).
   - `PlaceSwitcher` groups countries by continent (`lib/continents.ts`, by place id; unknown ids go
-    to "Other"); continent chips filter, search looks in every continent.
+    to "Other"); continent chips filter, search looks in every continent. "Global" sits on top.
+  - Global (`lib/global.ts`, `components/GlobalPrompt.tsx`): there is no world file. Clicking the map
+    toggles the country under the click (bbox candidates, then the country's `outline`, a few KB,
+    cached by `data.loadOutline`); drawing or typing an area picks every country whose border it
+    touches and clips to the area (a click after an area starts a new country selection). Only the
+    picked countries are downloaded (`loadPlace`, cached for the session in `state.ts`) and
+    `mergeLoaded` joins them: grids side by side with per-cell sizes (`cell_degs`; border cells
+    exported by two countries are added, temperatures hotspot-weighted), 7-day points together, all
+    borders drawn. From 3 countries, or a heavy pick (`isHeavy`: weight guessed from the borders'
+    area, never shown), a card warns once per Global visit that the map may freeze ("Load anyway" /
+    Cancel), with no sizes or lists. Global is handled entirely in the site; the pipeline and API
+    are not changed for it. The method section lists each country's ratio and held-out error;
+    the MODIS vs VIIRS chart stays per country. The map keeps its view while countries are added,
+    and a click within 500 ms of finishing a drawing is not a country pick.
   - Basemap: Satellite (default) or Night lights; Dark is only the offline fallback. Saved "dark"
     options migrate to Satellite (`hooks/useMapOptions.ts`). Scrollbars are themed in `styles.css`.
   - `Calendar.tsx`: SVG years x months; memoised `Cell`s; hover shows the month on the map, drag
@@ -201,6 +219,7 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
   - `DateRange.tsx` (custom month picker + presets), `KeyNumbers.tsx`, `Anomalies.tsx`,
     `Recent.tsx`, `Export.tsx`, `Sensors.tsx`, `ErrorBoundary.tsx`.
   - `Legend.tsx`: sensor record switch and map colour scales, with year-first abbreviated month labels.
+    `compact` (phones): title + ramp only; the switch opens from a small "Harmonized ▾" button.
     Last 7 days has Both / MODIS / VIIRS buttons that filter the recent map points and sensor temperature bars;
     dates in the same month share the year and month (e.g. `2026 Nov 9–15`). Temperature controls live in Map options (°C, °F, K;
     `map:metric`, `map:unit` in localStorage). Temperature = FIRMS brightness temperature (pixel, not
@@ -209,8 +228,10 @@ Files written by `2-process_data/src/export.py`, served by `3-api_atlas` (shapes
     cached per grid; ranges are detection-weighted means and cell opacity reflects hotspot counts.
     VIIRS I4 saturates near 367 K, MODIS reaches ~500 K. 7-day dots still use `recentScales` per sensor.
 - `hooks/useDismiss.ts`: outside-click / Escape to close popovers.
-- `components/charts/`: shared accessible tabs: "Seasonal pattern", "This month vs past years" and
-  "MODIS vs VIIRS" (the seam: `modis_eq` against real VIIRS, whole country only).
+- `components/charts/`: shared accessible tabs "Seasonal pattern" and "This month"; `Sensors.tsx` is the
+  seam chart (`modis_eq` against real VIIRS, whole country only), shown in "How MODIS and VIIRS are combined".
+  `Anomalies` and `Calendar` draw in a 400-unit viewBox and scale their font with `useWidth` so labels stay
+  ≥ 10–11 px on phones.
 - `hooks/useWidth.ts`: ResizeObserver width for responsive chart axes.
 - `hooks/useDrawerViewport.ts`: measures the visible drawer during snap/drag/resize transitions,
   sizing the scroll area and positioning mobile map overlays without changing map layers.
@@ -252,6 +273,7 @@ uppercase micro-labels, no emoji. Every colour ramp has a legend. Respect reduce
   0.5° fit cell inherit its ratio; no correction for clouds or overpass counts; NRT is provisional.
 - Open:
   - Test the Vaul drawer on a real phone.
-  - Code-split MapLibre / terra-draw (one 1.7 MB chunk now).
+  - Code-split MapLibre (main chunk ~470 KB gzip). terra-draw is already a dynamic import on the first
+    drawing, and Charts / the seam chart are lazy. Grid values per cell are `Float32Array`.
   - State-level views (monthly.json already has every state's series).
   - Automate the daily refresh (extract → process → export on Railway).

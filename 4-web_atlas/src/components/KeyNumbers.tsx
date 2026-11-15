@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { anomalyScale } from "../lib/color";
-import { fmt, fmtCompact, fmtPercent, ordinal } from "../lib/format";
+import { fmt, fmtPercent, ordinal } from "../lib/format";
 import { labelOf, MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, rankOf, type Range, type Stats } from "../lib/series";
 import type { Hotspot, Meta, MonthlyGrid, MonthlySeries, SeriesKind } from "../lib/types";
 import { currentMonthComparison } from "../lib/currentMonth";
@@ -23,11 +23,13 @@ function Row({
   label,
   value,
   note,
+  detail,
   color,
 }: {
   label: string;
   value: React.ReactNode;
   note?: React.ReactNode;
+  detail?: string;
   color?: string;
 }) {
   return (
@@ -38,6 +40,12 @@ function Row({
           {value}
         </span>
         {note && <span className="mt-0.5 block text-xs leading-snug text-muted">{note}</span>}
+        {detail && (
+          <details className="mt-1 text-xs">
+            <summary className="link inline cursor-pointer">How is this calculated?</summary>
+            <span className="mt-0.5 block leading-snug text-muted">{detail}</span>
+          </details>
+        )}
       </dd>
     </div>
   );
@@ -66,6 +74,13 @@ function thisWeek(recent: Hotspot[] | null, stats: Stats, kind: SeriesKind | und
 
 export function KeyNumbers({ series, stats, range, focusYear, recent, mapMonth, playing, grid, meta }: Props) {
   const total = focusYear !== null ? (stats.yearTotals.get(focusYear) ?? null) : null;
+  // Sum of the months with source data, for a year that is not complete (the year in progress).
+  const soFar =
+    focusYear !== null && total === null
+      ? series.values
+          .slice((focusYear - series.startYear) * 12, (focusYear - series.startYear) * 12 + 12)
+          .reduce<number>((a, v) => a + (v ?? 0), 0)
+      : null;
   const rel = total !== null && stats.meanYear ? total / stats.meanYear - 1 : null;
   const inBaseline = focusYear !== null && stats.baselineYears.includes(focusYear);
   const rank = inBaseline ? rankOf(stats, focusYear) : null;
@@ -87,15 +102,15 @@ export function KeyNumbers({ series, stats, range, focusYear, recent, mapMonth, 
           note={`${playing ? "Now playing" : "Shown"} on the map.${series.partial[mapMonth] ? " Partial month." : ""}${series.provisionalFrom !== undefined && mapMonth >= series.provisionalFrom ? " Provisional data." : ""}`}
         />
       )}
-      <Row
-        label="Fire season"
-        value={stats.peak ? `${MONTHS_LONG[stats.peak.from]} to ${MONTHS_LONG[stats.peak.to]}` : "Not enough years"}
-        note={
-          stats.peak
-            ? `${Math.round(stats.peak.share * 100)}% of a typical year's hotspots fall in these three months.`
-            : `Needs ${MIN_BASELINE_YEARS} complete years.`
-        }
-      />
+      {week && week.ratio !== null && (
+        <Row
+          label="Last 7 days"
+          value={week.ratio >= 0.95 && week.ratio <= 1.05 ? "About normal" : `${week.ratio.toFixed(1)}× a typical week`}
+          color={anomaly(week.ratio - 1)}
+          note={`${fmt(week.count)} ${week.sensor} hotspots; a typical ${MONTHS[week.month]} week has about ${fmt(Math.round(week.typical))}. Provisional data.`}
+        />
+      )}
+      <Row label={current.label} value={current.value} note={current.note} detail={current.detail} />
       {focusYear !== null && (
         <Row
           label={String(focusYear)}
@@ -103,7 +118,7 @@ export function KeyNumbers({ series, stats, range, focusYear, recent, mapMonth, 
             rel !== null
               ? `${fmtPercent(rel)} vs annual mean`
               : total === null
-                ? "Year not complete"
+                ? `${fmt(soFar!)} hotspots so far`
                 : `${fmt(total)} hotspots`
           }
           color={rel !== null ? anomaly(rel) : undefined}
@@ -121,26 +136,25 @@ export function KeyNumbers({ series, stats, range, focusYear, recent, mapMonth, 
                     : `Before ${series.baselineFrom}, so not ranked.`}
               </>
             ) : total === null ? (
-              "Pick a complete year in the calendar."
+              focusYear === new Date().getUTCFullYear() ? (
+                "Year in progress, so not compared with the annual mean yet."
+              ) : (
+                "Incomplete year, so not compared with the annual mean."
+              )
             ) : (
               `Annual comparison needs ${MIN_BASELINE_YEARS} complete baseline years.`
             )
           }
         />
       )}
-      <Row label={current.label} value={current.value} note={current.note} />
-      {week && week.ratio !== null && (
-        <Row
-          label="Last 7 days"
-          value={week.ratio >= 0.95 && week.ratio <= 1.05 ? "About normal" : `${week.ratio.toFixed(1)}× a typical week`}
-          color={anomaly(week.ratio - 1)}
-          note={`${fmt(week.count)} ${week.sensor} hotspots; a typical ${MONTHS[week.month]} week has about ${fmt(Math.round(week.typical))}. Provisional data.`}
-        />
-      )}
       <Row
-        label="Selected dates"
-        value={stats.rangeMonths ? `${fmtCompact(Math.round(stats.rangeTotal))} hotspots` : "No source data"}
-        note={`${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}`}
+        label="Fire season"
+        value={stats.peak ? `${MONTHS_LONG[stats.peak.from]} to ${MONTHS_LONG[stats.peak.to]}` : "Not enough years"}
+        note={
+          stats.peak
+            ? `${Math.round(stats.peak.share * 100)}% of a typical year's hotspots fall in these three months.`
+            : `Needs ${MIN_BASELINE_YEARS} complete years.`
+        }
       />
     </dl>
   );

@@ -1,6 +1,9 @@
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { HEAT, HEAT_ZERO, SENSOR } from "../lib/color";
 import { fmt, fmtCompact } from "../lib/format";
-import { MONTHS } from "../lib/series";
+import { MONTHS, SERIES_LABEL } from "../lib/series";
+import { cellLabel } from "../lib/global";
 import type { SeriesKind } from "../lib/types";
 import { fmtTemp, TEMP, type TempScale, type TempUnit } from "../lib/temperature";
 import type { MapLayer } from "../map/engine";
@@ -57,8 +60,19 @@ function TempBar({ scale, unit, name }: { scale: TempScale; unit: TempUnit; name
   );
 }
 
-export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; layer: MapLayer; gridScale: GridScale }) {
+export function Legend({
+  explorer,
+  layer,
+  gridScale,
+  compact = false,
+}: {
+  explorer: Explorer;
+  layer: MapLayer;
+  gridScale: GridScale;
+  compact?: boolean;
+}) {
   const { loaded, series, range, hoverMonth, recent, shape, kind, metric, unit } = explorer;
+  const [segOpen, setSegOpen] = useState(false);
   const isGrid = loaded && "grid" in loaded;
   const first = loaded?.recent?.[0]?.acquired_utc.slice(0, 10);
   const last = loaded?.recent?.at(-1)?.acquired_utc.slice(0, 10);
@@ -73,7 +87,7 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
     detail =
       temperature && gridScale.kind === "temperature"
         ? "Fire temperature · faint cells had few fires"
-        : `Hotspots per ${loaded.grid.cell_deg}° cell${shape ? " · this area" : ""}`;
+        : `Hotspots per ${cellLabel(loaded.grid)}${shape ? " · this area" : ""}`;
     if (missingMonth) detail = "No source data for this month";
     else if (hoverMonth !== null && series.partial[hoverMonth]) detail += " · partial month";
   } else if (layer === "recent") {
@@ -93,60 +107,80 @@ export function Legend({ explorer, layer, gridScale }: { explorer: Explorer; lay
 
   const description =
     temperature && gridScale.kind === "temperature" && layer === "history"
-      ? `Mean fire brightness temperature per ${loaded && "grid" in loaded ? loaded.grid.cell_deg : ""}° cell, ${SENSOR_BAND[gridScale.sensor]}`
+      ? `Mean fire brightness temperature per ${loaded && "grid" in loaded ? cellLabel(loaded.grid) : "cell"}, ${SENSOR_BAND[gridScale.sensor]}`
       : undefined;
+  const recentChoice =
+    explorer.recentSensors.MODIS && explorer.recentSensors.VIIRS
+      ? "BOTH"
+      : explorer.recentSensors.MODIS
+        ? "MODIS"
+        : explorer.recentSensors.VIIRS
+          ? "VIIRS"
+          : "";
+  const segLabel =
+    layer === "history" ? SERIES_LABEL[kind] : recentChoice === "BOTH" ? "Both" : recentChoice || "None";
 
   return (
-    <div className="pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-4 py-5 backdrop-blur-md">
+    <div
+      className={`pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-4 backdrop-blur-md ${compact ? "py-3" : "py-5"}`}
+    >
       {/* Plain text: playback changes the month up to 16 times a second, faster than any cross-fade. */}
-      <div className="num text-sm font-semibold">
-        {temperature ? "Temperature" : "Hotspots"} · {title}
+      <div className="num flex items-center justify-between gap-2 text-sm font-semibold">
+        <span className="min-w-0">
+          {temperature ? "Temperature" : "Hotspots"} · {title}
+        </span>
+        {compact && (
+          <button
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1 text-xs font-normal text-muted hover:text-text"
+            aria-expanded={segOpen}
+            aria-label={`Satellite record: ${segLabel}`}
+            onClick={() => setSegOpen(!segOpen)}
+          >
+            {segLabel}
+            <ChevronDown size={12} className={`transition-transform ${segOpen ? "rotate-180" : ""}`} aria-hidden />
+          </button>
+        )}
       </div>
-      {layer === "history" ? (
-        <div className="mb-4 mt-3">
-          <Seg<SeriesKind>
-            tall
-            label="Satellite record"
-            value={kind}
-            onChange={explorer.setKind}
-            options={[
-              { id: "HARMONIZED", label: "Harmonized" },
-              { id: "MODIS", label: "MODIS" },
-              { id: "VIIRS", label: "VIIRS" },
-            ]}
-          />
-        </div>
-      ) : (
-        <div className="mb-4 mt-3">
-          <Seg
-            tall
-            label="Recent hotspot sensors"
-            value={
-              explorer.recentSensors.MODIS && explorer.recentSensors.VIIRS
-                ? "BOTH"
-                : explorer.recentSensors.MODIS
-                  ? "MODIS"
-                  : explorer.recentSensors.VIIRS
-                    ? "VIIRS"
-                    : ""
-            }
-            onChange={(sensor) => {
-              const modis = sensor === "BOTH" || sensor === "MODIS";
-              const viirs = sensor === "BOTH" || sensor === "VIIRS";
-              if (explorer.recentSensors.MODIS !== modis) explorer.toggleRecentSensor("MODIS");
-              if (explorer.recentSensors.VIIRS !== viirs) explorer.toggleRecentSensor("VIIRS");
-            }}
-            options={[
-              { id: "BOTH", label: "Both" },
-              { id: "MODIS", label: "MODIS" },
-              { id: "VIIRS", label: "VIIRS" },
-            ]}
-          />
+      {(!compact || segOpen) &&
+        (layer === "history" ? (
+          <div className="mb-4 mt-3">
+            <Seg<SeriesKind>
+              tall
+              label="Satellite record"
+              value={kind}
+              onChange={explorer.setKind}
+              options={[
+                { id: "HARMONIZED", label: "Harmonized" },
+                { id: "MODIS", label: "MODIS" },
+                { id: "VIIRS", label: "VIIRS" },
+              ]}
+            />
+          </div>
+        ) : (
+          <div className="mb-4 mt-3">
+            <Seg
+              tall
+              label="Recent hotspot sensors"
+              value={recentChoice}
+              onChange={(sensor) => {
+                const modis = sensor === "BOTH" || sensor === "MODIS";
+                const viirs = sensor === "BOTH" || sensor === "VIIRS";
+                if (explorer.recentSensors.MODIS !== modis) explorer.toggleRecentSensor("MODIS");
+                if (explorer.recentSensors.VIIRS !== viirs) explorer.toggleRecentSensor("VIIRS");
+              }}
+              options={[
+                { id: "BOTH", label: "Both" },
+                { id: "MODIS", label: "MODIS" },
+                { id: "VIIRS", label: "VIIRS" },
+              ]}
+            />
+          </div>
+        ))}
+      {!compact && (
+        <div className="mt-1.5 text-xs text-muted" title={description}>
+          {detail}
         </div>
       )}
-      <div className="mt-1.5 text-xs text-muted" title={description}>
-        {detail}
-      </div>
       {layer === "history" ? (
         missingMonth ? null : temperature && gridScale.kind === "temperature" ? (
           <TempBar scale={gridScale} unit={unit} />

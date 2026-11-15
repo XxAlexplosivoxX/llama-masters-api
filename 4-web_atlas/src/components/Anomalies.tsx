@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useWidth } from "../hooks/useWidth";
 import { anomalyScale } from "../lib/color";
 import { fmt, fmtPercent } from "../lib/format";
 import { MIN_BASELINE_YEARS, MONTHS, MONTHS_LONG, type Stats } from "../lib/series";
@@ -19,7 +20,7 @@ type Mode = "years" | "months";
 
 const W = 400;
 const H = 150;
-const PAD_L = 42;
+const PAD_L = 46;
 const MID = H / 2;
 const LIMIT = 1; // ±100 % fills the half height
 
@@ -36,6 +37,9 @@ interface Bar {
 
 export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFocusYear, onHover }: Props) {
   const [mode, setMode] = useState<Mode>("years");
+  const { ref, width } = useWidth();
+  // Grow the fixed-viewBox font so labels render at ~11 px on phones; never below today's size.
+  const fs = (base: number) => Math.min(Math.max(base, (11 * W) / Math.max(width || W, 1)), 15);
   const color = anomalyScale(0.8);
 
   if (stats.baselineYears.length < MIN_BASELINE_YEARS) {
@@ -99,7 +103,7 @@ export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFoc
   };
 
   return (
-    <div>
+    <div ref={ref}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="seg !bg-surface-2" role="group" aria-label="Compare">
           {(["years", "months"] as Mode[]).map((m) => (
@@ -137,7 +141,7 @@ export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFoc
               x={PAD_L - 6}
               y={MID - ((t * MID) / LIMIT) * 0.92 + 3}
               textAnchor="end"
-              fontSize="8.5"
+              fontSize={fs(8.5)}
               fill="#9AA6C0"
               className="num"
             >
@@ -146,7 +150,7 @@ export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFoc
           </g>
         ))}
         <line x1={PAD_L} x2={W} y1={MID} y2={MID} stroke="#9AA6C0" strokeWidth={1} />
-        <text x={PAD_L - 6} y={MID + 3} textAnchor="end" fontSize="8.5" fill="#E8ECF5">
+        <text x={PAD_L - 6} y={MID + 3} textAnchor="end" fontSize={fs(8.5)} fill="#E8ECF5">
           avg
         </text>
 
@@ -193,7 +197,7 @@ export function Anomalies({ series, stats, focusYear, hoverMonth, waveKey, onFoc
                 x={PAD_L + i * slot + slot / 2}
                 y={H + 12}
                 textAnchor="middle"
-                fontSize="8.5"
+                fontSize={fs(8.5)}
                 fill={bar.active ? "#FC3D21" : "#9AA6C0"}
                 fontWeight={bar.active ? 700 : 400}
                 className="num"

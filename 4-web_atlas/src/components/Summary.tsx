@@ -25,7 +25,7 @@ export function Summary({
   showingRecent: boolean;
   onDetails: () => void;
 }) {
-  const { series, stats, range, calendarFocus } = explorer;
+  const { series, stats, range, focus } = explorer;
   const ready = explorer.status.kind === "ready" && series && stats && range;
   const details = (
     <button
@@ -52,7 +52,9 @@ export function Summary({
       )}
       {explorer.status.kind === "ready" && !series && (
         <p className="mt-2 text-xs text-muted" role="status">
-          No history inside this area. Open Details for why.
+          {explorer.isGlobal && !explorer.loaded
+            ? "Click countries on the map or draw an area to see their calendar."
+            : "No history inside this area. Open Details for why."}
         </p>
       )}
 
@@ -63,7 +65,7 @@ export function Summary({
               series={series}
               stats={stats}
               range={range}
-              year={calendarFocus ?? stats.years.at(-1)!}
+              year={focus ?? stats.years.at(-1)!}
               hoverMonth={explorer.hoverMonth}
               onYear={explorer.setFocusYear}
               onHover={showingRecent ? () => {} : explorer.setHoverMonth}

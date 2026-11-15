@@ -3,8 +3,7 @@ import type { ExpressionSpecification, GeoJSONSource, StyleSpecification } from 
 // MapLibre finds its worker relative to its own module URL, which Vite's
 // pre-bundling changes; let Vite bundle the worker and pass its URL instead.
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { TerraDraw, TerraDrawPolygonMode, TerraDrawRectangleMode, ValidateNotSelfIntersecting } from "terra-draw";
-import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
+import type { TerraDraw } from "terra-draw";
 import { HEAT, SENSOR, sensorOf } from "../lib/color";
 import type { BBox, Hotspot } from "../lib/types";
 import { fmtTemp, TEMP, type Metric, type TempSensor, type TempUnit } from "../lib/temperature";
@@ -27,7 +26,7 @@ export type Padding = { top: number; right: number; bottom: number; left: number
 
 export interface GridCells {
   cellDeg: number;
-  cells: { west: number; south: number }[];
+  cells: { west: number; south: number; deg?: number }[]; // deg: this cell's size, when sizes differ
 }
 
 async function chooseStyle(): Promise<{ style: string | StyleSpecification; online: boolean }> {
@@ -118,8 +117,12 @@ function heatRamp(max: number): ExpressionSpecification {
 export class MapEngine {
   readonly online: boolean;
   private map: MapLibreMap;
-  private draw: TerraDraw;
+  private draw: TerraDraw | null = null;
+  private drawLoading: Promise<TerraDraw> | null = null;
+  private pendingMode: DrawMode | null = null;
   private onDraw: (polygon: GeoJSON.Polygon) => void;
+  private onClick: ((lon: number, lat: number) => void) | null = null;
+  private drawEndedAt = 0; // the click that closes a drawing must not also pick a country
   private layer: MapLayer = "history";
   private introFrame = 0;
   private gridRamp = "";
@@ -156,6 +159,11 @@ export class MapEngine {
     });
     const removeEarly = () => map.remove();
     signal.addEventListener("abort", removeEarly, { once: true });
+    // Basemap sprites can reference icons the style does not ship (e.g. circle-11);
+    // give each missing id a transparent pixel so MapLibre stops warning.
+    map.setMissingStyleImageResolver((id) => {
+      if (!map.hasImage(id)) map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
+    });
     await new Promise<void>((resolve) => map.once("load", () => resolve()));
     // Wait until the first tiles are drawn, so the opening never plays over an empty screen.
     await Promise.race([
@@ -379,36 +387,52 @@ export class MapEngine {
         .setHTML(hotspotHTML(feature.properties as Record<string, string | number>, this.unit))
         .addTo(map);
     });
+    // A click on the map (not on a 7-day point, not while drawing) goes to setClickHandler's callback.
+    map.on("click", (event) => {
+      if (!this.onClick || this.pendingMode || performance.now() - this.drawEndedAt < 500) return;
+      if (map.getLayer("recent-dots") && map.queryRenderedFeatures(event.point, { layers: ["recent-dots"] }).length) return;
+      this.onClick(event.lngLat.lng, event.lngLat.lat);
+    });
     map.on("mouseenter", "recent-dots", () => (map.getCanvas().style.cursor = "pointer"));
     map.on("mouseleave", "recent-dots", () => (map.getCanvas().style.cursor = ""));
-
-    const styles = { fillColor: "#4C8DFF", fillOpacity: 0.12, outlineColor: "#4C8DFF", outlineWidth: 2 } as const;
-    this.draw = new TerraDraw({
-      adapter: new TerraDrawMapLibreGLAdapter({ map }),
-      modes: [
-        new TerraDrawRectangleMode({ styles }),
-        new TerraDrawPolygonMode({
-          styles: { ...styles, closingPointColor: "#4C8DFF", closingPointOutlineColor: "#E8ECF5" },
-          // A point that would make the outline cross itself is refused, so every shape has a clear inside.
-          validation: (feature) => ValidateNotSelfIntersecting(feature),
-        }),
-      ],
-    });
-    this.draw.start();
-    this.draw.on("finish", (id) => {
-      const feature = this.draw.getSnapshotFeature(id);
-      if (feature?.geometry.type === "Polygon") this.onDraw(feature.geometry as GeoJSON.Polygon);
-      // The selection outline layer takes over; terra-draw's copy is dropped.
-      setTimeout(() => this.stopDrawing(), 0);
-    });
     this.setLayer("history");
+  }
+
+  /** terra-draw loads on the first drawing, so the opening bundle does not carry it. */
+  private loadDraw(): Promise<TerraDraw> {
+    this.drawLoading ??= Promise.all([import("terra-draw"), import("terra-draw-maplibre-gl-adapter")]).then(
+      ([{ TerraDraw, TerraDrawPolygonMode, TerraDrawRectangleMode, ValidateNotSelfIntersecting }, adapter]) => {
+        const styles = { fillColor: "#4C8DFF", fillOpacity: 0.12, outlineColor: "#4C8DFF", outlineWidth: 2 } as const;
+        const draw = new TerraDraw({
+          adapter: new adapter.TerraDrawMapLibreGLAdapter({ map: this.map }),
+          modes: [
+            new TerraDrawRectangleMode({ styles }),
+            new TerraDrawPolygonMode({
+              styles: { ...styles, closingPointColor: "#4C8DFF", closingPointOutlineColor: "#E8ECF5" },
+              // A point that would make the outline cross itself is refused, so every shape has a clear inside.
+              validation: (feature) => ValidateNotSelfIntersecting(feature),
+            }),
+          ],
+        });
+        draw.start();
+        draw.on("finish", (id) => {
+          const feature = draw.getSnapshotFeature(id);
+          if (feature?.geometry.type === "Polygon") this.onDraw(feature.geometry as GeoJSON.Polygon);
+          // The selection outline layer takes over; terra-draw's copy is dropped.
+          setTimeout(() => this.stopDrawing(), 0);
+        });
+        this.draw = draw;
+        return draw;
+      },
+    );
+    return this.drawLoading;
   }
 
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
     cancelAnimationFrame(this.introFrame);
-    this.draw.stop();
+    this.draw?.stop();
     this.map.remove();
   }
 
@@ -490,15 +514,21 @@ export class MapEngine {
 
   startDrawing(mode: DrawMode) {
     if (this.destroyed) return;
-    this.draw.clear();
-    this.draw.setMode(mode);
+    this.pendingMode = mode;
     this.map.getCanvas().style.cursor = "crosshair";
+    void this.loadDraw().then((draw) => {
+      if (this.destroyed || this.pendingMode !== mode) return;
+      draw.clear();
+      draw.setMode(mode);
+    });
   }
 
   stopDrawing() {
     if (this.destroyed) return;
-    this.draw.clear();
-    this.draw.setMode("static");
+    if (this.pendingMode) this.drawEndedAt = performance.now();
+    this.pendingMode = null;
+    this.draw?.clear();
+    this.draw?.setMode("static");
     this.map.getCanvas().style.cursor = "";
   }
 
@@ -506,11 +536,16 @@ export class MapEngine {
    * Cell squares, set once per place or selection. Values change through feature-state
    * (setGridValues), so hovering or playing months never re-tiles the geometry.
    */
+  /** Global picks countries by clicking the map; null stops listening. */
+  setClickHandler(handler: ((lon: number, lat: number) => void) | null) {
+    this.onClick = handler;
+  }
+
   setGridCells({ cellDeg, cells }: GridCells) {
     if (this.destroyed) return;
-    const features: GeoJSON.Feature[] = cells.map(({ west: w, south: s }, id) => {
-      const e = w + cellDeg,
-        n = s + cellDeg;
+    const features: GeoJSON.Feature[] = cells.map(({ west: w, south: s, deg = cellDeg }, id) => {
+      const e = w + deg,
+        n = s + deg;
       return {
         type: "Feature",
         id,
@@ -677,6 +712,12 @@ export class MapEngine {
       properties: {},
       geometry: { type: "Polygon", coordinates: [world, [...polygon.coordinates[0]].reverse()] },
     });
+  }
+
+  /** The whole globe at the minimum zoom (fitting a world-wide box misbehaves on a globe). */
+  world(padding: Padding, duration = 1400) {
+    if (this.destroyed) return;
+    this.map.easeTo({ center: [10, 20], zoom: this.map.getMinZoom(), padding, duration: reducedMotion() ? 0 : duration });
   }
 
   fit(bbox: BBox, padding: Padding, duration = 1400) {

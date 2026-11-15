@@ -1,17 +1,19 @@
 import { Play } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { lazy, Suspense } from "react";
 import { HEAT, HEAT_ZERO } from "../lib/color";
-import { fmt } from "../lib/format";
+import { fmt, fmtCompact } from "../lib/format";
 import type { Explorer } from "../state";
 import { Anomalies } from "./Anomalies";
 import { Calendar } from "./Calendar";
 import { DateRange } from "./DateRange";
 import { HowCombined } from "./Sensors";
-import { SERIES_LABEL } from "../lib/series";
+import { labelOf, SERIES_LABEL } from "../lib/series";
 import { RecentBySatellite } from "./Recent";
 import { Export } from "./Export";
 import { KeyNumbers } from "./KeyNumbers";
-import { Charts } from "./charts/Charts";
+
+const Charts = lazy(() => import("./charts/Charts").then((m) => ({ default: m.Charts })));
 
 function Section({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -96,6 +98,12 @@ export function Panel({
 
       {status.kind === "ready" && !series && (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted" role="status">
+          {!loaded && explorer.isGlobal && (
+            <>
+              Click countries on the map, or use Select area to draw across borders, to see their fire calendar
+              together. Only the countries you pick are downloaded; click a picked country again to remove it.
+            </>
+          )}
           {loaded && (
             <>
               No history inside this area. The history grid has cells of {loaded.grid.cell_deg}° (about{" "}
@@ -108,17 +116,6 @@ export function Panel({
 
       {status.kind === "ready" && series && stats && range && (
         <>
-          {explorer.seriesRange && (
-            <DateRange
-              startYear={series.startYear}
-              bounds={explorer.seriesRange}
-              range={range}
-              baselineFrom={series.baselineFrom}
-              focusYear={focus}
-              onRange={explorer.setRange}
-            />
-          )}
-
           <KeyNumbers
             series={series}
             stats={stats}
@@ -134,6 +131,15 @@ export function Panel({
             grid={loaded?.grid ?? null}
             meta={loaded?.meta ?? null}
           />
+
+          {loaded?.recent && (
+            <Section
+              title="What is burning now?"
+              aside={<span className="text-xs text-muted">Last 7 days, by satellite</span>}
+            >
+              <RecentBySatellite explorer={explorer} showingOnMap={showingRecent} onShowOnMap={onShowRecent} />
+            </Section>
+          )}
 
           <Section
             title="When does it burn?"
@@ -152,17 +158,38 @@ export function Panel({
               )
             }
           >
-            <Calendar
-              series={series}
-              stats={stats}
-              range={range}
-              focusYear={focus}
-              hoverMonth={hoverMonth}
-              waveKey={waveKey}
-              onHover={showingRecent ? () => {} : setHoverMonth}
-              onRange={explorer.setRange}
-              onFocusYear={setFocusYear}
-            />
+            {explorer.seriesRange && (
+              <DateRange
+                startYear={series.startYear}
+                bounds={explorer.seriesRange}
+                range={range}
+                baselineFrom={series.baselineFrom}
+                focusYear={focus}
+                onRange={explorer.setRange}
+              />
+            )}
+            <p className="num mt-2 text-xs text-muted" aria-live="polite">
+              {stats.rangeMonths === 0
+                ? "No source data"
+                : `${fmtCompact(Math.round(stats.rangeTotal))} hotspots · ${labelOf(series.startYear, range.from)} to ${labelOf(series.startYear, range.to)}${
+                    stats.rangeMonths >= 12
+                      ? ` · about ${fmtCompact(Math.round(stats.rangeTotal / (stats.rangeMonths / 12)))} a year`
+                      : ""
+                  }`}
+            </p>
+            <div className="mt-3">
+              <Calendar
+                series={series}
+                stats={stats}
+                range={range}
+                focusYear={focus}
+                hoverMonth={hoverMonth}
+                waveKey={waveKey}
+                onHover={showingRecent ? () => {} : setHoverMonth}
+                onRange={explorer.setRange}
+                onFocusYear={setFocusYear}
+              />
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
               <span className="inline-flex items-center gap-2">
                 Fewer
@@ -197,11 +224,15 @@ export function Panel({
                 </span>
               )}
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-muted">
+            <p className="mt-2 hidden text-xs leading-relaxed text-muted lg:block">
               Each square is one month; each row one year. Hover a month to see it on the map, drag across months to
-              pick dates. On touch screens, use “Drag to select dates” to drag between rows; choose “Done” to scroll the
-              calendar again. A hotspot is a satellite pixel where an active fire was detected, so one large fire can
+              pick dates. A hotspot is a satellite pixel where an active fire was detected, so one large fire can
               count many times.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-muted lg:hidden">
+              Each square is one month; each row one year. Tap a month to see it on the map; use “Drag to select
+              dates” to drag between rows, then “Done” to scroll the calendar again. A hotspot is a satellite pixel
+              where an active fire was detected, so one large fire can count many times.
             </p>
           </Section>
 
@@ -218,17 +249,10 @@ export function Panel({
           </Section>
 
           {showCharts && loaded && (
-            <Section title="Charts">
-              <Charts explorer={explorer} showingRecent={showingRecent} />
-            </Section>
-          )}
-
-          {loaded?.recent && (
-            <Section
-              title="What is burning now?"
-              aside={<span className="text-xs text-muted">Last 7 days, by satellite</span>}
-            >
-              <RecentBySatellite explorer={explorer} showingOnMap={showingRecent} onShowOnMap={onShowRecent} />
+            <Section title={`How does ${focus ?? "this year"} compare?`}>
+              <Suspense fallback={<div className="h-56 animate-pulse rounded-lg bg-surface-2/70" aria-hidden />}>
+                <Charts explorer={explorer} showingRecent={showingRecent} />
+              </Suspense>
             </Section>
           )}
 

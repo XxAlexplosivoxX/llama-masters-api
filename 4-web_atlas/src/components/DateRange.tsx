@@ -153,8 +153,8 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
             <div className="mb-2 flex items-center justify-between">
               <button
                 type="button"
-                className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
-                disabled={view === "years" || year <= minYear}
+                className={`grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30 ${view === "years" ? "invisible" : ""}`}
+                disabled={year <= minYear}
                 onClick={() => setYear(year - 1)}
                 aria-label="Previous year"
               >
@@ -170,8 +170,8 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
               </button>
               <button
                 type="button"
-                className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30"
-                disabled={view === "years" || year >= maxYear}
+                className={`grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-text disabled:opacity-30 ${view === "years" ? "invisible" : ""}`}
+                disabled={year >= maxYear}
                 onClick={() => setYear(year + 1)}
                 aria-label="Next year"
               >
@@ -185,7 +185,7 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.12 }}
-                className={`grid gap-1 ${view === "months" ? "grid-cols-4" : "max-h-56 grid-cols-4 overflow-y-auto"}`}
+                className={`grid gap-1 ${view === "months" ? "grid-cols-4" : "grid-cols-5"}`}
               >
                 {view === "months"
                   ? MONTHS.map((name, m) => {
@@ -223,7 +223,7 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
                           setYear(y);
                           setView("months");
                         }}
-                        className={`num h-9 rounded-lg text-sm hover:bg-surface-2 ${y === year ? "ring-1 ring-accent" : ""}`}
+                        className={`num h-8 rounded-lg text-sm hover:bg-surface-2 ${y === year ? "ring-1 ring-accent" : ""}`}
                       >
                         {y}
                       </button>

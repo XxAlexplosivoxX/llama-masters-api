@@ -22,9 +22,9 @@ export const labelOf = (startYear: number, index: number) =>
 
 /** Cells whose centre falls inside the shape, or every cell for the whole place. */
 export function cellsIn(grid: MonthlyGrid, shape: Shape | null): number[] {
-  const half = grid.cell_deg / 2;
   const picked: number[] = [];
   grid.cells.forEach(([w, s], i) => {
+    const half = (grid.cell_degs?.[i] ?? grid.cell_deg) / 2;
     if (!shape || contains(shape.polygon, w + half, s + half)) picked.push(i);
   });
   return picked;
@@ -44,9 +44,9 @@ const BASELINE_FROM = 2003;
  * Harmonized: the record as exported (real VIIRS on the NOAA-20 scale, converted MODIS before).
  * VIIRS: the same record, only in months a VIIRS satellite observed. MODIS: raw Terra + Aqua.
  */
-export function cellValues(grid: MonthlyGrid, kind: SeriesKind): number[][] {
+export function cellValues(grid: MonthlyGrid, kind: SeriesKind): Float32Array[] {
   return grid.cells.map((c) => {
-    const values: number[] = Array(grid.months).fill(0);
+    const values = new Float32Array(grid.months);
     const sparse = kind === "MODIS" ? c[2] : c[3];
     for (let i = 0; i < sparse.length; i += 2) {
       const m = sparse[i];
@@ -80,7 +80,7 @@ const SOURCE: Record<SeriesKind, string> = {
   VIIRS: "VIIRS on the NOAA-20 scale, months a VIIRS satellite observed",
 };
 
-export function gridSeries(grid: MonthlyGrid, values: number[][], cells: number[], kind: SeriesKind): MonthlySeries {
+export function gridSeries(grid: MonthlyGrid, values: Float32Array[], cells: number[], kind: SeriesKind): MonthlySeries {
   const { startYear, first, last, covered, provisionalFrom } = coverage(grid, kind);
   const out: (number | null)[] = Array.from({ length: grid.months }, (_, m) =>
     m < first || m > last || !covered(m) ? null : 0,

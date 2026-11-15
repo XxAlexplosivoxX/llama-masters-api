@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Crosshair, Hexagon, Shapes, Square, X } from "lucide-react";
+import { Check, ChevronDown, Crosshair, Globe, Hexagon, Shapes, Square, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useDismiss } from "../hooks/useDismiss";
@@ -8,6 +8,7 @@ import { areaKm2, bboxOf, bboxPolygon, squareAround } from "../lib/geo";
 import { fmt, fmtKm2 } from "../lib/format";
 import { CONTINENTS, continentOf, type Continent } from "../lib/continents";
 import { describeBBox, fmtPoint, overlaps, parseDegrees, parseNumber, type Parsed } from "../lib/validate";
+import { GLOBAL_ID } from "../lib/global";
 
 const pop = {
   initial: { opacity: 0, y: -6, scale: 0.98 },
@@ -35,7 +36,7 @@ export function PlaceSwitcher({
     if (open) {
       onOpen?.();
       setQuery("");
-      setContinent(current ? continentOf(current.id) : "All");
+      setContinent(current && current.kind === "country" ? continentOf(current.id) : "All");
     }
   }, [open]);
   const pick = (id: string) => {
@@ -43,6 +44,8 @@ export function PlaceSwitcher({
     setOpen(false);
   };
   const needle = fold(query.trim());
+  const globalShown = !needle || "global world".includes(needle);
+  const isGlobal = current?.id === GLOBAL_ID;
   // A search looks in every continent; otherwise the list shows the chosen continent (or all, grouped).
   const shown = needle
     ? places.filter((p) => fold(p.label).includes(needle) || p.iso.some((i) => i.toLowerCase() === needle))
@@ -62,7 +65,11 @@ export function PlaceSwitcher({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <span className="h-2 w-2 rounded-full bg-nasa-red" aria-hidden />
+        {isGlobal ? (
+          <Globe size={15} className="text-accent" aria-hidden />
+        ) : (
+          <span className="h-2 w-2 rounded-full bg-nasa-red" aria-hidden />
+        )}
         {current?.label ?? "Loading"}
         <ChevronDown size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
@@ -81,7 +88,7 @@ export function PlaceSwitcher({
               aria-label="Search countries"
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && shown.length) pick(shown[0].id);
+                if (e.key === "Enter" && (shown.length || globalShown)) pick(shown[0]?.id ?? GLOBAL_ID);
               }}
             />
             {!needle && (
@@ -103,6 +110,24 @@ export function PlaceSwitcher({
               </div>
             )}
             <div role="listbox" aria-label="Countries" className="min-h-0 overflow-y-auto overscroll-contain pb-1">
+              {globalShown && (
+                <button
+                  role="option"
+                  aria-selected={isGlobal}
+                  onClick={() => pick(GLOBAL_ID)}
+                  className={`mx-0.5 mb-1 flex w-[calc(100%-4px)] items-start gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-surface-2 ${
+                    isGlobal ? "bg-surface-2 text-text" : ""
+                  }`}
+                >
+                  <span className="w-4 shrink-0 pt-0.5 text-accent">
+                    {isGlobal ? <Check size={15} aria-hidden /> : <Globe size={15} aria-hidden />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold">Global</span>
+                    <span className="block text-xs text-muted">Pick several countries or draw across borders</span>
+                  </span>
+                </button>
+              )}
               {groups.map((g) => (
                 <div key={g.continent} role="group" aria-label={g.continent}>
                   {(groups.length > 1 || needle) && (
@@ -132,7 +157,9 @@ export function PlaceSwitcher({
                   </div>
                 </div>
               ))}
-              {!shown.length && <p className="px-3 py-2.5 text-xs text-muted">No country matches "{query}".</p>}
+              {!shown.length && !globalShown && (
+                <p className="px-3 py-2.5 text-xs text-muted">No country matches "{query}".</p>
+              )}
             </div>
           </motion.div>
         )}

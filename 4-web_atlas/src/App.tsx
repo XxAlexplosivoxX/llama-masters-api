@@ -7,14 +7,14 @@ import { Legend } from "./components/Legend";
 import { PlayButton, Timeline } from "./components/Timeline";
 import { Panel } from "./components/Panel";
 import { CalendarToggle, Summary } from "./components/Summary";
-// Area selection (DrawTools, SelectionChip) is switched off for now: the site works by country.
-import { LayerSwitch, PlaceSwitcher } from "./components/Toolbar";
+import { DrawTools, LayerSwitch, PlaceSwitcher, SelectionChip } from "./components/Toolbar";
 import type { DrawMode, MapLayer, Padding } from "./map/engine";
 import { MapView, type GridScale } from "./map/MapView";
 import { shapeFromDrawing, useExplorer } from "./state";
 import { useDrawerViewport } from "./hooks/useDrawerViewport";
 import { MapOptions } from "./components/MapOptions";
 import { useMapOptions } from "./hooks/useMapOptions";
+import { GlobalPrompt } from "./components/GlobalPrompt";
 
 const DESKTOP = "(min-width: 1024px)";
 const SNAPS = ["168px", 0.55, 1] as const;
@@ -53,7 +53,8 @@ export function App() {
       /* Keep the in-memory state. */
     }
   }, [calendarOpen]);
-  const calendarShown = desktop && !detailsOpen && calendarOpen;
+  // Global before any pick has no calendar yet; its prompt says what to do.
+  const calendarShown = desktop && !detailsOpen && calendarOpen && !(explorer.isGlobal && !explorer.loaded);
   const [mapOptions, setMapOptions] = useMapOptions();
   const [mapOnline, setMapOnline] = useState<boolean | null>(null);
   const drawer = useDrawerViewport(desktop, snap);
@@ -88,7 +89,9 @@ export function App() {
   const chooseArea = (polygon: GeoJSON.Polygon, label?: string) => {
     setDrawMode(null);
     const shape = shapeFromDrawing(polygon, "Drawn area");
-    explorer.setShape(label ? { ...shape, label } : shape);
+    // Global: the area decides which countries are downloaded.
+    if (explorer.isGlobal) void explorer.pickArea(polygon, label ?? shape.label);
+    else explorer.setShape(label ? { ...shape, label } : shape);
     if (!desktop) setSnap(SNAPS[1]);
   };
 
@@ -103,10 +106,10 @@ export function App() {
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start justify-between gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto"
+      className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto ${desktop ? "" : "[visibility:var(--map-controls-visibility)]"}`}
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
-      <div className="order-2 max-sm:ms-auto sm:order-1">
+      <div className="order-1">
         <PlaceSwitcher
           places={explorer.places}
           current={explorer.place}
@@ -116,24 +119,53 @@ export function App() {
           }}
         />
       </div>
-      <div className="order-1 flex max-w-full flex-col items-end gap-2 max-sm:w-full sm:order-2 sm:ms-auto">
-        <div className="flex items-start justify-end gap-1.5 sm:gap-2">
-          {historyAvailable && layer === "history" && <PlayButton explorer={explorer} onPlay={play} />}
-          <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
-          <MapOptions
-            explorer={explorer}
-            hasTemps={!!(layer === "recent" ? explorer.recentTemps : explorer.temps)}
-            options={mapOptions}
-            onChange={setMapOptions}
-            online={mapOnline}
-            onOpen={() => {
-              if (!desktop) setSnap(SNAPS[0]);
-            }}
-          />
-          {desktop && !detailsOpen && (
-            <CalendarToggle open={calendarOpen} onToggle={() => setCalendarOpen(!calendarOpen)} />
-          )}
+      <div className="order-2 ms-auto">
+        <DrawTools
+          drawMode={drawMode}
+          onDrawMode={setDrawMode}
+          onCoordinates={chooseArea}
+          bounds={explorer.place?.bbox ?? null}
+          placeLabel={explorer.place?.label ?? "this place"}
+          onOpen={() => {
+            if (!desktop) setSnap(SNAPS[0]);
+          }}
+        />
+      </div>
+      {historyAvailable && layer === "history" && (
+        <div className="order-3 max-sm:order-5 max-sm:ms-auto">
+          <PlayButton explorer={explorer} onPlay={play} />
         </div>
+      )}
+      <div className="order-4 max-sm:order-6">
+        <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
+      </div>
+      <div className="order-5 max-sm:order-3">
+        <MapOptions
+          explorer={explorer}
+          hasTemps={!!(layer === "recent" ? explorer.recentTemps : explorer.temps)}
+          options={mapOptions}
+          onChange={setMapOptions}
+          online={mapOnline}
+          onOpen={() => {
+            if (!desktop) setSnap(SNAPS[0]);
+          }}
+        />
+      </div>
+      {desktop && !detailsOpen && (
+        <div className="order-6">
+          <CalendarToggle open={calendarOpen} onToggle={() => setCalendarOpen(!calendarOpen)} />
+        </div>
+      )}
+      {/* On phones, force the player and layer switch onto a second right-aligned row. */}
+      <div className="order-4 basis-full sm:hidden" aria-hidden />
+      <div className="order-7 !pointer-events-none flex basis-full flex-col items-end gap-2 [&>*]:pointer-events-auto">
+        <SelectionChip
+          label={explorer.shape?.label ?? (explorer.isGlobal && explorer.loaded ? explorer.loaded.place.label : null)}
+          placeLabel={explorer.place?.label ?? ""}
+          hidden={!!drawMode}
+          onClear={() => explorer.setShape(null)}
+        />
+        <GlobalPrompt explorer={explorer} />
         <AnimatePresence>
           {calendarShown && (
             <motion.div
@@ -167,6 +199,7 @@ export function App() {
         options={mapOptions}
         onOnline={setMapOnline}
         onDrawn={(polygon) => chooseArea(polygon)}
+        onMapClick={explorer.isGlobal && !drawMode ? (lon, lat) => void explorer.toggleCountryAt(lon, lat) : undefined}
         onIntroDone={() => setIntroDone(true)}
         onGridScale={setGridScale}
       />
@@ -204,7 +237,7 @@ export function App() {
       transition={{ duration: 0.4 }}
       className={legendVisible ? "max-w-full" : "hidden"}
     >
-      <Legend explorer={explorer} layer={layer} gridScale={gridScale} />
+      <Legend explorer={explorer} layer={layer} gridScale={gridScale} compact={!desktop} />
     </motion.div>
   );
   // Desktop: three columns (legend | player | an equal empty side), so the player sits in the middle of the map.
