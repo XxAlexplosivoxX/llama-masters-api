@@ -98,7 +98,12 @@ Railway variables. Never print or commit them.
 ## Current state
 
 - Last full pipeline run: 2026-11-15. `prepare` and all 8 `process` workers finished (238 countries cleaned and aggregated, 0 failed). `export` finished: 235 places, 0 failed.
-- Deployed on 2026-11-16: Cloudflare version `142613ed-5b45-4932-ae84-2400d54d21ad`; the `atlas.tonalli.earth` domain was added in version `26dc9e45-62a5-4b3c-9e28-741cc430a691`.
+- Deployed on 2026-11-16 00:03 UTC: Cloudflare version `e35f941c-240e-47f0-ae47-9bb627feba61` (previous:
+  `f66a3940-8b06-421e-a741-48716796abb6`), with the Tonalli ATLAS name and link home, the product tour, the
+  Caribbean split from North & Central America, and the clearer panel and CSVs. Deploying from an account
+  member without access to the esauflores.com zone uploads the Worker but cannot re-assert the
+  esauflores.com custom domains (error 10084); the existing domains keep working.
+- Earlier deploy on 2026-11-16: Cloudflare version `142613ed-5b45-4932-ae84-2400d54d21ad`; the `atlas.tonalli.earth` domain was added in version `26dc9e45-62a5-4b3c-9e28-741cc430a691`.
   Includes harmonized history temperature, hotspots-as-solidity, click-to-pin calendar months,
   incomplete final-year navigation (2026), taller legends with year-first abbreviated dates,
   recent Both / MODIS / VIIRS buttons, temperature controls in Map options with a blue active cog,
