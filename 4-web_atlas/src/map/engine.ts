@@ -56,7 +56,12 @@ function confidenceLabel(value: string): string {
   return v.startsWith("h") ? "High" : v.startsWith("n") ? "Nominal" : v.startsWith("l") ? "Low" : value;
 }
 
-function hotspotHTML(p: Record<string, string | number>, unit: TempUnit): string {
+const PIN =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>' +
+  '<circle cx="12" cy="10" r="3"/></svg>';
+
+function hotspotHTML(p: Record<string, string | number>, unit: TempUnit, [lon, lat]: [number, number]): string {
   const platform = String(p.platform);
   const sensor = sensorOf(platform);
   const { color, pixel } = SENSOR[sensor];
@@ -70,7 +75,9 @@ function hotspotHTML(p: Record<string, string | number>, unit: TempUnit): string
     row("Confidence", confidenceLabel(String(p.confidence))) +
     (p.state ? row("State", String(p.state)) : "") +
     row("Pixel size", pixel) +
-    "</dl>"
+    "</dl>" +
+    `<a class="hp-map" href="https://www.google.com/maps/search/?api=1&query=${lat.toFixed(5)},${lon.toFixed(5)}" ` +
+    `target="_blank" rel="noopener noreferrer">${PIN}Open in Google Maps</a>`
   );
 }
 
@@ -382,9 +389,10 @@ export class MapEngine {
     map.on("click", "recent-dots", (event) => {
       const feature = event.features?.[0];
       if (!feature || feature.geometry.type !== "Point") return;
+      const at = feature.geometry.coordinates as [number, number];
       new Popup({ closeButton: true, maxWidth: "260px", className: "hotspot-popup" })
-        .setLngLat(feature.geometry.coordinates as [number, number])
-        .setHTML(hotspotHTML(feature.properties as Record<string, string | number>, this.unit))
+        .setLngLat(at)
+        .setHTML(hotspotHTML(feature.properties as Record<string, string | number>, this.unit, at))
         .addTo(map);
     });
     // A click on the map (not on a 7-day point, not while drawing) goes to setClickHandler's callback.
