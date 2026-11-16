@@ -459,3 +459,21 @@ input.timeline::-moz-range-thumb {
     animation: reveal 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
+.hotspot-popup .hp-map {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+.hotspot-popup .hp-map:hover {
+  background: var(--color-surface);
+  border-color: var(--color-muted);
+}
