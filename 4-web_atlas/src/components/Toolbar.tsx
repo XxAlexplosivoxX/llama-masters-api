@@ -60,28 +60,32 @@ export function PlaceSwitcher({
   const available = CONTINENTS.filter((c) => places.some((p) => continentOf(p.id) === c));
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative min-w-0 max-sm:min-w-[6.25rem]">
       <button
         data-tour="place"
-        className="seg !px-3 min-h-[46px] items-center gap-2 text-sm font-semibold"
+        className="seg min-h-[46px] min-w-0 max-w-full items-center gap-1.5 !px-3 text-sm font-semibold max-sm:min-w-[6.25rem] max-sm:!px-2"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
         {isGlobal ? (
-          <Globe size={15} className="text-accent" aria-hidden />
+          <Globe size={15} className="shrink-0 text-accent" aria-hidden />
         ) : (
-          <span className="h-2 w-2 rounded-full bg-nasa-red" aria-hidden />
+          <span className="h-2 w-2 shrink-0 rounded-full bg-nasa-red" aria-hidden />
         )}
-        {current?.label ?? "Loading"}
-        <ChevronDown size={16} className={`text-muted transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        <span className="min-w-0 truncate">{current?.label ?? "Loading"}</span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-muted transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        />
       </button>
       <AnimatePresence>
         {open && (
           <motion.div
             {...pop}
             data-tour="place-menu"
-            className="absolute left-0 top-full z-30 mt-2 flex max-h-[min(34rem,calc(100dvh-6rem))] w-[22rem] origin-top-left flex-col rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60 max-sm:left-auto max-sm:right-0 max-sm:h-80 max-sm:w-64 max-sm:origin-top-right"
+            className="atlas-popover absolute left-0 top-full z-30 mt-2 flex max-h-[min(34rem,calc(100dvh-6rem))] w-[22rem] origin-top-left flex-col rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60"
           >
             <input
               autoFocus
@@ -140,7 +144,7 @@ export function PlaceSwitcher({
                       <span className="num ms-1.5 font-normal normal-case tracking-normal">{g.places.length}</span>
                     </p>
                   )}
-                  <div className="grid grid-cols-2 gap-0.5 max-sm:grid-cols-1">
+                  <div className="grid grid-cols-2 gap-0.5">
                     {g.places.map((p) => (
                       <button
                         key={p.id}
@@ -255,7 +259,7 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
             role="menu"
             data-tour="area-menu"
             aria-label="Choose an area"
-            className="absolute left-0 top-full z-30 mt-2 w-48 origin-top-left rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60"
+            className="atlas-popover-end absolute left-0 top-full z-30 mt-2 w-48 origin-top-left rounded-xl border border-border bg-surface p-1 shadow-2xl shadow-black/60"
           >
             {tools.map((t) => (
               <button
@@ -297,7 +301,7 @@ export function DrawTools({ drawMode, onDrawMode, onCoordinates, bounds, placeLa
             key="hint"
             {...pop}
             role="status"
-            className="absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.75rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0"
+            className="atlas-popover absolute right-0 top-full z-30 mt-2 w-64 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted shadow-xl"
           >
             {drawMode === "rectangle"
               ? "Click two opposite corners on the map."
@@ -453,7 +457,7 @@ function CoordinateForm({
       ref={form}
       onSubmit={submit}
       noValidate
-      className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.75rem] max-sm:z-50 max-sm:w-auto max-sm:mt-0 max-sm:max-h-[calc(100dvh-4.75rem-184px)] max-sm:overflow-y-auto border border-border bg-surface p-4 shadow-2xl shadow-black/60"
+      className="atlas-popover absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/60"
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">Area by coordinates</p>
@@ -538,7 +542,7 @@ export function SelectionChip({
         <motion.div
           {...pop}
           key="selection"
-          className="flex max-w-[22rem] items-center gap-2 rounded-xl border border-accent/50 bg-bg/85 py-1 pl-3 pr-1 text-sm backdrop-blur-md"
+          className="flex max-w-[min(22rem,calc(100vw-1.5rem))] items-center gap-2 rounded-xl border border-accent/50 bg-bg/85 py-1 pl-3 pr-1 text-sm backdrop-blur-md"
         >
           <span className="h-2 w-2 shrink-0 rounded-[2px] border border-accent bg-accent/30" aria-hidden />
           <span className="min-w-0 truncate num" title={label}>

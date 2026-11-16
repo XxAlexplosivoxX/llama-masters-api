@@ -10,7 +10,7 @@ describe("against", () => {
   });
   it("never uses dashes", () => {
     for (const r of [0, 0.1, 0.62, 0.98, 1, 1.01, 1.31, 1.94, 1.95, 2.4, 10]) {
-      expect(against(r)).not.toMatch(/[—–]/);
+      expect(against(r)).not.toMatch(/[\u2014\u2013]/);
     }
   });
 });

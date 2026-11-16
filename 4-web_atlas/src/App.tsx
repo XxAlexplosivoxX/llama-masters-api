@@ -63,6 +63,24 @@ export function App() {
   const [mapOptions, setMapOptions] = useMapOptions();
   const [mapOnline, setMapOnline] = useState<boolean | null>(null);
   const drawer = useDrawerViewport(desktop, snap);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  // Phone menus are position:fixed inside this transformed bar, so they need its real height.
+  useEffect(() => {
+    const bar = toolbarRef.current;
+    if (!bar || desktop) return;
+    const root = bar.closest(".mobile-explorer");
+    if (!(root instanceof HTMLElement)) return;
+    const apply = () => {
+      root.style.setProperty("--atlas-toolbar-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(bar);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--atlas-toolbar-h");
+    };
+  }, [desktop]);
   const changeLayer = (next: MapLayer) => {
     explorer.pause();
     setLayer(next);
@@ -168,10 +186,11 @@ export function App() {
       initial={{ opacity: 0, y: -12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start gap-2 p-3 lg:p-4 [&>*]:pointer-events-auto ${desktop ? "" : "[visibility:var(--map-controls-visibility)]"}`}
+      ref={toolbarRef}
+      className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-start gap-2 p-3 max-sm:gap-1.5 max-sm:px-2 lg:p-4 [&>*]:pointer-events-auto ${desktop ? "" : "[visibility:var(--map-controls-visibility)]"}`}
       style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}
     >
-      <div className="order-1 flex gap-2">
+      <div className="order-1 flex min-w-0 items-center gap-2 max-sm:flex-1">
         <BrandLink />
         <PlaceSwitcher
           places={explorer.places}
@@ -182,7 +201,9 @@ export function App() {
           }}
         />
       </div>
-      <div className="order-2 ms-auto">
+      {/* On phones these stay one cluster, so a long country name truncates instead of dropping the icons. */}
+      <div className="pointer-events-auto contents max-sm:order-2 max-sm:ms-auto max-sm:flex max-sm:shrink-0 max-sm:items-center max-sm:gap-2">
+      <div className="pointer-events-auto order-2 ms-auto shrink-0 max-sm:order-none max-sm:ms-0">
         <DrawTools
           drawMode={drawMode}
           onDrawMode={setDrawMode}
@@ -194,15 +215,7 @@ export function App() {
           }}
         />
       </div>
-      {historyAvailable && layer === "history" && (
-        <div className="order-3 max-sm:order-5 max-sm:ms-auto">
-          <PlayButton explorer={explorer} onPlay={play} />
-        </div>
-      )}
-      <div className="order-4 max-sm:order-6">
-        <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
-      </div>
-      <div className="order-5 flex gap-2 max-sm:order-3">
+      <div className="pointer-events-auto order-5 flex shrink-0 gap-2 max-sm:order-none">
         <MapOptions
           explorer={explorer}
           hasTemps={!!(layer === "recent" ? explorer.recentTemps : explorer.temps)}
@@ -214,6 +227,15 @@ export function App() {
           }}
         />
         <TourButton onClick={startTour} />
+      </div>
+      </div>
+      {historyAvailable && layer === "history" && (
+        <div className="pointer-events-auto order-3 shrink-0 max-sm:order-5 max-sm:ms-auto">
+          <PlayButton explorer={explorer} onPlay={play} />
+        </div>
+      )}
+      <div className="pointer-events-auto order-4 shrink-0 max-sm:order-6">
+        <LayerSwitch layer={layer} onLayer={changeLayer} historyAvailable={historyAvailable} />
       </div>
       {desktop && !detailsOpen && (
         <div className="order-6">

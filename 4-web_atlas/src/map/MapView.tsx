@@ -303,7 +303,7 @@ export function MapView({
           <div
             key="loading"
             // Top middle, level with the toolbar; on phones the toolbar spans the top, so just below it.
-            className="pointer-events-none absolute left-1/2 top-[7.5rem] z-30 sm:top-[4.5rem] -translate-x-1/2 lg:top-4"
+            className="pointer-events-none absolute left-1/2 top-[calc(var(--atlas-toolbar-h,7.5rem)+0.5rem)] z-10 -translate-x-1/2 sm:top-[4.5rem] lg:top-4 lg:z-30"
           >
             <LoadingCard
               title={place ? `Loading ${place.label}` : "Loading"}
@@ -318,16 +318,16 @@ export function MapView({
           </div>
         )}
       </AnimatePresence>
-      <div className="pointer-events-none absolute left-1/2 top-[7.5rem] z-30 sm:top-[4.5rem] max-w-[calc(100%-24px)] -translate-x-1/2 lg:top-4">
+      <div className="pointer-events-none absolute left-1/2 top-[calc(var(--atlas-toolbar-h,7.5rem)+0.5rem)] z-10 max-w-[calc(100%-24px)] -translate-x-1/2 sm:top-[4.5rem] lg:top-4 lg:z-30">
         <MapCaption text={firstLoad ? null : caption} />
       </div>
       {failure && (
-        <p className="absolute inset-x-4 top-24 rounded-lg border border-border bg-surface p-3 text-sm text-muted">
+        <p className="absolute inset-x-4 top-[calc(var(--atlas-toolbar-h,6rem)+0.5rem)] z-10 rounded-lg border border-border bg-surface p-3 text-sm text-muted lg:top-24">
           The map could not start ({failure}). The calendar and charts still work.
         </p>
       )}
       {engine && !engine.online && (
-        <p className="absolute left-4 top-24 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted">
+        <p className="absolute left-4 right-4 top-[calc(var(--atlas-toolbar-h,6rem)+0.5rem)] z-10 max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted lg:right-auto lg:top-24">
           Basemap offline: showing data without streets and borders.
         </p>
       )}

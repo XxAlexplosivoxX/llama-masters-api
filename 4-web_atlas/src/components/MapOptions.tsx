@@ -105,7 +105,7 @@ export function MapOptions({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute right-0 top-full z-30 mt-2 grid w-[19.5rem] origin-top-right gap-3 rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/60 max-h-[calc(100dvh-10rem)] overflow-y-auto max-sm:fixed max-sm:inset-x-3 max-sm:top-auto max-sm:bottom-[184px] max-sm:z-50 max-sm:w-auto max-sm:mt-0 max-sm:max-h-[calc(100dvh-7.25rem-184px)]"
+            className="atlas-popover-bottom absolute right-0 top-full z-30 mt-2 grid max-h-[calc(100dvh-10rem)] w-[19.5rem] origin-top-right gap-3 overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-2xl shadow-black/60"
           >
             <div className="flex items-center justify-between gap-2">
               <p id={`${id}-title`} className="text-sm font-semibold">

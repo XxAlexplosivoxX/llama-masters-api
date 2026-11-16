@@ -52,9 +52,24 @@
   color: transparent;
 }
 
+.calendar-ramp {
+  background: linear-gradient(
+    90deg,
+    var(--color-heat-1),
+    var(--color-heat-2),
+    var(--color-heat-3),
+    var(--color-heat-4),
+    var(--color-heat-5),
+    var(--color-heat-6)
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .link {
+    transition: none;
   }
 }
 

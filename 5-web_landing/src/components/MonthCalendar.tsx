@@ -41,7 +41,17 @@ export function MonthCalendar({ months, label }: { months: number[]; label: stri
           );
         })}
       </ol>
-      <figcaption className="mt-4 text-sm text-muted">A typical year. Median hotspots in each month.</figcaption>
+      <figcaption className="mt-5 space-y-3 text-sm text-muted">
+        <div>
+          <div className="calendar-ramp h-2 w-full max-w-64 rounded-full" aria-hidden />
+          <p className="mb-0 mt-2">Darker purple: fewer hotspots in a typical month. Cream: more hotspots.</p>
+        </div>
+        <p className="m-0 flex items-start gap-2.5">
+          <span className="mt-1 h-3 w-3 shrink-0 rounded-sm ring-2 ring-heat-6" aria-hidden />
+          <span>The light ring and the Peak label mark the month with the most hotspots in that typical year.</span>
+        </p>
+        <p className="m-0">A typical year. Median hotspots in each month.</p>
+      </figcaption>
     </figure>
   );
 }

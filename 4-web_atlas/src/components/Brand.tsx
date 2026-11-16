@@ -1,22 +1,20 @@
 /** Tonalli's sun mark, the same one as the landing page (5-web_landing). */
 export function TonalliMark({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <circle cx="16" cy="16" r="9" className="fill-heat-4" />
-      <circle cx="16" cy="16" r="4.5" className="fill-heat-6" />
-      {Array.from({ length: 8 }, (_, i) => (
-        <line
-          key={i}
-          x1="16"
-          y1="2"
-          x2="16"
-          y2="5"
-          className="stroke-heat-5"
-          strokeWidth="2"
-          strokeLinecap="round"
-          transform={`rotate(${i * 45} 16 16)`}
-        />
-      ))}
+    <svg viewBox="0 0 128 128" className={className} aria-hidden>
+      <rect width="128" height="128" fill="#0B0F19" />
+      <g fill="#ED5E5E">
+        <rect x="72" y="12" width="8" height="16" />
+        <rect x="72" y="16" width="8" height="12" transform="rotate(-45 76 64)" />
+        <rect x="24" y="60" width="16" height="8" />
+        <rect x="72" y="16" width="8" height="12" transform="rotate(-135 76 64)" />
+        <rect x="72" y="100" width="8" height="16" />
+      </g>
+      <path
+        fill="#F3845A"
+        fillRule="evenodd"
+        d="M76 36a28 28 0 1 1 0 56a28 28 0 1 1 0-56Z M76 44a20 20 0 0 1 0 40Z"
+      />
     </svg>
   );
 }
@@ -29,8 +27,8 @@ export function BrandName() {
   );
 }
 
-/** The landing page (5-web_landing); the atlas itself is served at https://tonalli.earth/atlas/. */
-const LANDING = (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "https://tonalli.earth/";
+/** Same host as the atlas: `/` is the landing on tonalli.earth and on a local dev server. */
+const LANDING = (import.meta.env.VITE_LANDING_URL as string | undefined) ?? "/";
 
 /** Top-left name; links back to the landing page. */
 export function BrandLink() {
@@ -38,7 +36,7 @@ export function BrandLink() {
     <a
       href={LANDING}
       data-tour="brand"
-      className="seg min-h-[46px] items-center gap-2 !px-3 hover:text-text max-sm:w-[46px] max-sm:justify-center max-sm:!px-0"
+      className="seg min-h-[46px] shrink-0 items-center gap-2 !px-3 hover:text-text max-sm:w-[46px] max-sm:justify-center max-sm:!px-0"
       aria-label="Tonalli ATLAS: back to the home page"
       title="Back to the Tonalli home page"
     >

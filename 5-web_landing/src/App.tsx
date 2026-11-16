@@ -6,6 +6,7 @@ import { DataSources } from "./legal/DataSources";
 import { Privacy } from "./legal/Privacy";
 import { Terms } from "./legal/Terms";
 import { Calendar } from "./scenes/Calendar";
+import { Explain } from "./scenes/Explain";
 import { Fix } from "./scenes/Fix";
 import { Gap } from "./scenes/Gap";
 import { Hero } from "./scenes/Hero";
@@ -29,6 +30,7 @@ function Landing() {
       <Header />
       <main>
         <Hero />
+        <Explain />
         <Gap />
         <Fix />
         <Calendar />

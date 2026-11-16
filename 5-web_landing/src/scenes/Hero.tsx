@@ -32,10 +32,13 @@ export function Hero() {
             {places ? `${places.length} countries` : "every country"}.
           </p>
         </Rise>
-        <Rise delay={0.24} className="mt-10 flex flex-wrap items-center gap-x-7 gap-y-4">
+        <Rise
+          delay={0.24}
+          className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-7"
+        >
           <AtlasLink />
-          <a href="#gap" className="link text-base">
-            Why it took 26 years
+          <a href="#how" className="link text-base">
+            What it does
           </a>
         </Rise>
         {points.length > 0 && (

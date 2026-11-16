@@ -148,7 +148,7 @@ function MonthField({ label, startYear, value, min, max, align = "left", onChang
             {...pop}
             role="dialog"
             aria-label={`${label} month`}
-            className={`absolute top-full z-30 mt-2 w-64 rounded-xl border border-border bg-surface p-3 shadow-2xl shadow-black/60 ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"}`}
+            className={`absolute top-full z-30 mt-2 w-64 max-w-[calc(100vw-2.5rem)] rounded-xl border border-border bg-surface p-3 shadow-2xl shadow-black/60 ${align === "right" ? "right-0 origin-top-right" : "left-0 origin-top-left"}`}
           >
             <div className="mb-2 flex items-center justify-between">
               <button

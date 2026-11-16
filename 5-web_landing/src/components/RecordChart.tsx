@@ -100,13 +100,16 @@ export function RecordChart({
 
   return (
     <figure className="m-0">
-      <div
-        className="mb-3 flex min-h-12 flex-wrap items-end justify-between gap-x-6 gap-y-2 text-sm"
-        aria-hidden="true"
-      >
+      <div className="mb-3 flex min-h-12 flex-wrap items-end justify-between gap-x-6 gap-y-2 text-sm">
         <div className="flex flex-wrap gap-x-5 gap-y-1">
           <Key colour="bg-modis" text="MODIS as detected" value={shown?.modis} />
           <Key colour="bg-heat-4" text="One record, VIIRS scale" value={shown?.harmonized} />
+          {g.band && (
+            <span className="inline-flex items-center gap-2 text-muted">
+              <span className="h-3 w-5 shrink-0 rounded-sm bg-heat-4/20" aria-hidden />
+              Pale band: p10 to p90 uncertainty for years rebuilt from MODIS.
+            </span>
+          )}
         </div>
         <span className="tabular-nums text-muted">{shown ? shown.year : ""}</span>
       </div>
@@ -193,7 +196,7 @@ export function RecordChart({
 function Key({ colour, text, value }: { colour: string; text: string; value?: number }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <span className={`h-2.5 w-2.5 rounded-full ${colour}`} />
+      <span className={`h-0.5 w-5 shrink-0 ${colour}`} aria-hidden />
       <span className="text-muted">{text}</span>
       {value !== undefined && <span className="font-semibold tabular-nums">{short(value)}</span>}
     </span>

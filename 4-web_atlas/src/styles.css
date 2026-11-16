@@ -379,6 +379,45 @@ input.timeline::-moz-range-thumb {
   bottom: var(--drawer-height);
 }
 
+/* Phone menus are pinned to the screen. The toolbar is transformed, so fixed
+   is relative to that bar; --atlas-toolbar-h is its measured height. */
+@media (max-width: 639px) {
+  .atlas-popover,
+  .atlas-popover-end,
+  .atlas-popover-bottom {
+    position: fixed;
+    z-index: 50;
+    margin-top: 0;
+    max-width: none;
+  }
+  .atlas-popover {
+    left: 0.75rem;
+    right: 0.75rem;
+    top: calc(var(--atlas-toolbar-h, 7.75rem) + 0.5rem);
+    width: auto;
+    height: auto;
+    max-height: min(32rem, calc(100dvh - var(--atlas-toolbar-h, 7.75rem) - 12.5rem));
+    overflow-y: auto;
+  }
+  .atlas-popover-end {
+    right: 0.75rem;
+    left: auto;
+    top: calc(var(--atlas-toolbar-h, 7.75rem) + 0.5rem);
+    width: min(16rem, calc(100vw - 1.5rem));
+    max-height: min(24rem, calc(100dvh - var(--atlas-toolbar-h, 7.75rem) - 12.5rem));
+    overflow-y: auto;
+  }
+  .atlas-popover-bottom {
+    left: 0.75rem;
+    right: 0.75rem;
+    top: auto;
+    bottom: calc(168px + 1rem);
+    width: auto;
+    max-height: min(32rem, calc(100dvh - var(--atlas-toolbar-h, 7.75rem) - 12.5rem));
+    overflow-y: auto;
+  }
+}
+
 .chart-tabs {
   display: flex;
   width: 100%;

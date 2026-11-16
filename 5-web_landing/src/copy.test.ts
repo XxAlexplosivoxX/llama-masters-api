@@ -1,9 +1,10 @@
 /// <reference types="node" />
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vite-plus/test";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SRC = join(ROOT, "src");
 
 function walk(dir: string): string[] {
@@ -13,7 +14,7 @@ function walk(dir: string): string[] {
   });
 }
 const rel = (p: string) => relative(ROOT, p);
-const files = walk(SRC).filter((p) => !/\.test\.tsx?$/.test(p) && !p.startsWith(join(SRC, "test") + "/"));
+const files = walk(SRC).filter((p) => !/\.test\.tsx?$/.test(p) && !/^test[\\/]/.test(relative(SRC, p)));
 const sources = files.map((p) => ({ path: rel(p), text: readFileSync(p, "utf8") }));
 const tsx = sources.filter((s) => s.path.endsWith(".tsx"));
 const index = { path: "index.html", text: readFileSync(join(ROOT, "index.html"), "utf8") };
@@ -26,7 +27,7 @@ describe("copy", () => {
     expect(sources.length).toBeGreaterThan(10);
   });
   it("uses no em or en dashes", () => {
-    expect(offenders([...sources, index], /[—–]/)).toEqual([]);
+    expect(offenders([...sources, index], /[\u2014\u2013]/)).toEqual([]);
   });
 });
 

@@ -128,8 +128,8 @@ export function Legend({
       className={`pointer-events-auto w-72 max-w-full rounded-xl border border-border bg-bg/85 px-4 backdrop-blur-md ${compact ? "py-3" : "py-5"}`}
     >
       {/* Plain text: playback changes the month up to 16 times a second, faster than any cross-fade. */}
-      <div className="num flex items-center justify-between gap-2 text-sm font-semibold">
-        <span className="min-w-0">
+      <div className="num flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-sm font-semibold">
+        <span className="min-w-0 leading-snug">
           {temperature ? "Temperature" : "Hotspots"} · {title}
         </span>
         {compact && (
